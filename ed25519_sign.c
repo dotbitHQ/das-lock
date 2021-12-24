@@ -4635,6 +4635,16 @@ __attribute__((visibility("default"))) int validate(int type, unsigned char* mes
 	debug_print("Enter ed25519 validate");
 	debug_print_int("type: ", type);
 
+	uint8_t ed25519_prefix[27];
+	ed25519_prefix[0] = 0x18;
+	memcpy(ed25519_prefix + 1, "Ed25519 Signed Message:\n32", 26);
+
+	SHA3_CTX sha3_ctx;
+	keccak_init(&sha3_ctx);
+	keccak_update(&sha3_ctx, ed25519_prefix, 27);
+	keccak_update(&sha3_ctx, message, 32);
+	keccak_final(&sha3_ctx, message);
+
 	/* verify signature with peronsal hash */
 	return verify_signature(message, lock_bytes, args);
 }
