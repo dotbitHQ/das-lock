@@ -16,7 +16,7 @@
 
 #define RISCV_PGSIZE 4096
 
-#define DAS_ARGS_LEN 42
+#define DAS_ARGS_MAX_LEN 66
 #define FLAGS_SIZE 4
 
 #define DAS_PURE_LOCK_CELL 10000

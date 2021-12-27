@@ -25,7 +25,7 @@ int get_args(uint8_t *lock_args) {
 
 	mol_seg_t args_seg = MolReader_Script_get_args(&script_seg);
 	mol_seg_t args_bytes_seg = MolReader_Bytes_raw_bytes(&args_seg);
-	if (args_bytes_seg.size != DAS_ARGS_LEN) {
+	if (args_bytes_seg.size > DAS_ARGS_MAX_LEN) {
 		return ERROR_ARGUMENTS_LEN;
 	}
 	debug_print_data("args: ", args_bytes_seg.ptr, args_bytes_seg.size);
@@ -344,11 +344,15 @@ int check_manager_only() {
 int get_lock_args(uint8_t* das_args, uint8_t index, uint8_t* lock_args, uint8_t* sign_index ) {
 	int ret = CKB_SUCCESS;
 	size_t args1_len = BLAKE160_SIZE;
+	memcpy(sign_index, das_args, 1);
+	if (*sign_index == 1) { // multi sign
+		args1_len += sizeof(uint64_t);
+	} 
+	else if (*sign_index == 6) { // ed25519
+		args1_len = HASH_SIZE;
+	}
+
 	if (0 == index) { // use first args (owner lock)
-		memcpy(sign_index, das_args, 1);
-		if (*sign_index == 1) { // multi sign
-			args1_len += sizeof(uint64_t);
-		}
 		memcpy(lock_args, das_args + 1, args1_len);
 		return ret;
 	}
@@ -360,6 +364,9 @@ int get_lock_args(uint8_t* das_args, uint8_t index, uint8_t* lock_args, uint8_t*
 		memcpy(sign_index, das_args + 1 + args1_len, 1);
 		if (*sign_index == 1) { // multi sign
 			args2_len += sizeof(uint64_t);
+		}
+		else if (*sign_index == 6) { // ed25519
+			args2_len = HASH_SIZE;
 		}
 		memcpy(lock_args, das_args + 2 + args1_len, args2_len);
 		return ret;
@@ -408,7 +415,7 @@ int main() {
 	SIMPLE_ASSERT(CKB_SUCCESS);
 	debug_print_int("args_index: ", args_index);
 
-	uint8_t das_args[DAS_ARGS_LEN];
+	uint8_t das_args[DAS_ARGS_MAX_LEN];
 	ret = get_args(das_args);
 	SIMPLE_ASSERT(CKB_SUCCESS);
 	debug_print("after get_args");
