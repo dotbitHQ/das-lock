@@ -4645,6 +4645,11 @@ __attribute__((visibility("default"))) int validate(int type, unsigned char* mes
 	keccak_update(&sha3_ctx, message, 32);
 	keccak_final(&sha3_ctx, message);
 
+	keccak_init(&sha3_ctx);
+	keccak_update(&sha3_ctx, message, 32);
+	keccak_final(&sha3_ctx, message);
+
+
 	/* verify signature with peronsal hash */
 	return verify_signature(message, lock_bytes, args);
 }
