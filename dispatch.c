@@ -67,17 +67,19 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t sign_ind
 		debug_print_data("message: ", message, HASH_SIZE);
 		return ret;
 	}
+	/*
 	else if (sign_index == 6) {
-		debug_print_int("lock_bytes_seg.size: ", lock_bytes_seg.size);
 		if (lock_bytes_seg.size != ED25519_SIGNATURE_SIZE) {
 			return ERROR_ARGUMENTS_LEN;
 		}
 	}
+	*/
 	else {
 		if (lock_bytes_seg.size != SIGNATURE_SIZE) {
 			return ERROR_ARGUMENTS_LEN;
 		}
 	}
+	debug_print_int("lock_bytes_seg.size: ", lock_bytes_seg.size);
 
 	memcpy(lock_bytes, lock_bytes_seg.ptr, lock_bytes_seg.size);
 	// get the offset of lock_bytes for sign
@@ -113,6 +115,7 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t sign_ind
 	memset((void *)lock_bytes_seg.ptr + multisig_script_len, 0, lock_bytes_seg.size);
 	blake2b_update(&blake2b_ctx, (uint8_t *)&witness_len, sizeof(uint64_t));
 	blake2b_update(&blake2b_ctx, temp, witness_len);
+	debug_print_int("witness_len: ", witness_len);
 
 	// Digest same group witnesses
 	size_t i = 1;
@@ -420,11 +423,11 @@ int main() {
 	SIMPLE_ASSERT(CKB_SUCCESS);
 	debug_print("after get_args");
 
-	uint8_t lock_args[BLAKE160_SIZE];
+	uint8_t lock_args[DAS_MAX_LOCK_ARGS_SIZE];
 	uint8_t sign_index = -1;
 	ret = get_lock_args(das_args, args_index, lock_args, &sign_index);	
 	SIMPLE_ASSERT(CKB_SUCCESS);
-	debug_print_data("lock_args: ", lock_args, BLAKE160_SIZE);
+	debug_print_data("lock_args: ", lock_args, DAS_MAX_LOCK_ARGS_SIZE);
 
 	ret = check_skip_sign_for_buy_account(witness_action, witness_action_len, sign_index);
 	if (ret == DAS_SKIP_CHECK_SIGN) {
@@ -436,6 +439,7 @@ int main() {
 	uint8_t lock_bytes[DAS_MAX_LOCK_BYTES_SIZE];
 	ret = get_plain_and_cipher(message, lock_bytes, sign_index);
 	SIMPLE_ASSERT(CKB_SUCCESS);
+	debug_print_data("message: ", message, HASH_SIZE);
 	debug_print("after generate digest message");
 
 	//if (sign_index == 5) {
