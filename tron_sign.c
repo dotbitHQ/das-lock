@@ -68,6 +68,10 @@ __attribute__((visibility("default"))) int validate(int type, uint8_t* message, 
 
 	keccak_update(&sha3_ctx, tron_prefix, 24);
 	keccak_update(&sha3_ctx, message, 32);
+
+	uint8_t for_compatible[1];
+	for_compatible[0] = 0x4;
+	keccak_update(&sha3_ctx, for_compatible, 1);
 	keccak_final(&sha3_ctx, message);
 
 	/* verify signature with peronsal hash */
