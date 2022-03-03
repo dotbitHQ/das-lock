@@ -35,7 +35,7 @@ int get_args(uint8_t *lock_args) {
 	return CKB_SUCCESS;
 }
 
-int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t sign_index) {
+int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) {
 
 	debug_print("Enter get_plain_and_cipher");
 	int ret = 0;
@@ -55,8 +55,8 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t sign_ind
 	ret = extract_witness_lock(temp, witness_len, &lock_bytes_seg);
 	NORMAL_ASSERT(CKB_SUCCESS, ERROR_ENCODING);
 
-	debug_print_int("sign_index: ", sign_index);
-	if (sign_index == 5) { // eip712
+	debug_print_int("alg_id: ", alg_id);
+	if (alg_id == 5) { // eip712
 		debug_print_int("lock_bytes_seg.size: ", lock_bytes_seg.size);
 		if (lock_bytes_seg.size != SIGNATURE_SIZE + HASH_SIZE + CHAIN_ID_LEN) {
 			return ERROR_ARGUMENTS_LEN;
@@ -68,7 +68,7 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t sign_ind
 		return ret;
 	}
 	/*
-	else if (sign_index == 6) {
+	else if (alg_id == 6) {
 		if (lock_bytes_seg.size != ED25519_SIGNATURE_SIZE) {
 			return ERROR_ARGUMENTS_LEN;
 		}
@@ -84,7 +84,7 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t sign_ind
 	memcpy(lock_bytes, lock_bytes_seg.ptr, lock_bytes_seg.size);
 	// get the offset of lock_bytes for sign
 	size_t multisig_script_len = 0;
-	if (sign_index == 1) {
+	if (alg_id == 1) {
 		uint8_t pubkeys_cnt = lock_bytes[3];
 		multisig_script_len = FLAGS_SIZE + BLAKE160_SIZE * pubkeys_cnt;
 
@@ -144,10 +144,10 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t sign_ind
 }
 
 int get_lock_args_index(uint8_t* temp, uint8_t len, uint8_t* index) {
-	int ret = 0;	
+	int ret = 0;
 	// 0x646173
 	if (len >= 3 && memcmp(temp, "das", 3) != 0) {
-		return ERR_DAS_PREFIX_NOT_MATCH; 
+		return ERR_DAS_PREFIX_NOT_MATCH;
 	}
 	*index = temp[len - 1];
 	return ret;
@@ -243,8 +243,7 @@ int check_cmd_match(uint8_t* temp, uint64_t* temp_len, int type) {
 		debug_print_int("standard_str_len: ", standard_str_len);
 		if (standard_str_len == action_from_wit_len && memcmp(action_from_wit, standard_str, standard_str_len) == 0) {
 			debug_print("match success");
-			
-			return DAS_CMD_MATCH; 
+			return DAS_CMD_MATCH;
 		}
 	}
 	return DAS_CMD_NOT_MATCH;
@@ -293,10 +292,10 @@ int check_has_pure_type_script() {
 	return ret;
 }
 
-int check_skip_sign_for_buy_account(uint8_t* temp, uint64_t len, uint64_t sign_index) {
+int check_skip_sign_for_buy_account(uint8_t* temp, uint64_t len, uint64_t alg_id) {
 	debug_print("Enter check_skip_sign_for_buy_account");
-	debug_print_int("sign_index: ", sign_index);
-	if (sign_index != 5) {
+	debug_print_int("alg_id: ", alg_id);
+	if (alg_id != 5) {
 		return DAS_NOT_SKIP_CHECK_SIGN;
 	}
     uint64_t script_index = 0xFFFFFFFFFFFFFFFF;
@@ -344,14 +343,14 @@ int check_manager_only() {
 	return ret;
 }
 
-int get_lock_args(uint8_t* das_args, uint8_t index, uint8_t* lock_args, uint8_t* sign_index ) {
+int get_lock_args(uint8_t* temp, uint8_t* das_args, uint8_t index, uint8_t* lock_args, uint8_t* alg_id ) {
 	int ret = CKB_SUCCESS;
 	size_t args1_len = BLAKE160_SIZE;
-	memcpy(sign_index, das_args, 1);
-	if (*sign_index == 1) { // multi sign
+	memcpy(alg_id, das_args, 1);
+	if (*alg_id == 1) { // multi sign
 		args1_len += sizeof(uint64_t);
-	} 
-	else if (*sign_index == 6) { // ed25519
+	}
+	else if (*alg_id == 6) { // ed25519
 		args1_len = HASH_SIZE;
 	}
 
@@ -364,11 +363,11 @@ int get_lock_args(uint8_t* das_args, uint8_t index, uint8_t* lock_args, uint8_t*
 			return ERR_DAS_INVALID_PERMISSION;
 		}
 		size_t args2_len = BLAKE160_SIZE;
-		memcpy(sign_index, das_args + 1 + args1_len, 1);
-		if (*sign_index == 1) { // multi sign
+		memcpy(alg_id, das_args + 1 + args1_len, 1);
+		if (*alg_id == 1) { // multi sign
 			args2_len += sizeof(uint64_t);
 		}
-		else if (*sign_index == 6) { // ed25519
+		else if (*alg_id == 6) { // ed25519
 			args2_len = HASH_SIZE;
 		}
 		memcpy(lock_args, das_args + 2 + args1_len, args2_len);
@@ -378,6 +377,25 @@ int get_lock_args(uint8_t* das_args, uint8_t index, uint8_t* lock_args, uint8_t*
 		debug_print("only support owner and manager");
 		return ERR_DAS_INDEX_NOT_FOUND;
 	}
+
+    // downgrade alg id when do something with sub account
+	if (*alg_id == 5) {
+        uint8_t action_from_wit[1000];
+        size_t action_from_wit_len;
+        size_t len;
+        ret = get_action_from_witness(temp, &len, action_from_wit, &action_from_wit_len);
+        SIMPLE_ASSERT(CKB_SUCCESS);
+
+        debug_print_data("action_from_wit: ", action_from_wit, action_from_wit_len);
+        char* standard_str0 = "enable_sub_account";
+        char* standard_str1 = "create_sub_account";
+        size_t standard_str0_len = strlen(standard_str0);
+        size_t standard_str1_len = strlen(standard_str1);
+        if (memcmp(action_from_wit, standard_str0, standard_str0_len) == 0 || memcmp(action_from_wit, standard_str1, standard_str1_len) == 0 ) {
+            debug_print("change the alg id from 5 to 3");
+            *alg_id = 3;
+        }
+    }
 }
 
 int get_code_hash(uint8_t index, uint8_t* code_hash) {
@@ -424,29 +442,26 @@ int main() {
 	debug_print("after get_args");
 
 	uint8_t lock_args[DAS_MAX_LOCK_ARGS_SIZE];
-	uint8_t sign_index = -1;
-	ret = get_lock_args(das_args, args_index, lock_args, &sign_index);	
+	uint8_t alg_id = -1;
+	ret = get_lock_args(witness_action, das_args, args_index, lock_args, &alg_id);
 	SIMPLE_ASSERT(CKB_SUCCESS);
 	debug_print_data("lock_args: ", lock_args, DAS_MAX_LOCK_ARGS_SIZE);
 
-	ret = check_skip_sign_for_buy_account(witness_action, witness_action_len, sign_index);
+	ret = check_skip_sign_for_buy_account(witness_action, witness_action_len, alg_id);
 	if (ret == DAS_SKIP_CHECK_SIGN) {
 		return CKB_SUCCESS;
 	}
 	SIMPLE_ASSERT(DAS_NOT_SKIP_CHECK_SIGN);
-		
+
 	uint8_t message[HASH_SIZE];
 	uint8_t lock_bytes[DAS_MAX_LOCK_BYTES_SIZE];
-	ret = get_plain_and_cipher(message, lock_bytes, sign_index);
+	ret = get_plain_and_cipher(message, lock_bytes, alg_id);
 	SIMPLE_ASSERT(CKB_SUCCESS);
 	debug_print_data("message: ", message, HASH_SIZE);
 	debug_print("after generate digest message");
 
-	//if (sign_index == 5) {
-	//	return verify_signature(message, lock_bytes, lock_args);
-	//}
 	uint8_t code_so[HASH_SIZE];
-	ret = get_code_hash(sign_index, code_so);
+	ret = get_code_hash(alg_id, code_so);
 	SIMPLE_ASSERT(CKB_SUCCESS);
 	debug_print_data("code so: ", code_so, HASH_SIZE);
 
@@ -465,7 +480,7 @@ int main() {
 	}
 
 	int type = 0;
-	if (sign_index == 5) {
+	if (alg_id == 5) {
 		type = 1;
 	}
 	return validate_func(type, message, lock_bytes, lock_args);
