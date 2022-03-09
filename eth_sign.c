@@ -76,3 +76,34 @@ __attribute__((visibility("default"))) int validate(int type, uint8_t* message, 
 	/* verify signature with peronsal hash */
 	return verify_signature(message, lock_bytes, eth_address);
 }
+
+
+__attribute__((visibility("default"))) int validate_str(int type, uint8_t* message, size_t message_len, uint8_t* lock_bytes, uint8_t* eth_address) {
+
+	debug_print("Enter validate_str");
+	debug_print_data("digest before keccak with eth prefix: ", message, message_len);
+	debug_print_int("type: ", type);
+	debug_print_int("message_len: ", message_len);
+	if (type == 1) { // eip712
+		return verify_signature(message, lock_bytes, eth_address);
+	}
+    uint8_t eth_prefix[50];
+    eth_prefix[0] = 0x19;
+    memcpy(eth_prefix + 1, "Ethereum Signed Message:\n", 25);
+    uint8_t len_str[10];
+    int2str(message_len, len_str);
+    size_t len_str_len = strlen((const char*)len_str);
+    debug_print_data("len_str: ", len_str, len_str_len);
+    debug_print_int("len_str_len: ", len_str_len);
+    memcpy(eth_prefix + 26, len_str, len_str_len);
+
+    SHA3_CTX sha3_ctx;
+    keccak_init(&sha3_ctx);
+    keccak_update(&sha3_ctx, eth_prefix, 26 + len_str_len);
+    keccak_update(&sha3_ctx, message, message_len);
+    keccak_final(&sha3_ctx, message);
+
+    /* verify signature with peronsal hash */
+    return verify_signature(message, lock_bytes, eth_address);
+
+}
