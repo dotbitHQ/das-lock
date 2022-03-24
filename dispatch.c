@@ -153,7 +153,7 @@ int get_lock_args_index(uint8_t* temp, uint8_t len, uint8_t* index) {
 	return ret;
 }
 
-int get_action_from_witness(uint8_t* temp, uint64_t* temp_len, uint8_t* action, uint64_t* action_len) {
+int get_action_from_witness(uint8_t* temp, uint8_t* action, uint64_t* action_len) {
 	debug_print("Enter get_action_from_witness");
 	int ret = CKB_SUCCESS;
 	int pre_len = 19;
@@ -164,7 +164,6 @@ int get_action_from_witness(uint8_t* temp, uint64_t* temp_len, uint8_t* action, 
 	*action_len = big_endian_hex_str2int(action_len_buf, action_len_len);
 	memcpy(action, temp + pre_len + action_len_len, *action_len);
 
-	//debug_print_data("temp: ", temp, *temp_len);
 	debug_print_data("action: ", action, *action_len);
 	debug_print_int("action_len: ", *action_len);
 	return ret;
@@ -206,16 +205,13 @@ int get_self_index_in_inputs(uint64_t* index) {
 	return CKB_SUCCESS;
 }
 
-int check_cmd_match(uint8_t* temp, uint64_t* temp_len, int type) {
+int check_cmd_match(uint8_t* temp, int type) {
 	debug_print("Enter check_cmd_match");
 	int ret = CKB_SUCCESS;
-	size_t i = calculate_inputs_len();
-	ret = ckb_load_witness(temp, temp_len, 0, i, CKB_SOURCE_INPUT);
-	SIMPLE_ASSERT(CKB_SUCCESS);
 
 	uint8_t action_from_wit[1000];
 	size_t action_from_wit_len;
-	ret = get_action_from_witness(temp, temp_len, action_from_wit, &action_from_wit_len);
+	ret = get_action_from_witness(temp, action_from_wit, &action_from_wit_len);
 	SIMPLE_ASSERT(CKB_SUCCESS);
 	// 0x646173
 	char* skip_str[] = {
@@ -239,7 +235,6 @@ int check_cmd_match(uint8_t* temp, uint64_t* temp_len, int type) {
 		size_t standard_str_len = strlen(standard_str);
 		//uint8_t for_cmp[standard_str_len];
 		//hex2str(standard_str, for_cmp);
-		//debug_print_int("temp_len: ", *temp_len);
 		debug_print_int("standard_str_len: ", standard_str_len);
 		if (standard_str_len == action_from_wit_len && memcmp(action_from_wit, standard_str, standard_str_len) == 0) {
 			debug_print("match success");
@@ -292,7 +287,7 @@ int check_has_pure_type_script() {
 	return ret;
 }
 
-int check_skip_sign_for_buy_account(uint8_t* temp, uint64_t len, uint64_t alg_id) {
+int check_skip_sign_for_buy_account(uint8_t* temp, uint64_t alg_id) {
 	debug_print("Enter check_skip_sign_for_buy_account");
 	debug_print_int("alg_id: ", alg_id);
 	if (alg_id != 5) {
@@ -310,7 +305,7 @@ int check_skip_sign_for_buy_account(uint8_t* temp, uint64_t len, uint64_t alg_id
 
 	uint8_t action_from_wit[1000];
 	size_t action_from_wit_len;
-	ret = get_action_from_witness(temp, &len, action_from_wit, &action_from_wit_len);
+	ret = get_action_from_witness(temp, action_from_wit, &action_from_wit_len);
 	SIMPLE_ASSERT(CKB_SUCCESS);
 
 	debug_print_data("action_from_wit: ", action_from_wit, action_from_wit_len);
@@ -323,7 +318,7 @@ int check_skip_sign_for_buy_account(uint8_t* temp, uint64_t len, uint64_t alg_id
 	return DAS_NOT_SKIP_CHECK_SIGN;
 }
 
-int check_skip_sign(uint8_t* temp, uint64_t* temp_len) {
+int check_skip_sign(uint8_t* temp) {
 	debug_print("Enter check_skip_sign");
 	int ret = CKB_SUCCESS;
 	ret = check_has_pure_type_script();
@@ -331,19 +326,19 @@ int check_skip_sign(uint8_t* temp, uint64_t* temp_len) {
 		return DAS_NOT_SKIP_CHECK_SIGN;
 	}
 
-	ret = check_cmd_match(temp, temp_len, SKIP_CMD);
+	ret = check_cmd_match(temp, SKIP_CMD);
 	return ret == DAS_CMD_MATCH ? DAS_SKIP_CHECK_SIGN : DAS_NOT_SKIP_CHECK_SIGN;
 }
 
 int check_manager_only() {
 	debug_print("Enter check_manager_only");
 	uint8_t temp[MAX_WITNESS_SIZE];
-	uint64_t temp_len = MAX_WITNESS_SIZE;
-	int ret = check_cmd_match(temp, &temp_len, MANAGER_ONLY_CMD);
+	int ret = check_cmd_match(temp, MANAGER_ONLY_CMD);
 	return ret;
 }
 
 int get_lock_args(uint8_t* temp, uint8_t* das_args, uint8_t index, uint8_t* lock_args, uint8_t* alg_id ) {
+	debug_print("Enter get_lock_args");
 	int ret = CKB_SUCCESS;
 	size_t args1_len = BLAKE160_SIZE;
 	memcpy(alg_id, das_args, 1);
@@ -352,7 +347,24 @@ int get_lock_args(uint8_t* temp, uint8_t* das_args, uint8_t index, uint8_t* lock
 	}
 	else if (*alg_id == 6) { // ed25519
 		args1_len = HASH_SIZE;
-	}
+	} 
+	else if (*alg_id == 5) {
+		debug_print("downgrade alg_id");
+        uint8_t action_from_wit[1000];
+        size_t action_from_wit_len;
+        ret = get_action_from_witness(temp, action_from_wit, &action_from_wit_len);
+        SIMPLE_ASSERT(CKB_SUCCESS);
+
+        debug_print_data("for downgrade, action_from_wit: ", action_from_wit, action_from_wit_len);
+        char* standard_str0 = "enable_sub_account";
+        char* standard_str1 = "create_sub_account";
+        size_t standard_str0_len = strlen(standard_str0);
+        size_t standard_str1_len = strlen(standard_str1);
+        if (memcmp(action_from_wit, standard_str0, standard_str0_len) == 0 || memcmp(action_from_wit, standard_str1, standard_str1_len) == 0 ) {
+            debug_print("change the alg id from 5 to 3");
+            *alg_id = 3;
+        }
+    }
 
 	if (0 == index) { // use first args (owner lock)
 		memcpy(lock_args, das_args + 1, args1_len);
@@ -378,24 +390,6 @@ int get_lock_args(uint8_t* temp, uint8_t* das_args, uint8_t index, uint8_t* lock
 		return ERR_DAS_INDEX_NOT_FOUND;
 	}
 
-    // downgrade alg id when do something with sub account
-	if (*alg_id == 5) {
-        uint8_t action_from_wit[1000];
-        size_t action_from_wit_len;
-        size_t len;
-        ret = get_action_from_witness(temp, &len, action_from_wit, &action_from_wit_len);
-        SIMPLE_ASSERT(CKB_SUCCESS);
-
-        debug_print_data("action_from_wit: ", action_from_wit, action_from_wit_len);
-        char* standard_str0 = "enable_sub_account";
-        char* standard_str1 = "create_sub_account";
-        size_t standard_str0_len = strlen(standard_str0);
-        size_t standard_str1_len = strlen(standard_str1);
-        if (memcmp(action_from_wit, standard_str0, standard_str0_len) == 0 || memcmp(action_from_wit, standard_str1, standard_str1_len) == 0 ) {
-            debug_print("change the alg id from 5 to 3");
-            *alg_id = 3;
-        }
-    }
 }
 
 int get_code_hash(uint8_t index, uint8_t* code_hash) {
@@ -425,7 +419,11 @@ int main() {
 
 	uint8_t witness_action[MAX_WITNESS_SIZE];
 	uint64_t witness_action_len = MAX_WITNESS_SIZE;
-	ret = check_skip_sign(witness_action, &witness_action_len);
+	size_t i = calculate_inputs_len();
+	ret = ckb_load_witness(witness_action, &witness_action_len, 0, i, CKB_SOURCE_INPUT);
+	SIMPLE_ASSERT(CKB_SUCCESS);
+
+	ret = check_skip_sign(witness_action);
 	if (ret == DAS_SKIP_CHECK_SIGN) {
 		return CKB_SUCCESS;
 	}
@@ -447,7 +445,7 @@ int main() {
 	SIMPLE_ASSERT(CKB_SUCCESS);
 	debug_print_data("lock_args: ", lock_args, DAS_MAX_LOCK_ARGS_SIZE);
 
-	ret = check_skip_sign_for_buy_account(witness_action, witness_action_len, alg_id);
+	ret = check_skip_sign_for_buy_account(witness_action, alg_id);
 	if (ret == DAS_SKIP_CHECK_SIGN) {
 		return CKB_SUCCESS;
 	}
