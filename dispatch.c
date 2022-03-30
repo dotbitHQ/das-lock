@@ -330,25 +330,15 @@ int check_skip_sign(uint8_t* temp) {
 	return ret == DAS_CMD_MATCH ? DAS_SKIP_CHECK_SIGN : DAS_NOT_SKIP_CHECK_SIGN;
 }
 
-int check_manager_only() {
+int check_manager_only(uint8_t* temp) {
 	debug_print("Enter check_manager_only");
-	uint8_t temp[MAX_WITNESS_SIZE];
 	int ret = check_cmd_match(temp, MANAGER_ONLY_CMD);
 	return ret;
 }
 
-int get_lock_args(uint8_t* temp, uint8_t* das_args, uint8_t index, uint8_t* lock_args, uint8_t* alg_id ) {
-	debug_print("Enter get_lock_args");
+int check_and_downgrade_alg_id(uint8_t* temp, uint8_t* alg_id) {
 	int ret = CKB_SUCCESS;
-	size_t args1_len = BLAKE160_SIZE;
-	memcpy(alg_id, das_args, 1);
-	if (*alg_id == 1) { // multi sign
-		args1_len += sizeof(uint64_t);
-	}
-	else if (*alg_id == 6) { // ed25519
-		args1_len = HASH_SIZE;
-	} 
-	else if (*alg_id == 5) {
+	if (*alg_id == 5) {
 		debug_print("downgrade alg_id");
         uint8_t action_from_wit[1000];
         size_t action_from_wit_len;
@@ -362,8 +352,29 @@ int get_lock_args(uint8_t* temp, uint8_t* das_args, uint8_t index, uint8_t* lock
         size_t standard_str1_len = strlen(standard_str1);
         if (memcmp(action_from_wit, standard_str0, standard_str0_len) == 0 || memcmp(action_from_wit, standard_str1, standard_str1_len) == 0 ) {
             debug_print("change the alg id from 5 to 3");
-            *alg_id = 3;
+			/*
+			uint8_t alg_id3[1];
+			alg_id3[0] = 0x03;
+			memcpy(alg_id, alg_id3, 1);
+			*/
+			*alg_id = 3;
         }
+    }
+	return CKB_SUCCESS;
+}
+int get_lock_args(uint8_t* temp, uint8_t* das_args, uint8_t index, uint8_t* lock_args, uint8_t* alg_id ) {
+	debug_print("Enter get_lock_args");
+	int ret = CKB_SUCCESS;
+	size_t args1_len = BLAKE160_SIZE;
+	memcpy(alg_id, das_args, 1);
+	if (*alg_id == 1) { // multi sign
+		args1_len += sizeof(uint64_t);
+	}
+	else if (*alg_id == 6) { // ed25519
+		args1_len = HASH_SIZE;
+	} 
+	else if (*alg_id == 5) {
+		check_and_downgrade_alg_id(temp, alg_id);
     }
 
 	if (0 == index) { // use first args (owner lock)
@@ -371,7 +382,7 @@ int get_lock_args(uint8_t* temp, uint8_t* das_args, uint8_t index, uint8_t* lock
 		return ret;
 	}
 	else if (1 == index) { // use second args (manager lock)
-		if (check_manager_only() != DAS_CMD_MATCH) {
+		if (check_manager_only(temp) != DAS_CMD_MATCH) {
 			return ERR_DAS_INVALID_PERMISSION;
 		}
 		size_t args2_len = BLAKE160_SIZE;
@@ -381,6 +392,9 @@ int get_lock_args(uint8_t* temp, uint8_t* das_args, uint8_t index, uint8_t* lock
 		}
 		else if (*alg_id == 6) { // ed25519
 			args2_len = HASH_SIZE;
+		}
+		else if (*alg_id == 5) {
+			check_and_downgrade_alg_id(temp, alg_id);
 		}
 		memcpy(lock_args, das_args + 2 + args1_len, args2_len);
 		return ret;
