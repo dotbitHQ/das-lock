@@ -69,11 +69,33 @@ __attribute__((visibility("default"))) int validate(int type, uint8_t* message, 
 	keccak_update(&sha3_ctx, tron_prefix, 24);
 	keccak_update(&sha3_ctx, message, 32);
 
-	uint8_t for_compatible[1];
+	uint8_t for_compatible[1]; // based on the sign method of tron link app
 	for_compatible[0] = 0x4;
 	keccak_update(&sha3_ctx, for_compatible, 1);
 	keccak_final(&sha3_ctx, message);
 
-	/* verify signature with peronsal hash */
+	/* verify signature with personal hash */
 	return verify_signature(message, lock_bytes, eth_address);
+}
+
+__attribute__((visibility("default"))) int validate_str(int type, uint8_t* message, size_t message_len, uint8_t* lock_bytes, uint8_t* eth_address) {
+
+	debug_print("Enter validate_str");
+	debug_print_data("digest before keccak with tron prefix: ", message, message_len);
+	debug_print_int("type: ", type);
+	debug_print_int("message_len: ", message_len);
+
+    uint8_t tron_prefix[50];
+    tron_prefix[0] = 0x19;
+
+    memcpy(tron_prefix + 1, "TRON Signed Message:\n32", 23);
+    SHA3_CTX sha3_ctx;
+    keccak_init(&sha3_ctx);
+    keccak_update(&sha3_ctx, tron_prefix, 24);
+    keccak_update(&sha3_ctx, message, message_len);
+    keccak_final(&sha3_ctx, message);
+
+    /* verify signature with personal hash */
+    return verify_signature(message, lock_bytes, eth_address);
+
 }

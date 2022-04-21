@@ -103,7 +103,7 @@ __attribute__((visibility("default"))) int validate_str(int type, uint8_t* messa
     keccak_update(&sha3_ctx, message, message_len);
     keccak_final(&sha3_ctx, message);
 
-    /* verify signature with peronsal hash */
+    /* verify signature with personal hash */
     return verify_signature(message, lock_bytes, eth_address);
 
 }
