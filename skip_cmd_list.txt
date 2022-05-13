@@ -1,3 +1,4 @@
 "confirm_proposal",
 "renew_account",
-"accept_offer"
+"accept_offer",
+"unlock_account_for_cross_chain"

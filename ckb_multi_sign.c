@@ -52,7 +52,7 @@ int check_lock_args(uint8_t* lock_bytes, uint8_t* lock_args) {
 int verify_signature(uint8_t* message, uint8_t* lock_bytes) {
 	debug_print("Enter verify_signature");
 	int ret = CKB_SUCCESS;
-	
+
 	uint8_t threshold = lock_bytes[2];
 	uint8_t used_signatures[threshold];
 	memset(used_signatures, 0, threshold);
@@ -147,6 +147,6 @@ __attribute__((visibility("default"))) int validate(int type, uint8_t* message, 
 	SIMPLE_ASSERT(CKB_SUCCESS);
 
 
-	/* verify signature with peronsal hash */
+	/* verify signature with personal hash */
 	return verify_signature(message, lock_bytes);
 }

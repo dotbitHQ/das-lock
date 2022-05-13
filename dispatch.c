@@ -73,12 +73,12 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 			return ERROR_ARGUMENTS_LEN;
 		}
 	}
-	*/
 	else {
 		if (lock_bytes_seg.size != SIGNATURE_SIZE) {
 			return ERROR_ARGUMENTS_LEN;
 		}
 	}
+	*/
 	debug_print_int("lock_bytes_seg.size: ", lock_bytes_seg.size);
 
 	memcpy(lock_bytes, lock_bytes_seg.ptr, lock_bytes_seg.size);
@@ -372,7 +372,7 @@ int get_lock_args(uint8_t* temp, uint8_t* das_args, uint8_t index, uint8_t* lock
 	}
 	else if (*alg_id == 6) { // ed25519
 		args1_len = HASH_SIZE;
-	} 
+	}
 	else if (*alg_id == 5) {
 		check_and_downgrade_alg_id(temp, alg_id);
     }
