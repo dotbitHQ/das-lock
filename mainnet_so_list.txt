@@ -1,7 +1,7 @@
 // ckb
 "941c4f56fa75165c6f2a28c0496659f33b159b72cf7176be2d44b11fa4d3167f",
 // ckb multi
-"",
+"c7e39bff9e0116483fc7720a67aed432b84648ddf30afa5fb576ac378fc76242",
 // anyone can pay
 "",
 // eth

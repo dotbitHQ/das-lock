@@ -102,6 +102,8 @@ int verify_signature(uint8_t* message, uint8_t* lock_bytes) {
 		blake2b_update(&blake2b_ctx, temp, PUBKEY_SIZE);
 		blake2b_final(&blake2b_ctx, calculated_pubkey_hash, BLAKE2B_BLOCK_SIZE);
 
+		debug_print_data("sigs before ec-recover: ", &lock_bytes[signature_offset], RECID_INDEX + 1);
+		debug_print_data("args after ec-recover: ", calculated_pubkey_hash, BLAKE160_SIZE);
 		// Check if this signature is signed with one of the provided public key.
 		uint8_t matched = 0;
 		for (size_t i = 0; i < pubkeys_cnt; i++) {
@@ -142,7 +144,8 @@ int verify_signature(uint8_t* message, uint8_t* lock_bytes) {
 __attribute__((visibility("default"))) int validate(int type, uint8_t* message, uint8_t* lock_bytes, uint8_t* lock_args) {
 	debug_print("Enter validate");
 	int ret = CKB_SUCCESS;
-
+	
+	debug_print_data("digest: ", message, PUBKEY_SIZE);
 	ret = check_lock_args(lock_bytes, lock_args);
 	SIMPLE_ASSERT(CKB_SUCCESS);
 
