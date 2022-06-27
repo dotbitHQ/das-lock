@@ -346,19 +346,19 @@ int check_and_downgrade_alg_id(uint8_t* temp, uint8_t* alg_id) {
         SIMPLE_ASSERT(CKB_SUCCESS);
 
         debug_print_data("for downgrade, action_from_wit: ", action_from_wit, action_from_wit_len);
-        char* standard_str0 = "enable_sub_account";
-        char* standard_str1 = "create_sub_account";
-        size_t standard_str0_len = strlen(standard_str0);
-        size_t standard_str1_len = strlen(standard_str1);
-        if (memcmp(action_from_wit, standard_str0, standard_str0_len) == 0 || memcmp(action_from_wit, standard_str1, standard_str1_len) == 0 ) {
-            debug_print("change the alg id from 5 to 3");
-			/*
-			uint8_t alg_id3[1];
-			alg_id3[0] = 0x03;
-			memcpy(alg_id, alg_id3, 1);
-			*/
-			*alg_id = 3;
-        }
+		char* skip_str[] = {
+#include "downgrade_algorithm_id.txt"
+		};
+		uint8_t list_len = sizeof(skip_str) / sizeof(skip_str[0]);
+		for (int i = 0; i < list_len; i++) {
+			char* standard_str = skip_str[i];
+			size_t standard_str_len = strlen(standard_str);
+			if (standard_str_len == action_from_wit_len && memcmp(action_from_wit, standard_str, standard_str_len) == 0) {
+				debug_print("downgrade match success");
+				debug_print("change the alg id from 5 to 3");
+				*alg_id = 3;
+			}
+		}
     }
 	return CKB_SUCCESS;
 }
