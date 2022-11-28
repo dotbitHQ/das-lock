@@ -33,7 +33,7 @@ debug-all-via-docker: ${PROTOCOL_HEADER}
 	./tool/ckb-binary-patcher -i ckb_multi_sign.so.debug -o ./build/debug/ckb_multi_sign.so
 	cp dispatch.debug ./build/debug/dispatch
 	scp ./build/debug/dispatch ubuntu_root:/mnt/ckb/das-sandbox-testnet2/contracts/dispatch
-	scp ./build/debug/dispatch ubuntu_root:/mnt/ckb/das-sandbox/contracts/dispatch
+	scp ./build/debug/dispatch ubuntu_root:/mnt/ckb/das-sandbox-mainnet/contracts/dispatch
 
 all: dispatch.release eth_sign.so.release ckb_sign.so.release tron_sign.so.release ed25519_sign.so.release ckb_multi_sign.so.release
 
