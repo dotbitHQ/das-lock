@@ -3,5 +3,4 @@
 "accept_offer",
 "unlock_account_for_cross_chain",
 "force_recover_account_status",
-"recycle_expired_account",
-"update_sub_account"
+"recycle_expired_account"

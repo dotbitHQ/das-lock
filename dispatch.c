@@ -68,17 +68,17 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 		return ret;
 	}
 	/*
-	else if (alg_id == 6) {
-		if (lock_bytes_seg.size != ED25519_SIGNATURE_SIZE) {
-			return ERROR_ARGUMENTS_LEN;
-		}
-	}
-	else {
-		if (lock_bytes_seg.size != SIGNATURE_SIZE) {
-			return ERROR_ARGUMENTS_LEN;
-		}
-	}
-	*/
+	   else if (alg_id == 6) {
+	   if (lock_bytes_seg.size != ED25519_SIGNATURE_SIZE) {
+	   return ERROR_ARGUMENTS_LEN;
+	   }
+	   }
+	   else {
+	   if (lock_bytes_seg.size != SIGNATURE_SIZE) {
+	   return ERROR_ARGUMENTS_LEN;
+	   }
+	   }
+	   */
 	debug_print_int("lock_bytes_seg.size: ", lock_bytes_seg.size);
 
 	memcpy(lock_bytes, lock_bytes_seg.ptr, lock_bytes_seg.size);
@@ -287,15 +287,76 @@ int check_has_pure_type_script() {
 	return ret;
 }
 
+int check_the_first_input_cell_must_be_sub_account_type_script() {
+	int ret = CKB_SUCCESS;
+
+#ifdef CKB_C_STDLIB_PRINTF
+	char* sub_account_type_id = "8bb0413701cdd2e3a661cc8914e6790e16d619ce674930671e695807274bd14c";
+#else
+	char* sub_account_type_id = "63516de8bb518ed1225e3b63f138ccbe18e417932d240f1327c8e86ba327f4b4";
+#endif
+	uint8_t for_cmp[HASH_SIZE];
+	hex2str(sub_account_type_id, for_cmp);
+
+	uint8_t buffer[SCRIPT_SIZE];
+	uint64_t len = SCRIPT_SIZE;
+	ret = ckb_load_cell_by_field(buffer, &len, 0, 0, CKB_SOURCE_INPUT, CKB_CELL_FIELD_TYPE);
+	if (ret != CKB_SUCCESS) {
+		debug_print("Error fetching output type hash to locate type id index!");
+		return ret;
+	}
+
+	mol_seg_t script_seg;
+	script_seg.ptr = (uint8_t *)buffer;
+	script_seg.size = len;
+	if (MolReader_Script_verify(&script_seg, false) != MOL_OK) {
+		debug_print("Error encoding");
+		return ERROR_ENCODING;
+	}
+	mol_seg_t hash_seg = MolReader_Script_get_code_hash(&script_seg);
+	debug_print_data("type's code hash: ", hash_seg.ptr, hash_seg.size);
+
+	uint8_t typeid[HASH_SIZE];
+	memcpy(typeid, hash_seg.ptr, hash_seg.size);
+	debug_print_data("the first cell in inputs's type id: ", typeid, HASH_SIZE);
+	if (memcmp(for_cmp, typeid, HASH_SIZE) == 0) {
+		return CKB_SUCCESS;
+	}
+
+	return CKB_INVALID_DATA;
+}
+
+int check_skip_sign_for_update_sub_account(uint8_t* temp) {
+	debug_print("Enter check_skip_sign_for_update_sub_account");
+
+	int ret = CKB_SUCCESS;
+	ret = check_the_first_input_cell_must_be_sub_account_type_script();
+	SIMPLE_ASSERT(CKB_SUCCESS);
+
+	uint8_t action_from_wit[1000];
+	size_t action_from_wit_len;
+	ret = get_action_from_witness(temp, action_from_wit, &action_from_wit_len);
+	SIMPLE_ASSERT(CKB_SUCCESS);
+
+	debug_print_data("action_from_wit: ", action_from_wit, action_from_wit_len);
+	char* standard_str = "update_sub_account";
+	size_t standard_str_len = strlen(standard_str);
+	if (memcmp(action_from_wit, standard_str, standard_str_len) == 0) {
+		debug_print("skip check sig update_sub_account");
+		return DAS_SKIP_CHECK_SIGN;
+	}
+	return DAS_NOT_SKIP_CHECK_SIGN;
+}
+
 int check_skip_sign_for_buy_account(uint8_t* temp, uint64_t alg_id) {
 	debug_print("Enter check_skip_sign_for_buy_account");
 	debug_print_int("alg_id: ", alg_id);
 	if (alg_id != 5) {
 		return DAS_NOT_SKIP_CHECK_SIGN;
 	}
-    uint64_t script_index = 0xFFFFFFFFFFFFFFFF;
-    int ret = get_self_index_in_inputs(&script_index);
-    if (ret != CKB_SUCCESS) {
+	uint64_t script_index = 0xFFFFFFFFFFFFFFFF;
+	int ret = get_self_index_in_inputs(&script_index);
+	if (ret != CKB_SUCCESS) {
 		return ret;
 	}
 	debug_print_int("script_index: ", script_index);
@@ -340,12 +401,12 @@ int check_and_downgrade_alg_id(uint8_t* temp, uint8_t* alg_id) {
 	int ret = CKB_SUCCESS;
 	if (*alg_id == 5) {
 		debug_print("downgrade alg_id");
-        uint8_t action_from_wit[1000];
-        size_t action_from_wit_len;
-        ret = get_action_from_witness(temp, action_from_wit, &action_from_wit_len);
-        SIMPLE_ASSERT(CKB_SUCCESS);
+		uint8_t action_from_wit[1000];
+		size_t action_from_wit_len;
+		ret = get_action_from_witness(temp, action_from_wit, &action_from_wit_len);
+		SIMPLE_ASSERT(CKB_SUCCESS);
 
-        debug_print_data("for downgrade, action_from_wit: ", action_from_wit, action_from_wit_len);
+		debug_print_data("for downgrade, action_from_wit: ", action_from_wit, action_from_wit_len);
 		char* skip_str[] = {
 #include "downgrade_algorithm_id.txt"
 		};
@@ -359,7 +420,7 @@ int check_and_downgrade_alg_id(uint8_t* temp, uint8_t* alg_id) {
 				*alg_id = 3;
 			}
 		}
-    }
+	}
 	return CKB_SUCCESS;
 }
 int get_lock_args(uint8_t* temp, uint8_t* das_args, uint8_t index, uint8_t* lock_args, uint8_t* alg_id ) {
@@ -375,7 +436,7 @@ int get_lock_args(uint8_t* temp, uint8_t* das_args, uint8_t index, uint8_t* lock
 	}
 	else if (*alg_id == 5) {
 		check_and_downgrade_alg_id(temp, alg_id);
-    }
+	}
 
 	if (0 == index) { // use first args (owner lock)
 		memcpy(lock_args, das_args + 1, args1_len);
@@ -460,6 +521,12 @@ int main() {
 	debug_print_data("lock_args: ", lock_args, DAS_MAX_LOCK_ARGS_SIZE);
 
 	ret = check_skip_sign_for_buy_account(witness_action, alg_id);
+	if (ret == DAS_SKIP_CHECK_SIGN) {
+		return CKB_SUCCESS;
+	}
+	SIMPLE_ASSERT(DAS_NOT_SKIP_CHECK_SIGN);
+
+	ret = check_skip_sign_for_update_sub_account(witness_action);
 	if (ret == DAS_SKIP_CHECK_SIGN) {
 		return CKB_SUCCESS;
 	}
