@@ -330,8 +330,6 @@ int check_skip_sign_for_update_sub_account(uint8_t* temp) {
 	debug_print("Enter check_skip_sign_for_update_sub_account");
 
 	int ret = CKB_SUCCESS;
-	ret = check_the_first_input_cell_must_be_sub_account_type_script();
-	SIMPLE_ASSERT(CKB_SUCCESS);
 
 	uint8_t action_from_wit[1000];
 	size_t action_from_wit_len;
@@ -342,7 +340,10 @@ int check_skip_sign_for_update_sub_account(uint8_t* temp) {
 	char* standard_str = "update_sub_account";
 	size_t standard_str_len = strlen(standard_str);
 	if (memcmp(action_from_wit, standard_str, standard_str_len) == 0) {
-		debug_print("skip check sig update_sub_account");
+		debug_print("check type contract for update_sub_account");
+		ret = check_the_first_input_cell_must_be_sub_account_type_script();
+		SIMPLE_ASSERT(CKB_SUCCESS);
+
 		return DAS_SKIP_CHECK_SIGN;
 	}
 	return DAS_NOT_SKIP_CHECK_SIGN;
