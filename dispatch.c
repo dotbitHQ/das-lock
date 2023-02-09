@@ -437,7 +437,9 @@ int get_lock_args(uint8_t* temp, uint8_t* das_args, uint8_t index, uint8_t* lock
 	}
 	else if (*alg_id == 5) {
 		check_and_downgrade_alg_id(temp, alg_id);
-	}
+	} else if (*alg_id == 7) { //add by Jason 20230207
+        args1_len = JOYID_ARGS_SIZE;
+    }
 
 	if (0 == index) { // use first args (owner lock)
 		memcpy(lock_args, das_args + 1, args1_len);
@@ -545,16 +547,50 @@ int main() {
 	SIMPLE_ASSERT(CKB_SUCCESS);
 	debug_print_data("code so: ", code_so, HASH_SIZE);
 
-	uint8_t code_buffer[128 * 1024] __attribute__((aligned(RISCV_PGSIZE)));
 	uint64_t consumed_size = 0;
 	void *handle = NULL;
 	uint8_t hash_type = 0;
-	ret = ckb_dlopen2(code_so, hash_type, code_buffer, 128 * 1024, &handle, &consumed_size);
-	SIMPLE_ASSERT(CKB_SUCCESS);
-	debug_print("after ckb_dlopen2");
 
-	int (*validate_func)(int, uint8_t*, uint8_t*, uint8_t*);
-	*(void **)(&validate_func) = ckb_dlsym(handle, "validate");
+    debug_print_int("alg_id", alg_id);
+    //todo! buffer length
+    //uint64_t something = 0;
+    //debug_print_int("something", alg_id);
+
+    uint32_t buffer_length = 0;
+    if (alg_id == 7) {
+        buffer_length = 1024 * 1024;
+    }else {
+        buffer_length = 128 * 1024;
+    }
+
+    uint8_t code_buffer[MAX_CODE_SIZE] __attribute__((aligned(RISCV_PGSIZE)));
+
+
+    ret = ckb_dlopen2(code_so, hash_type, code_buffer, buffer_length, &handle, &consumed_size);
+    debug_print_int("consumed_size=", consumed_size);
+
+	SIMPLE_ASSERT(CKB_SUCCESS);
+
+
+
+    //JoyID
+    if (alg_id == 7) {
+        int (*validate_func)(uint8_t* joyid_args, uint32_t args_len);
+        debug_print("JoyID dl sym start");
+
+        *(void **)(&validate_func) = ckb_dlsym(handle, "verify_joyid_data");
+        if (validate_func == NULL) {
+            return ERR_DAS_INVALID_POINT;
+        }
+        debug_print("JoyID dl sym end");
+        return validate_func(lock_args, JOYID_ARGS_SIZE);
+    }
+
+    int (*validate_func)(int, uint8_t*, uint8_t*, uint8_t*);
+
+    *(void **)(&validate_func) = ckb_dlsym(handle, "validate");
+
+
 	if (validate_func == NULL) {
 		return ERR_DAS_INVALID_POINT;
 	}
