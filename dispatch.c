@@ -437,7 +437,8 @@ int get_lock_args(uint8_t* temp, uint8_t* das_args, uint8_t index, uint8_t* lock
 	}
 	else if (*alg_id == 5) {
 		check_and_downgrade_alg_id(temp, alg_id);
-	}else if (*alg_id == 7) {
+	}
+    else if (*alg_id == 7) {
 		args1_len = RIPEMD160_HASH_SIZE;
 	}
 
@@ -459,7 +460,8 @@ int get_lock_args(uint8_t* temp, uint8_t* das_args, uint8_t index, uint8_t* lock
 		}
 		else if (*alg_id == 5) {
 			check_and_downgrade_alg_id(temp, alg_id);
-		}else if (*alg_id == 7) {
+		}
+        else if (*alg_id == 7) {
             args2_len = RIPEMD160_HASH_SIZE;
         }
 		memcpy(lock_args, das_args + 2 + args1_len, args2_len);

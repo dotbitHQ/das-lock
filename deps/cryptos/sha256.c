@@ -159,7 +159,8 @@ void SHA256x2(uchar* dst, const uchar* src, uint src_len) {
     if(src_len >= SHA256_HASH_SIZE){
         SHA256(src, dst, SHA256_HASH_SIZE);
         memcpy(dst, src, SHA256_HASH_SIZE);
-    }else {
+    }
+    else {
         uchar second_round_dst[SHA256_HASH_SIZE] = {0};
         SHA256(second_round_dst, dst, SHA256_HASH_SIZE);
         memcpy(dst, second_round_dst, SHA256_HASH_SIZE);
