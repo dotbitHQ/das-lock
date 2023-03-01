@@ -20,6 +20,8 @@ Defines commonly used high level functions and constants.
 #define ERROR_SECP_PARSE_PUBKEY -13
 #define ERROR_SECP_PARSE_SIGNATURE -14
 #define ERROR_SECP_SERIALIZE_PUBKEY -15
+#define ERROR_SECP_RECOVER_ID -16
+
 #define ERROR_SCRIPT_TOO_LONG -21
 #define ERROR_WITNESS_SIZE -22
 #define ERROR_INCORRECT_SINCE_FLAGS -23

@@ -3,3 +3,5 @@ build/*
 *.swp
 *.debug
 *.release
+.idea/*
+*.sh

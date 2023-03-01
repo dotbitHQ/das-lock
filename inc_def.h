@@ -9,10 +9,12 @@
 #define BLAKE160_SIZE 20
 #define TEMP_SIZE 32768
 #define RECID_INDEX 64
+#define RIPEMD160_HASH_SIZE 20
 
 #define SCRIPT_SIZE 32768
 #define MAX_WITNESS_SIZE 32768
 #define MAX_LOCK_ARGS_SIZE 1024
+#define MAX_CODE_SIZE (1024 * 1024)
 
 #define RISCV_PGSIZE 4096
 
@@ -29,7 +31,7 @@
 #define DAS_CMD_NOT_MATCH 1
 #define MANAGER_ONLY_CMD 0
 #define SKIP_CMD 1
-
+#define SECP256K1_SUCCESS 1
 
 
 // Other error code see common.h and deps/ckb-c-stdlib/ckb_consts.h
@@ -39,6 +41,7 @@
 #define ERR_DAS_INVALID_POINT 13
 #define ERR_DAS_INVALID_PERMISSION 14
 #define ERR_DAS_INVALID_LOCK_CELL 15
+#define ERR_DAS_SIGNATURE_NOT_MATCH 16
 
 #define ERROR_INVALID_RESERVE_FIELD -41
 #define ERROR_INVALID_PUBKEYS_CNT -42

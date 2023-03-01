@@ -22,6 +22,7 @@ all-via-docker: ${PROTOCOL_HEADER}
 	./tool/ckb-binary-patcher -i ckb_sign.so.release -o ./build/release/ckb_sign.so
 	./tool/ckb-binary-patcher -i ed25519_sign.so.release -o ./build/release/ed25519_sign.so
 	./tool/ckb-binary-patcher -i ckb_multi_sign.so.release -o ./build/release/ckb_multi_sign.so
+	./tool/ckb-binary-patcher -i doge_sign.so.release -o ./build/release/doge_sign.so
 	cp dispatch.release ./build/release/dispatch
 
 debug-all-via-docker: ${PROTOCOL_HEADER}
@@ -31,13 +32,14 @@ debug-all-via-docker: ${PROTOCOL_HEADER}
 	./tool/ckb-binary-patcher -i ckb_sign.so.debug -o ./build/debug/ckb_sign.so
 	./tool/ckb-binary-patcher -i ed25519_sign.so.debug -o ./build/debug/ed25519_sign.so
 	./tool/ckb-binary-patcher -i ckb_multi_sign.so.debug -o ./build/debug/ckb_multi_sign.so
+	./tool/ckb-binary-patcher -i doge_sign.so.debug -o ./build/debug/doge_sign.so
 	cp dispatch.debug ./build/debug/dispatch
 	scp ./build/debug/dispatch ubuntu_root:/mnt/ckb/das-sandbox-testnet2/contracts/dispatch
 	scp ./build/debug/dispatch ubuntu_root:/mnt/ckb/das-sandbox-mainnet/contracts/dispatch
 
-all: dispatch.release eth_sign.so.release ckb_sign.so.release tron_sign.so.release ed25519_sign.so.release ckb_multi_sign.so.release
+all: dispatch.release eth_sign.so.release ckb_sign.so.release tron_sign.so.release ed25519_sign.so.release ckb_multi_sign.so.release doge_sign.so.release
 
-debug_all: dispatch.debug eth_sign.so.debug ckb_sign.so.debug tron_sign.so.debug ed25519_sign.so.debug ckb_multi_sign.so.debug
+debug_all: dispatch.debug eth_sign.so.debug ckb_sign.so.debug tron_sign.so.debug ed25519_sign.so.debug ckb_multi_sign.so.debug doge_sign.so.debug
 
 dispatch.debug: dispatch.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $(DEBUG_FLAGS) -o $@ $<
@@ -73,6 +75,12 @@ ckb_multi_sign.so.debug: ckb_multi_sign.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $(DEBUG_FLAGS) -shared -o $@ $<
 
 ckb_multi_sign.so.release: ckb_multi_sign.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -shared -o $@ $<
+
+doge_sign.so.debug: doge_sign.c
+	$(CC) $(CFLAGS) $(LDFLAGS) $(DEBUG_FLAGS) -shared -o $@ $<
+
+doge_sign.so.release: doge_sign.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -shared -o $@ $<
 
 ${PROTOCOL_HEADER}: ${PROTOCOL_SCHEMA}
