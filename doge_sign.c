@@ -30,15 +30,15 @@ void magic_hash(uint8_t* hash, const uint8_t* message) {
     debug_print_data("sha256x2 : ", hash, SHA256_HASH_SIZE);
 }
 
-void convert_doge_sig_into_secp_recoverable(uint8_t* secp_recover_sig, uint8_t* doge_sig){
-    int i;
+// void convert_doge_sig_into_secp_recoverable(uint8_t* secp_recover_sig, uint8_t* doge_sig){
+//     int i;
 
-    for (i = 0; i < SIGNATURE_SIZE - 1; i++){
-        secp_recover_sig[i] = doge_sig[i + 1];
-    }
-    secp_recover_sig[i] = doge_sig[0];
-}
-int recover_public_key(uint8_t *public_key, uint8_t* hash, uint8_t* sig_doge){
+//     for (i = 0; i < SIGNATURE_SIZE; i++){
+//         secp_recover_sig[i] = doge_sig[i];
+//     }
+//    // secp_recover_sig[i] = doge_sig[0];
+// }
+int recover_public_key(uint8_t *public_key, uint8_t* hash, uint8_t* sig_doge, size_t* pubkey_len){
 
     int ret = 0;
 
@@ -52,13 +52,15 @@ int recover_public_key(uint8_t *public_key, uint8_t* hash, uint8_t* sig_doge){
 
     // convert doge signature into secp256k1
     uint8_t sig_secp_serialized[SIGNATURE_SIZE] = {0};
-    convert_doge_sig_into_secp_recoverable(sig_doge, sig_secp_serialized);
+    //convert_doge_sig_into_secp_recoverable(sig_doge, sig_secp_serialized);
+    memcpy(sig_secp_serialized, sig_doge, SIGNATURE_SIZE);
     debug_print_data("convert doge into secp, sig_doge : ", sig_doge, SIGNATURE_SIZE);
 
-    int recid = sig_doge[0];
+    int recid = sig_doge[64];
     if(recid < 0 || recid > 3){
         return ERROR_SECP_RECOVER_ID;
     }
+    debug_print_int("recover id = ", recid);
 
     // parse compact signature
     secp256k1_ecdsa_recoverable_signature sig_secp;
@@ -70,15 +72,29 @@ int recover_public_key(uint8_t *public_key, uint8_t* hash, uint8_t* sig_doge){
     secp256k1_pubkey pubkey_recover;
     ret = secp256k1_ecdsa_recover(ctx, &pubkey_recover, &sig_secp, hash);
     debug_print_data("after recover, pubkey: ", pubkey_recover.data, ED25519_SIGNATURE_SIZE);
-
     SIMPLE_ASSERT(1);
 
     // serialize
-    size_t output_len = PUBKEY_SIZE;
-    ret = secp256k1_ec_pubkey_serialize(ctx, public_key, &output_len, &pubkey_recover, SECP256K1_EC_COMPRESSED);
-    debug_print_data("after serialize pubkey :", public_key, PUBKEY_SIZE);
+    int compressed = sig_doge[65];
+    size_t output_len = 0;
+    int flag = 0;
+    if(compressed == 1) {
+        debug_print("compressed");
+        output_len = PUBKEY_COMPRESSED_SIZE;
+        *pubkey_len = PUBKEY_COMPRESSED_SIZE;
+        flag = SECP256K1_EC_COMPRESSED;
+    } else {
+        debug_print("uncompressed");
+        output_len = PUBKEY_UNCOMPRESSED_SIZE;
+        *pubkey_len = PUBKEY_UNCOMPRESSED_SIZE;
+        flag = SECP256K1_EC_UNCOMPRESSED;
 
-    if(output_len != PUBKEY_SIZE || ret != 1) {
+    };
+
+    ret = secp256k1_ec_pubkey_serialize(ctx, public_key, &output_len, &pubkey_recover, flag);
+    debug_print_data("after serialize pubkey :", public_key, output_len);
+
+    if(ret != 1) {
         return ERROR_SECP_RECOVER_PUBKEY;
     }
 
@@ -88,10 +104,10 @@ int recover_public_key(uint8_t *public_key, uint8_t* hash, uint8_t* sig_doge){
     return 0;
 }
 
-void hash160(uint8_t* hash, const uint8_t* pub_key){
+void hash160(uint8_t* hash, const uint8_t* pub_key, size_t pubkey_len){
     uint8_t sha256_hash[SHA256_HASH_SIZE] = {0};
 
-    SHA256(sha256_hash, pub_key, PUBKEY_SIZE);
+    SHA256(sha256_hash, pub_key, pubkey_len);
     debug_print_data("hash160 sha256 : ", sha256_hash, SHA256_HASH_SIZE);
 
     RIPEMD160(hash, sha256_hash, SHA256_HASH_SIZE);
@@ -102,13 +118,13 @@ int verify_signature(uint8_t* message, uint8_t* lock_bytes, void* lock_args) {
 
     debug_print("Enter validate doge");
     debug_print_data("digest : ", message, HASH_SIZE);
-    debug_print_data("lock_bytes : ", lock_bytes, SIGNATURE_SIZE);
+    debug_print_data("lock_bytes : ", lock_bytes, SIGNATURE_DOGE_SIZE);
     debug_print_data("lock_args : ", lock_args, RIPEMD160_HASH_SIZE);
 
     int ret = -1;
 
     uint8_t hash[SHA256_HASH_SIZE] = {0};
-    uint8_t pub_key[PUBKEY_SIZE] = {0};
+    uint8_t pub_key[PUBKEY_UNCOMPRESSED_SIZE] = {0};
     debug_print_int("doge_sign.c line:", __LINE__);
 
     //magic hash
@@ -117,7 +133,9 @@ int verify_signature(uint8_t* message, uint8_t* lock_bytes, void* lock_args) {
     debug_print_int("doge_sign.c line:", __LINE__);
 
     //Recover public_key from signature(lock_bytes)
-    ret = recover_public_key(pub_key, hash, lock_bytes);
+    size_t pubkey_len = 0;
+    ret = recover_public_key(pub_key, hash, lock_bytes, &pubkey_len);
+    debug_print_int("pubkey_len = ", pubkey_len);
     debug_print_int("doge_sign.c line:", __LINE__);
     SIMPLE_ASSERT(CKB_SUCCESS);
 
@@ -126,7 +144,7 @@ int verify_signature(uint8_t* message, uint8_t* lock_bytes, void* lock_args) {
     debug_print_int("doge_sign.c line:", __LINE__);
 
     //Get the hash of the public key.
-    hash160(hash, pub_key);
+    hash160(hash, pub_key, pubkey_len);
     debug_print_int("doge_sign.c line:", __LINE__);
 
     //Compare with payload(lock_args)
