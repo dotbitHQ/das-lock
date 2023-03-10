@@ -569,15 +569,9 @@ int main() {
 	debug_print_data("code so: ", code_so, HASH_SIZE);
 
 	uint8_t code_buffer[128 * 1024] __attribute__((aligned(RISCV_PGSIZE)));
-	    debug_print_int("line ", __LINE__);
-
-	    uint64_t consumed_size = 0;
-	    debug_print_int("line ", __LINE__);
-
-	    void *handle = NULL;
+	uint64_t consumed_size = 0;
+	void *handle = NULL;
 	uint8_t hash_type = 1;
-	    debug_print_int("line ", __LINE__);
-
 	ret = ckb_dlopen2(code_so, hash_type, code_buffer, 128 * 1024, &handle, &consumed_size);
     debug_print_int("line ", __LINE__);
 	
