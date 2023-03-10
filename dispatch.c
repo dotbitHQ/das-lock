@@ -44,6 +44,7 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 	uint8_t temp[TEMP_SIZE];
 	uint64_t witness_len = DAS_MAX_LOCK_BYTES_SIZE;
 	ret = ckb_load_witness(temp, &witness_len, 0, 0, CKB_SOURCE_GROUP_INPUT);
+	debug_print_data("temp after load witness: ", temp, witness_len);
 	debug_print_data("witness: ", temp, witness_len);
 	NORMAL_ASSERT(CKB_SUCCESS, ERROR_SYSCALL);
 	if (witness_len > DAS_MAX_LOCK_BYTES_SIZE) {
@@ -54,6 +55,9 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 	mol_seg_t lock_bytes_seg;
 	ret = extract_witness_lock(temp, witness_len, &lock_bytes_seg);
 	NORMAL_ASSERT(CKB_SUCCESS, ERROR_ENCODING);
+
+
+	debug_print_data("temp after extract_witness_lock: ", temp, witness_len);
 
 	debug_print_int("alg_id: ", alg_id);
 	if (alg_id == 5) { // eip712
@@ -82,6 +86,8 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 	debug_print_int("lock_bytes_seg.size: ", lock_bytes_seg.size);
 
 	memcpy(lock_bytes, lock_bytes_seg.ptr, lock_bytes_seg.size);
+		debug_print_data("lock_bytes: ", lock_bytes, SIGNATURE_SIZE);
+	debug_print_data("1temp after extract_witness_lock: ", temp, witness_len);
 	// get the offset of lock_bytes for sign
 	size_t multisig_script_len = 0;
 	if (alg_id == 1) {
@@ -112,9 +118,13 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 	blake2b_update(&blake2b_ctx, tx_hash, HASH_SIZE);
 
 
+	debug_print_data("2temp after extract_witness_lock: ", temp, witness_len);
 	memset((void *)lock_bytes_seg.ptr + multisig_script_len, 0, lock_bytes_seg.size);
 	blake2b_update(&blake2b_ctx, (uint8_t *)&witness_len, sizeof(uint64_t));
+	debug_print_data("3temp after extract_witness_lock: ", temp, witness_len);
 	blake2b_update(&blake2b_ctx, temp, witness_len);
+	debug_print_data("temp finaly: ", temp, witness_len);
+
 	debug_print_int("witness_len: ", witness_len);
 
 	// Digest same group witnesses
@@ -476,13 +486,20 @@ int get_lock_args(uint8_t* temp, uint8_t* das_args, uint8_t index, uint8_t* lock
 
 int get_code_hash(uint8_t index, uint8_t* code_hash) {
 	int ret = CKB_SUCCESS;
-	char* code_hash_map[] = {
+		char* code_hash_map[] = {
 #ifdef CKB_C_STDLIB_PRINTF
 #include "test2_so_list.txt"
 #else
 #include "mainnet_so_list.txt"
 #endif
 	};
+	    for(int i = 0; i < 8; i++){
+	    memset(code_hash, 0, 32);
+        hex2str(code_hash_map[i], code_hash);
+	debug_print_int("index" ,i);
+        debug_print_data("so list =", code_hash, 32);
+    }
+	    memset(code_hash, 0, 32);
 	uint8_t len = sizeof(code_hash_map) / sizeof(code_hash_map[0]);
 	if (index >= len) {
 		return ERR_DAS_INDEX_OUT_OF_BOUND;
@@ -552,10 +569,18 @@ int main() {
 	debug_print_data("code so: ", code_so, HASH_SIZE);
 
 	uint8_t code_buffer[128 * 1024] __attribute__((aligned(RISCV_PGSIZE)));
-	uint64_t consumed_size = 0;
-	void *handle = NULL;
-	uint8_t hash_type = 0;
+	    debug_print_int("line ", __LINE__);
+
+	    uint64_t consumed_size = 0;
+	    debug_print_int("line ", __LINE__);
+
+	    void *handle = NULL;
+	uint8_t hash_type = 1;
+	    debug_print_int("line ", __LINE__);
+
 	ret = ckb_dlopen2(code_so, hash_type, code_buffer, 128 * 1024, &handle, &consumed_size);
+    debug_print_int("line ", __LINE__);
+	
 	SIMPLE_ASSERT(CKB_SUCCESS);
 	debug_print("after ckb_dlopen2");
 

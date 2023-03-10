@@ -4,8 +4,6 @@
 #define DOGE_MASSAGE_PREFIX_LEN  25
 
 #include "inc_def.h"
-#include "deps/cryptos/sha256.h"
-#include "deps/cryptos/ripemd160.h"
 //#include "deps/secp256k1/include/secp256k1.h"
 //#include "deps/secp256k1/include/secp256k1_recovery.h"
 
@@ -15,7 +13,7 @@ const char doge_massage_prefix[25] = {
 };
 
 
-void magic_hash(uint8_t* hash, const uint8_t* message) {
+void magic_hash(uint8_t* hash, uint8_t* message) {
     uint8_t total_message[MAGIC_HASH_TOTAL_MESSAGE_LEN] = {0};
 
     //total_message = [prefix_len, prefix, message_len, message]
@@ -104,7 +102,7 @@ int recover_public_key(uint8_t *public_key, uint8_t* hash, uint8_t* sig_doge, si
     return 0;
 }
 
-void hash160(uint8_t* hash, const uint8_t* pub_key, size_t pubkey_len){
+void hash160(uint8_t* hash, uint8_t* pub_key, size_t pubkey_len){
     uint8_t sha256_hash[SHA256_HASH_SIZE] = {0};
 
     SHA256(sha256_hash, pub_key, pubkey_len);

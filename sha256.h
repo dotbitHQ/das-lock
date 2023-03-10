@@ -1,7 +1,13 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include "sha256.h"
+#ifndef DOGECOIN_MESSAGE_C_SHA256_H
+#define DOGECOIN_MESSAGE_C_SHA256_H
+#define SHA256_HASH_SIZE 32
+void SHA256(unsigned char* dst, unsigned char* src, unsigned int src_len);
+void SHA256x2(unsigned char* dst,  unsigned char* src, unsigned int src_len);
+
+
+//#include <stdlib.h>
+//#include <stdio.h>
+//#include <string.h>
 
 #define uchar unsigned char
 #define uint unsigned int
@@ -145,13 +151,13 @@ void SHA256Final(SHA256_CTX *ctx, uchar hash[])
     }
 }
 
-void SHA256(uchar* dst, const uchar* src, uint src_len) {
+void SHA256(uchar* dst, uchar* src, uint src_len) {
     SHA256_CTX ctx;
     SHA256Init(&ctx);
     SHA256Update(&ctx, src, src_len);
     SHA256Final(&ctx, dst);
 }
-void SHA256x2(uchar* dst, const uchar* src, uint src_len) {
+void SHA256x2(uchar* dst, uchar* src, uint src_len) {
 
     SHA256(dst, src, src_len);
 
@@ -167,3 +173,4 @@ void SHA256x2(uchar* dst, const uchar* src, uint src_len) {
     }
 
 }
+#endif //DOGECOIN_MESSAGE_C_SHA256_H

@@ -83,7 +83,8 @@
 #include "common.h"
 
 #include "utils_helper.h"
-
+#include "sha256.h"
+#include "ripemd160.h"
 
 #define KECCAK256(message, len, res)		\
 	do {				\
