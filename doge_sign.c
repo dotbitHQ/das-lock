@@ -4,6 +4,8 @@
 #define DOGE_MASSAGE_PREFIX_LEN  25
 
 #include "inc_def.h"
+#include "deps/cryptos/sha256.h"
+#include "deps/cryptos/ripemd160.h"
 //#include "deps/secp256k1/include/secp256k1.h"
 //#include "deps/secp256k1/include/secp256k1_recovery.h"
 
@@ -24,7 +26,17 @@ void magic_hash(uint8_t* hash, uint8_t* message) {
     memcpy(total_message + DOGE_MASSAGE_PREFIX_LEN + 2, message, HASH_SIZE);
     debug_print_data("total message : ", total_message, MAGIC_HASH_TOTAL_MESSAGE_LEN);
 
-    SHA256x2(hash, message, HASH_SIZE);
+    uint8_t first_round[32] = {0};
+    uint8_t second_round[32] = {0};
+
+    SHA256(first_round, total_message, MAGIC_HASH_TOTAL_MESSAGE_LEN);
+    debug_print_data("sha256 first round : ", first_round, SHA256_HASH_SIZE);
+    
+
+    SHA256(second_round, first_round, SHA256_HASH_SIZE);
+    debug_print_data("sha256 second round : ", second_round, SHA256_HASH_SIZE);
+
+    SHA256x2(hash, total_message, MAGIC_HASH_TOTAL_MESSAGE_LEN);
     debug_print_data("sha256x2 : ", hash, SHA256_HASH_SIZE);
 }
 
@@ -148,6 +160,9 @@ int verify_signature(uint8_t* message, uint8_t* lock_bytes, void* lock_args) {
     //Compare with payload(lock_args)
     uint8_t* payload = lock_args;
     debug_print_int("doge_sign.c line:", __LINE__);
+
+    debug_print_data("before compare pubkey_hash : ", hash, 20);
+    debug_print_data("before compare payload     : ", payload, 20);
 
     ret = memcmp(hash, payload, RIPEMD160_HASH_SIZE);
     NORMAL_ASSERT(0, ERR_DAS_SIGNATURE_NOT_MATCH);

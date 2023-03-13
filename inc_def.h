@@ -12,7 +12,7 @@
 #define RECID_INDEX 64
 #define RIPEMD160_HASH_SIZE 20
 #define PUBKEY_COMPRESSED_SIZE 33
-#define PUBKEY_UNCOMPRESSED_SIZE 66
+#define PUBKEY_UNCOMPRESSED_SIZE 65
 
 #define SCRIPT_SIZE 32768
 #define MAX_WITNESS_SIZE 32768
@@ -83,8 +83,8 @@
 #include "common.h"
 
 #include "utils_helper.h"
-#include "sha256.h"
-#include "ripemd160.h"
+//#include "sha256.h"
+//#include "ripemd160.h"
 
 #define KECCAK256(message, len, res)		\
 	do {				\
