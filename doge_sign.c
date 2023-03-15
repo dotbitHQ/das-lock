@@ -14,6 +14,18 @@ const char doge_massage_prefix[25] = {
         68, 111, 103, 101, 99, 111, 105, 110, 32, 83, 105, 103, 110, 101, 100, 32, 77, 101, 115, 115, 97, 103, 101, 58, 10
 };
 
+
+const char HEX_TABLE[] = {'0', '1', '2', '3', '4', '5', '6', '7',
+                          '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+
+void bin_to_hex(unsigned char *source, unsigned char *dest, size_t len) {
+    for (int i = 0; i < len; i++) {
+        dest[i * 2] = HEX_TABLE[source[i] >> 4];
+        dest[i * 2 + 1] = HEX_TABLE[source[i] & 0x0F];
+    }
+    return;
+}
+
 int magic_hash(uint8_t* hash, uint8_t* message, uint8_t message_len) {
     int ret = -11;
     uint8_t message_vi_len = 0;
@@ -25,31 +37,30 @@ int magic_hash(uint8_t* hash, uint8_t* message, uint8_t message_len) {
 
         SIMPLE_ASSERT(0);
     }
+    debug_print_int("message vi len: ", message_vi_len);
 
-    uint8_t total_message_len = 1 + DOGE_MASSAGE_PREFIX_LEN + message_vi_len + message_len;
+    uint8_t message_hex_len = message_len * 2;
+    uint8_t message_hex[message_hex_len];
+    bin_to_hex(message, message_hex, message_len);
+    debug_print_data("message_hex  : ", message_hex, message_hex_len);
+    
+    uint8_t total_message_len = 1 + DOGE_MASSAGE_PREFIX_LEN + message_vi_len + message_hex_len;
     uint8_t total_message[total_message_len];
 
-    //total_message = [prefix_len, prefix, message_len, message]
+    debug_print_int("message total len: ", total_message_len);
+    
+    //total_message = [prefix_len, prefix, message_hex_len, message]
     total_message[0] = DOGE_MASSAGE_PREFIX_LEN;
     memcpy(total_message + 1, doge_massage_prefix, DOGE_MASSAGE_PREFIX_LEN);
 
-    total_message[DOGE_MASSAGE_PREFIX_LEN + 1] = message_len;
-    memcpy(total_message + 1 + DOGE_MASSAGE_PREFIX_LEN + message_vi_len, message, message_len);
-
+    total_message[DOGE_MASSAGE_PREFIX_LEN + 1] = message_hex_len;
+    memcpy(total_message + 1 + DOGE_MASSAGE_PREFIX_LEN + message_vi_len, message_hex, message_hex_len);
     debug_print_data("total message : ", total_message, total_message_len);
-
-    uint8_t first_round[32] = {0};
-    uint8_t second_round[32] = {0};
-
-    SHA256(first_round, total_message, total_message_len);
-    debug_print_data("sha256 first round : ", first_round, SHA256_HASH_SIZE);
-    
-
-    SHA256(second_round, first_round, SHA256_HASH_SIZE);
-    debug_print_data("sha256 second round : ", second_round, SHA256_HASH_SIZE);
 
     SHA256x2(hash, total_message, total_message_len);
     debug_print_data("sha256x2 : ", hash, SHA256_HASH_SIZE);
+
+    debug_print_int("line ", __LINE__);
     return 0;
 }
 
@@ -180,7 +191,7 @@ int verify_signature(uint8_t* message, uint8_t* lock_bytes, void* lock_args, uin
     debug_print_data("before compare payload     : ", payload, 20);
 
     ret = memcmp(hash, payload, RIPEMD160_HASH_SIZE);
-    NORMAL_ASSERT(0, ERR_DAS_SIGNATURE_NOT_MATCH);
+    NORMAL_ASSERT(0, ERROR_PUBKEY_BLAKE160_HASH);
 
     debug_print_int("doge_sign.c line:", __LINE__);
     debug_print("Leave validate doge");
