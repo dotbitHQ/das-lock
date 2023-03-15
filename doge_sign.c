@@ -14,30 +14,43 @@ const char doge_massage_prefix[25] = {
         68, 111, 103, 101, 99, 111, 105, 110, 32, 83, 105, 103, 110, 101, 100, 32, 77, 101, 115, 115, 97, 103, 101, 58, 10
 };
 
+int magic_hash(uint8_t* hash, uint8_t* message, uint8_t message_len) {
+    int ret = -11;
+    uint8_t message_vi_len = 0;
+    if (message_len < 65536 && message_len > 255) {
+        message_vi_len = 2;
+    }else if (message_len < 256) {
+        message_vi_len = 1;
+    }else {
 
-void magic_hash(uint8_t* hash, uint8_t* message) {
-    uint8_t total_message[MAGIC_HASH_TOTAL_MESSAGE_LEN] = {0};
+        SIMPLE_ASSERT(0);
+    }
+
+    uint8_t total_message_len = 1 + DOGE_MASSAGE_PREFIX_LEN + message_vi_len + message_len;
+    uint8_t total_message[total_message_len];
 
     //total_message = [prefix_len, prefix, message_len, message]
     total_message[0] = DOGE_MASSAGE_PREFIX_LEN;
     memcpy(total_message + 1, doge_massage_prefix, DOGE_MASSAGE_PREFIX_LEN);
 
-    total_message[DOGE_MASSAGE_PREFIX_LEN + 1] = HASH_SIZE;
-    memcpy(total_message + DOGE_MASSAGE_PREFIX_LEN + 2, message, HASH_SIZE);
-    debug_print_data("total message : ", total_message, MAGIC_HASH_TOTAL_MESSAGE_LEN);
+    total_message[DOGE_MASSAGE_PREFIX_LEN + 1] = message_len;
+    memcpy(total_message + 1 + DOGE_MASSAGE_PREFIX_LEN + message_vi_len, message, message_len);
+
+    debug_print_data("total message : ", total_message, total_message_len);
 
     uint8_t first_round[32] = {0};
     uint8_t second_round[32] = {0};
 
-    SHA256(first_round, total_message, MAGIC_HASH_TOTAL_MESSAGE_LEN);
+    SHA256(first_round, total_message, total_message_len);
     debug_print_data("sha256 first round : ", first_round, SHA256_HASH_SIZE);
     
 
     SHA256(second_round, first_round, SHA256_HASH_SIZE);
     debug_print_data("sha256 second round : ", second_round, SHA256_HASH_SIZE);
 
-    SHA256x2(hash, total_message, MAGIC_HASH_TOTAL_MESSAGE_LEN);
+    SHA256x2(hash, total_message, total_message_len);
     debug_print_data("sha256x2 : ", hash, SHA256_HASH_SIZE);
+    return 0;
 }
 
 // void convert_doge_sig_into_secp_recoverable(uint8_t* secp_recover_sig, uint8_t* doge_sig){
@@ -124,10 +137,11 @@ void hash160(uint8_t* hash, uint8_t* pub_key, size_t pubkey_len){
     debug_print_data("hash160 ripemd160 :", hash, RIPEMD160_HASH_SIZE);
 }
 
-int verify_signature(uint8_t* message, uint8_t* lock_bytes, void* lock_args) {
+int verify_signature(uint8_t* message, uint8_t* lock_bytes, void* lock_args, uint8_t message_len) {
+
 
     debug_print("Enter validate doge");
-    debug_print_data("digest : ", message, HASH_SIZE);
+    debug_print_data("digest : ", message, message_len);
     debug_print_data("lock_bytes : ", lock_bytes, SIGNATURE_DOGE_SIZE);
     debug_print_data("lock_args : ", lock_args, RIPEMD160_HASH_SIZE);
 
@@ -138,7 +152,8 @@ int verify_signature(uint8_t* message, uint8_t* lock_bytes, void* lock_args) {
     debug_print_int("doge_sign.c line:", __LINE__);
 
     //magic hash
-    magic_hash(hash, message);
+    //magic_hash(hash, message);
+    magic_hash(hash, message, message_len);
     debug_print_data("magic hash: ", hash, SHA256_HASH_SIZE);
     debug_print_int("doge_sign.c line:", __LINE__);
 
@@ -182,6 +197,32 @@ __attribute__((visibility("default"))) int validate(
         int type, uint8_t* message, uint8_t* lock_bytes, uint8_t* lock_args) {
 
     /* verify signature with payload */
-    return verify_signature(message, lock_bytes, lock_args);
+    return verify_signature(message, lock_bytes, lock_args, SHA256_HASH_SIZE);
 
 }
+
+__attribute__((visibility("default"))) int validate_str(int type, uint8_t* message, size_t message_len, uint8_t* lock_bytes, uint8_t* lock_args) {
+
+    debug_print("Enter doge validate_str ");
+    debug_print_int("type: ", type);
+    debug_print_data("message: ", message, message_len);
+    debug_print_int("message_len: ", message_len);
+    //debug_print_data("message: ", message, message_len);
+    debug_print_data("lock_bytes: ", lock_bytes, 66);
+    debug_print_data("lock_args: ", lock_args, 20);
+
+
+//    uint8_t doge_prefix[50];
+//    tron_prefix[0] = 0x19;
+//
+//    memcpy(tron_prefix + 1, "TRON Signed Message:\n32", 23);
+//    SHA3_CTX sha3_ctx;
+//    keccak_init(&sha3_ctx);
+//    keccak_update(&sha3_ctx, tron_prefix, 24);
+//    keccak_update(&sha3_ctx, message, message_len);
+//    keccak_final(&sha3_ctx, message);
+
+    /* verify signature with personal hash */
+    return verify_signature(message, lock_bytes, lock_args, message_len);
+}
+
