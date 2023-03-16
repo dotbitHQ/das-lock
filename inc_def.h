@@ -1,7 +1,7 @@
 #ifndef INC_DEF_H
 #define INC_DEF_H
 #define SIGNATURE_SIZE 65
-#define SIGNATURE_DOGE_SIZE 67
+#define SIGNATURE_DOGE_SIZE 66
 #define ED25519_SIGNATURE_SIZE 64
 #define CHAIN_ID_LEN 8
 #define HASH_SIZE 32
@@ -44,7 +44,8 @@
 #define ERR_DAS_INVALID_POINT 13
 #define ERR_DAS_INVALID_PERMISSION 14
 #define ERR_DAS_INVALID_LOCK_CELL 15
-#define ERR_DAS_SIGNATURE_NOT_MATCH 16
+#define ERR_DAS_MESSAGE_TOO_LONG 16
+#define ERR_DAS_MESSAGE_LENGTH 17
 
 #define ERROR_INVALID_RESERVE_FIELD -41
 #define ERROR_INVALID_PUBKEYS_CNT -42
@@ -83,8 +84,6 @@
 #include "common.h"
 
 #include "utils_helper.h"
-//#include "sha256.h"
-//#include "ripemd160.h"
 
 #define KECCAK256(message, len, res)		\
 	do {				\

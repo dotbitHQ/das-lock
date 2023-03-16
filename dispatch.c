@@ -114,24 +114,17 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 	}
 	debug_print_data("tx_hash: ", tx_hash, HASH_SIZE);
 
-	unsigned char debug_buffer[10*1024];
+	
 	blake2b_state blake2b_ctx;
 	blake2b_init(&blake2b_ctx, HASH_SIZE);
-	size_t debug_index = 0;
-	blake2b_update_jason(&blake2b_ctx, tx_hash, HASH_SIZE, debug_buffer, &debug_index);
-	debug_print_data("blake2b update tx_hash : ", debug_buffer, debug_index);
-	//blake2b_update(&blake2b_ctx, tx_hash, HASH_SIZE);
+	
+	blake2b_update(&blake2b_ctx, tx_hash, HASH_SIZE);
 
 
-	//debug_print_data("2temp after extract_witness_lock: ", temp, witness_len);
 	memset((void *)lock_bytes_seg.ptr + multisig_script_len, 0, lock_bytes_seg.size);
-	blake2b_update_jason(&blake2b_ctx, (uint8_t *)&witness_len, sizeof(uint64_t), debug_buffer, &debug_index);
-	debug_print_data("blake2b update witenss_len : ", debug_buffer, debug_index);
+	blake2b_update(&blake2b_ctx, (uint8_t *)&witness_len, sizeof(uint64_t));
+	blake2b_update(&blake2b_ctx, temp, witness_len);
 
-	//debug_print_data("3temp after extract_witness_lock: ", temp, witness_len);
-	blake2b_update_jason(&blake2b_ctx, temp, witness_len, debug_buffer, &debug_index);
-	debug_print_data("blake2b update temp :", debug_buffer, debug_index);
-	//debug_print_data("temp finaly: ", temp, witness_len);
 
 	debug_print_int("witness_len: ", witness_len);
 
@@ -148,7 +141,7 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 
 	// Digest witnesses that not covered by inputs
 	i = ckb_calculate_inputs_len();
-	debug_print_int("ckb_calculate_inputs_len", i);
+
 	while (1) {
 		ret = load_and_hash_witness(&blake2b_ctx, i, CKB_SOURCE_INPUT);
 		if (ret == CKB_INDEX_OUT_OF_BOUND) {
@@ -582,7 +575,7 @@ int main() {
 	void *handle = NULL;
 	uint8_t hash_type = 1;
 	ret = ckb_dlopen2(code_so, hash_type, code_buffer, 128 * 1024, &handle, &consumed_size);
-	debug_print_int(__FILE__, __LINE__);
+
 	
 	SIMPLE_ASSERT(CKB_SUCCESS);
 	debug_print("after ckb_dlopen2");
