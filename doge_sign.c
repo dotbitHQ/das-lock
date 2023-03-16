@@ -6,13 +6,6 @@
 #include "inc_def.h"
 #include "deps/cryptos/sha256.h"
 #include "deps/cryptos/ripemd160.h"
-//#include "deps/secp256k1/include/secp256k1.h"
-//#include "deps/secp256k1/include/secp256k1_recovery.h"
-
-//
-const char doge_massage_prefix[25] = {
-        68, 111, 103, 101, 99, 111, 105, 110, 32, 83, 105, 103, 110, 101, 100, 32, 77, 101, 115, 115, 97, 103, 101, 58, 10
-};
 
 
 const char HEX_TABLE[] = {'0', '1', '2', '3', '4', '5', '6', '7',
@@ -28,7 +21,6 @@ void bin_to_hex(uint8_t *source, uint8_t *dest, size_t len) {
 
 int magic_hash(uint8_t* hash, uint8_t* message, size_t message_len) {
 
-    //这个判断有点多余, 如果它的类型是 255的话
     uint8_t message_vi_len = 0;
     if (message_len < 65536 && message_len > 255) {
         message_vi_len = 2;
@@ -57,7 +49,7 @@ int magic_hash(uint8_t* hash, uint8_t* message, size_t message_len) {
     
     //total_message = [prefix_len, prefix, message_hex_len, message_hex]
     total_message[0] = DOGE_MASSAGE_PREFIX_LEN;
-    memcpy(total_message + 1, doge_massage_prefix, DOGE_MASSAGE_PREFIX_LEN);
+    memcpy(total_message  + 1, "Dogecoin Signed Message:\n", DOGE_MASSAGE_PREFIX_LEN);
     debug_print_data("total message : after copy prefix : ", total_message, total_message_len);
 
     total_message[DOGE_MASSAGE_PREFIX_LEN + 1] = message_hex_len;
@@ -103,7 +95,7 @@ int recover_public_key(uint8_t *pubkey, uint8_t* msg, uint8_t* sig_doge, size_t*
     // parse compact signature
     secp256k1_ecdsa_recoverable_signature sig_ecdsa;
     ret = secp256k1_ecdsa_recoverable_signature_parse_compact(ctx, &sig_ecdsa, sig_ecdsa_serialized, recover_id);
-    debug_print_data("after parse sig_ecdsa : ", sig_secp.data, SIGNATURE_SIZE);
+    debug_print_data("after parse sig_ecdsa : ", sig_ecdsa.data, SIGNATURE_SIZE);
     SIMPLE_ASSERT(1);
 
     // recover public key
@@ -133,7 +125,7 @@ int recover_public_key(uint8_t *pubkey, uint8_t* msg, uint8_t* sig_doge, size_t*
 
 
     ret = secp256k1_ec_pubkey_serialize(ctx, pubkey, &output_len, &pubkey_recover, flag);
-    debug_print_data("after serialize pubkey :", public_key, output_len);
+    debug_print_data("after serialize pubkey :", pubkey, output_len);
     NORMAL_ASSERT(1, ERROR_SECP_RECOVER_PUBKEY);
 
 
@@ -211,7 +203,7 @@ int verify_signature(uint8_t* message, uint8_t* lock_bytes, void* lock_args, siz
     debug_print_data("before compare pubkey_hash : ", hash, RIPEMD160_HASH_SIZE);
     debug_print_data("before compare payload     : ", payload, RIPEMD160_HASH_SIZE);
     ret = memcmp(hash, payload, RIPEMD160_HASH_SIZE);
-    NORMAL_ASSERT(0, CSAL_ERROR_INVALID_PROOF);
+    NORMAL_ASSERT(0, ERROR_PUBKEY_BLAKE160_HASH);
 
     debug_print("Leave validate doge");
     return 0;
