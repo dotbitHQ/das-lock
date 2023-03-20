@@ -495,13 +495,7 @@ int get_code_hash(uint8_t index, uint8_t* code_hash) {
 #include "mainnet_so_list.txt"
 #endif
 	};
-	    for(int i = 0; i < 8; i++){
-	    memset(code_hash, 0, 32);
-        hex2str(code_hash_map[i], code_hash);
-	debug_print_int("index" ,i);
-        debug_print_data("so list =", code_hash, 32);
-    }
-	    memset(code_hash, 0, 32);
+	memset(code_hash, 0, 32);
 	uint8_t len = sizeof(code_hash_map) / sizeof(code_hash_map[0]);
 	if (index >= len) {
 		return ERR_DAS_INDEX_OUT_OF_BOUND;
