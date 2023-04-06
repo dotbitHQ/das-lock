@@ -64,13 +64,16 @@ __attribute__((visibility("default"))) int validate(int type, uint8_t* message, 
 	/* personal hash, tron prefix  \u0019TRON Signed Message:\n32  */
 	uint8_t tron_prefix[24];
 	tron_prefix[0] = 0x19;
-	memcpy(tron_prefix + 1, "TRON Signed Message:\n43", 23);
+	memcpy(tron_prefix + 1, "TRON Signed Message:\n75", 23);
 
 	keccak_update(&sha3_ctx, tron_prefix, 24);
 
+    uint8_t message_hex[64];
+    bin_to_hex(message_hex, message, 32);
+
     uint8_t message_with_prefix[COMMON_PREFIX_AND_MESSAGE_LENGTH];
     memcpy(message_with_prefix, COMMON_PREFIX, COMMON_PREFIX_LENGTH);
-    memcpy(message_with_prefix + COMMON_PREFIX_LENGTH, message, 32);
+    memcpy(message_with_prefix + COMMON_PREFIX_LENGTH, message_hex, 64);
 
     keccak_update(&sha3_ctx, message_with_prefix, COMMON_PREFIX_AND_MESSAGE_LENGTH);
 
