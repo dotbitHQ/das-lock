@@ -55,8 +55,9 @@
 #define ERROR_MULTSIG_SCRIPT_HASH -51
 #define ERROR_VERIFICATION -52
 
-
-
+#define COMMON_PREFIX "From .bit: "
+#define COMMON_PREFIX_LENGTH 11
+#define COMMON_PREFIX_AND_MESSAGE_LENGTH (11+32)
 #define SIMPLE_ASSERT(want) 	\
 	do {			\
 		if ((ret) != (want)) {	\

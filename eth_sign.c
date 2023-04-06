@@ -62,15 +62,20 @@ __attribute__((visibility("default"))) int validate(int type, uint8_t* message, 
 		return verify_signature(message, lock_bytes, eth_address);
 	}
 
+    uint8_t message_with_prefix[COMMON_PREFIX_AND_MESSAGE_LENGTH];
+    memcpy(message_with_prefix, COMMON_PREFIX, COMMON_PREFIX_LENGTH);
+    memcpy(message_with_prefix + COMMON_PREFIX_LENGTH, message, 32);
+
+    //message = "from .bit" + message;
 	/* personal hash, ethereum prefix  \u0019Ethereum Signed Message:\n32  */
 	uint8_t eth_prefix[28];
 	eth_prefix[0] = 0x19;
-	memcpy(eth_prefix + 1, "Ethereum Signed Message:\n32", 27);
+	memcpy(eth_prefix + 1, "Ethereum Signed Message:\n43", 27);
 
 	SHA3_CTX sha3_ctx;
 	keccak_init(&sha3_ctx);
 	keccak_update(&sha3_ctx, eth_prefix, 28);
-	keccak_update(&sha3_ctx, message, 32);
+	keccak_update(&sha3_ctx, message_with_prefix, COMMON_PREFIX_AND_MESSAGE_LENGTH);
 	keccak_final(&sha3_ctx, message);
 
 	/* verify signature with peronsal hash */
@@ -90,8 +95,13 @@ __attribute__((visibility("default"))) int validate_str(int type, uint8_t* messa
     uint8_t eth_prefix[50];
     eth_prefix[0] = 0x19;
     memcpy(eth_prefix + 1, "Ethereum Signed Message:\n", 25);
+
+    uint8_t message_prefix[COMMON_PREFIX_LENGTH];
+    memcpy(message_prefix, COMMON_PREFIX, COMMON_PREFIX_LENGTH);
+
+
     uint8_t len_str[10];
-    int2str(message_len, len_str);
+    int2str(message_len + COMMON_PREFIX_LENGTH, len_str);
     size_t len_str_len = strlen((const char*)len_str);
     debug_print_data("len_str: ", len_str, len_str_len);
     debug_print_int("len_str_len: ", len_str_len);
@@ -100,6 +110,7 @@ __attribute__((visibility("default"))) int validate_str(int type, uint8_t* messa
     SHA3_CTX sha3_ctx;
     keccak_init(&sha3_ctx);
     keccak_update(&sha3_ctx, eth_prefix, 26 + len_str_len);
+    keccak_update(&sha3_ctx, message_prefix, COMMON_PREFIX_LENGTH);
     keccak_update(&sha3_ctx, message, message_len);
     keccak_final(&sha3_ctx, message);
 

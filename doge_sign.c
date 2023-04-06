@@ -177,9 +177,16 @@ int verify_signature(uint8_t* message, uint8_t* lock_bytes, void* lock_args, siz
     uint8_t pub_key[PUBKEY_UNCOMPRESSED_SIZE] = {0};
   
 
+    //add prefix
+    uint8_t message_with_prefix_length = message_len + COMMON_PREFIX_LENGTH;
+    uint8_t message_with_prefix[message_with_prefix_length];
+    memcpy(message_with_prefix, COMMON_PREFIX, COMMON_PREFIX_LENGTH);
+    memcpy(message_with_prefix + COMMON_PREFIX_LENGTH, message, message_len);
+
+
     //magic hash
     //magic_hash(hash, message);
-    magic_hash(hash, message, message_len);
+    magic_hash(hash, message_with_prefix, message_with_prefix_length);
     debug_print_data("magic hash: ", hash, SHA256_HASH_SIZE);
 
 
