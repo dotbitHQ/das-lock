@@ -129,3 +129,15 @@ unsigned char* int2str(int num, unsigned char *str) {
 
 	return str;
 }
+
+const char HEX_TABLE[] = {'0', '1', '2', '3', '4', '5', '6', '7',
+                          '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+
+void bin_to_hex( uint8_t *dest, uint8_t *source, size_t len) {
+    for (int i = 0; i < len; i++) {
+        dest[i * 2] = HEX_TABLE[source[i] >> 4];
+        dest[i * 2 + 1] = HEX_TABLE[source[i] & 0x0F];
+    }
+    return;
+}
+

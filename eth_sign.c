@@ -62,17 +62,22 @@ __attribute__((visibility("default"))) int validate(int type, uint8_t* message, 
 		return verify_signature(message, lock_bytes, eth_address);
 	}
 
+    uint8_t message_hex_string[64];
+    bin_to_hex(message_hex_string, message, HASH_SIZE);
+
     uint8_t message_with_prefix[COMMON_PREFIX_AND_MESSAGE_LENGTH];
     memcpy(message_with_prefix, COMMON_PREFIX, COMMON_PREFIX_LENGTH);
-    memcpy(message_with_prefix + COMMON_PREFIX_LENGTH, message, 32);
-
+    memcpy(message_with_prefix + COMMON_PREFIX_LENGTH, message_hex_string, 64);
+    debug_print_data("message_with_prefix ", message_with_prefix, COMMON_PREFIX_AND_MESSAGE_LENGTH);
     //message = "from .bit" + message;
 	/* personal hash, ethereum prefix  \u0019Ethereum Signed Message:\n32  */
 	uint8_t eth_prefix[28];
 	eth_prefix[0] = 0x19;
-	memcpy(eth_prefix + 1, "Ethereum Signed Message:\n43", 27);
+	memcpy(eth_prefix + 1, "Ethereum Signed Message:\n75", 27);
+    debug_print_data("eth_prefix ", eth_prefix, 28);
 
-	SHA3_CTX sha3_ctx;
+
+    SHA3_CTX sha3_ctx;
 	keccak_init(&sha3_ctx);
 	keccak_update(&sha3_ctx, eth_prefix, 28);
 	keccak_update(&sha3_ctx, message_with_prefix, COMMON_PREFIX_AND_MESSAGE_LENGTH);

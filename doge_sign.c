@@ -8,16 +8,16 @@
 #include "deps/cryptos/ripemd160.h"
 
 
-const char HEX_TABLE[] = {'0', '1', '2', '3', '4', '5', '6', '7',
-                          '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
-
-void bin_to_hex(uint8_t *source, uint8_t *dest, size_t len) {
-    for (int i = 0; i < len; i++) {
-        dest[i * 2] = HEX_TABLE[source[i] >> 4];
-        dest[i * 2 + 1] = HEX_TABLE[source[i] & 0x0F];
-    }
-    return;
-}
+//const char HEX_TABLE[] = {'0', '1', '2', '3', '4', '5', '6', '7',
+//                          '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+//
+//void bin_to_hex(uint8_t *source, uint8_t *dest, size_t len) {
+//    for (int i = 0; i < len; i++) {
+//        dest[i * 2] = HEX_TABLE[source[i] >> 4];
+//        dest[i * 2 + 1] = HEX_TABLE[source[i] & 0x0F];
+//    }
+//    return;
+//}
 
 int magic_hash(uint8_t* hash, uint8_t* message, size_t message_len) {
 
@@ -39,7 +39,7 @@ int magic_hash(uint8_t* hash, uint8_t* message, size_t message_len) {
 
     size_t message_hex_len = message_len * 2;
     uint8_t message_hex[message_hex_len];
-    bin_to_hex(message, message_hex, message_len);
+    bin_to_hex(message_hex, message, message_len);
     debug_print_data("message_hex  : ", message_hex, message_hex_len);
     
     size_t total_message_len = 1 + DOGE_MASSAGE_PREFIX_LEN + message_vi_len + message_hex_len;
