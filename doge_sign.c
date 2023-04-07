@@ -19,7 +19,10 @@
 //    return;
 //}
 
+
 int magic_hash(uint8_t* hash, uint8_t* message, size_t message_len) {
+
+
 
     uint8_t message_vi_len = 0;
     if (message_len < 65536 && message_len > 255) {
@@ -42,7 +45,7 @@ int magic_hash(uint8_t* hash, uint8_t* message, size_t message_len) {
     bin_to_hex(message_hex, message, message_len);
     debug_print_data("message_hex  : ", message_hex, message_hex_len);
     
-    size_t total_message_len = 1 + DOGE_MASSAGE_PREFIX_LEN + message_vi_len + message_hex_len;
+    size_t total_message_len = 1 + DOGE_MASSAGE_PREFIX_LEN + message_vi_len + COMMON_PREFIX_LENGTH + message_hex_len;
     uint8_t total_message[total_message_len];
 
     debug_print_int("message total len: ", total_message_len);
@@ -52,8 +55,9 @@ int magic_hash(uint8_t* hash, uint8_t* message, size_t message_len) {
     memcpy(total_message  + 1, "Dogecoin Signed Message:\n", DOGE_MASSAGE_PREFIX_LEN);
     debug_print_data("total message : after copy prefix : ", total_message, total_message_len);
 
-    total_message[DOGE_MASSAGE_PREFIX_LEN + 1] = message_hex_len;
-    memcpy(total_message + 1 + DOGE_MASSAGE_PREFIX_LEN + message_vi_len, message_hex, message_hex_len);
+    total_message[DOGE_MASSAGE_PREFIX_LEN + 1] = COMMON_PREFIX_LENGTH + message_hex_len;
+    memcpy(total_message + 1 + DOGE_MASSAGE_PREFIX_LEN + message_vi_len, COMMON_PREFIX, COMMON_PREFIX_LENGTH);
+    memcpy(total_message + 1 + DOGE_MASSAGE_PREFIX_LEN + message_vi_len + COMMON_PREFIX_LENGTH, message_hex, message_hex_len);
     debug_print_data("total message : after copy message : ", total_message, total_message_len);
 
     SHA256x2(hash, total_message, total_message_len);
@@ -182,15 +186,17 @@ int verify_signature(uint8_t* message, uint8_t* lock_bytes, void* lock_args, siz
     bin_to_hex(message_hex, message, message_len);
 
     //add prefix
-    uint8_t message_with_prefix_length = COMMON_PREFIX_LENGTH + message_len * 2;
-    uint8_t message_with_prefix[message_with_prefix_length];
-    memcpy(message_with_prefix, COMMON_PREFIX, COMMON_PREFIX_LENGTH);
-    memcpy(message_with_prefix + COMMON_PREFIX_LENGTH, message_hex, message_len * 2);
-
+    //uint8_t message_with_prefix_length = COMMON_PREFIX_LENGTH + message_len * 2;
+    //uint8_t message_with_prefix[message_with_prefix_length];
+    //memcpy(message_with_prefix, COMMON_PREFIX, COMMON_PREFIX_LENGTH);
+    //memcpy(message_with_prefix + COMMON_PREFIX_LENGTH, message_hex, message_len * 2);
+    //debug_print_int("message_with_prefix_length: ", message_with_prefix_length);
+    //debug_print_data("message_with_prefix: ", message_with_prefix, message_with_prefix_length);
 
     //magic hash
     //magic_hash(hash, message);
-    magic_hash(hash, message_with_prefix, message_with_prefix_length);
+    //magic_hash(hash, message_with_prefix, message_with_prefix_length);
+    magic_hash(hash, message, message_len);
     debug_print_data("magic hash: ", hash, SHA256_HASH_SIZE);
 
 
