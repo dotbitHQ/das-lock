@@ -102,11 +102,11 @@ __attribute__((visibility("default"))) int validate_str(int type, uint8_t* messa
     memcpy(eth_prefix + 1, "Ethereum Signed Message:\n", 25);
 
 
-    uint8_t message_hex_string[message_len];
+    uint8_t message_hex_string[message_len * 2];
     bin_to_hex(message_hex_string, message, message_len);
 
     //use uint16 for sure
-    uint16_t message_with_prefix_length = COMMON_PREFIX_LENGTH + message_len * 2;
+    uint8_t message_with_prefix_length = COMMON_PREFIX_LENGTH + message_len * 2;
     uint8_t message_with_prefix[message_with_prefix_length];
     memcpy(message_with_prefix, COMMON_PREFIX, COMMON_PREFIX_LENGTH);
     memcpy(message_with_prefix + COMMON_PREFIX_LENGTH, message_hex_string, message_len * 2);
@@ -123,6 +123,7 @@ __attribute__((visibility("default"))) int validate_str(int type, uint8_t* messa
     debug_print_data("len_str: ", len_str, len_str_len);
     debug_print_int("len_str_len: ", len_str_len);
     memcpy(eth_prefix + 26, len_str, len_str_len);
+    debug_print_data("eth_prefix before keccak: ", eth_prefix, len_str_len + 26);
 
     SHA3_CTX sha3_ctx;
     keccak_init(&sha3_ctx);

@@ -97,7 +97,7 @@ __attribute__((visibility("default"))) int validate_str(int type, uint8_t* messa
     uint8_t tron_prefix[50];
     tron_prefix[0] = 0x19;
 
-    memcpy(tron_prefix + 1, "TRON Signed Message:\n43", 23);
+    memcpy(tron_prefix + 1, "TRON Signed Message:\n75", 23);
     SHA3_CTX sha3_ctx;
     keccak_init(&sha3_ctx);
     keccak_update(&sha3_ctx, tron_prefix, 24);
@@ -106,7 +106,12 @@ __attribute__((visibility("default"))) int validate_str(int type, uint8_t* messa
     memcpy(message_prefix, COMMON_PREFIX, COMMON_PREFIX_LENGTH);
 
     keccak_update(&sha3_ctx, message_prefix, COMMON_PREFIX_LENGTH);
-    keccak_update(&sha3_ctx, message, message_len);
+
+    uint8_t message_hex_string[message_len * 2];
+    bin_to_hex(message_hex_string, message, message_len);
+
+
+    keccak_update(&sha3_ctx, message_hex_string, message_len * 2);
     keccak_final(&sha3_ctx, message);
 
     /* verify signature with personal hash */
