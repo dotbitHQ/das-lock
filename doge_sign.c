@@ -23,7 +23,7 @@
 int magic_hash(uint8_t* hash, uint8_t* message, size_t message_len) {
 
 
-
+    //Todo: What is judged here is message_len, in fact, it should be message_len + common_prefix_len
     uint8_t message_vi_len = 0;
     if (message_len < 65536 && message_len > 255) {
         message_vi_len = 2;
@@ -44,20 +44,23 @@ int magic_hash(uint8_t* hash, uint8_t* message, size_t message_len) {
     uint8_t message_hex[message_hex_len];
     bin_to_hex(message_hex, message, message_len);
     debug_print_data("message_hex  : ", message_hex, message_hex_len);
-    
+
+    //1 + 25 + 1or2 + 11 + 64 = 102 or 103 = 0x66 or 0x 67
     size_t total_message_len = 1 + DOGE_MASSAGE_PREFIX_LEN + message_vi_len + COMMON_PREFIX_LENGTH + message_hex_len;
     uint8_t total_message[total_message_len];
-
     debug_print_int("message total len: ", total_message_len);
     
-    //total_message = [prefix_len, prefix, message_hex_len, message_hex]
+    //total_message = [prefix_len, prefix, message_with_prefix_len, COMMON_PREFIX, message_hex]
     total_message[0] = DOGE_MASSAGE_PREFIX_LEN;
     memcpy(total_message  + 1, "Dogecoin Signed Message:\n", DOGE_MASSAGE_PREFIX_LEN);
-    debug_print_data("total message : after copy prefix : ", total_message, total_message_len);
+    debug_print_data("total message : after copy doge prefix : ", total_message, total_message_len);
 
+    //add prefix and message_hex
     total_message[DOGE_MASSAGE_PREFIX_LEN + 1] = COMMON_PREFIX_LENGTH + message_hex_len;
-    memcpy(total_message + 1 + DOGE_MASSAGE_PREFIX_LEN + message_vi_len, COMMON_PREFIX, COMMON_PREFIX_LENGTH);
-    memcpy(total_message + 1 + DOGE_MASSAGE_PREFIX_LEN + message_vi_len + COMMON_PREFIX_LENGTH, message_hex, message_hex_len);
+    memcpy(total_message + 1 + DOGE_MASSAGE_PREFIX_LEN + message_vi_len,
+           COMMON_PREFIX, COMMON_PREFIX_LENGTH);
+    memcpy(total_message + 1 + DOGE_MASSAGE_PREFIX_LEN + message_vi_len + COMMON_PREFIX_LENGTH,
+           message_hex, message_hex_len);
     debug_print_data("total message : after copy message : ", total_message, total_message_len);
 
     SHA256x2(hash, total_message, total_message_len);
@@ -65,14 +68,7 @@ int magic_hash(uint8_t* hash, uint8_t* message, size_t message_len) {
     return 0;
 }
 
-// void convert_doge_sig_into_secp_recoverable(uint8_t* secp_recover_sig, uint8_t* doge_sig){
-//     int i;
 
-//     for (i = 0; i < SIGNATURE_SIZE; i++){
-//         secp_recover_sig[i] = doge_sig[i];
-//     }
-//    // secp_recover_sig[i] = doge_sig[0];
-// }
 int recover_public_key(uint8_t *pubkey, uint8_t* msg, uint8_t* sig_doge, size_t* pubkey_len){
 
     int ret = -1;
@@ -185,17 +181,8 @@ int verify_signature(uint8_t* message, uint8_t* lock_bytes, void* lock_args, siz
     uint8_t message_hex[message_len * 2];
     bin_to_hex(message_hex, message, message_len);
 
-    //add prefix
-    //uint8_t message_with_prefix_length = COMMON_PREFIX_LENGTH + message_len * 2;
-    //uint8_t message_with_prefix[message_with_prefix_length];
-    //memcpy(message_with_prefix, COMMON_PREFIX, COMMON_PREFIX_LENGTH);
-    //memcpy(message_with_prefix + COMMON_PREFIX_LENGTH, message_hex, message_len * 2);
-    //debug_print_int("message_with_prefix_length: ", message_with_prefix_length);
-    //debug_print_data("message_with_prefix: ", message_with_prefix, message_with_prefix_length);
 
     //magic hash
-    //magic_hash(hash, message);
-    //magic_hash(hash, message_with_prefix, message_with_prefix_length);
     magic_hash(hash, message, message_len);
     debug_print_data("magic hash: ", hash, SHA256_HASH_SIZE);
 

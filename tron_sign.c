@@ -74,6 +74,7 @@ __attribute__((visibility("default"))) int validate(int type, uint8_t* message, 
     uint8_t message_with_prefix[COMMON_PREFIX_AND_MESSAGE_LENGTH];
     memcpy(message_with_prefix, COMMON_PREFIX, COMMON_PREFIX_LENGTH);
     memcpy(message_with_prefix + COMMON_PREFIX_LENGTH, message_hex, 64);
+    debug_print_data("message with prefix : ", message_with_prefix, COMMON_PREFIX_LENGTH);
 
     keccak_update(&sha3_ctx, message_with_prefix, COMMON_PREFIX_AND_MESSAGE_LENGTH);
 
@@ -97,13 +98,16 @@ __attribute__((visibility("default"))) int validate_str(int type, uint8_t* messa
     uint8_t tron_prefix[50];
     tron_prefix[0] = 0x19;
 
+    //Todo: Change the 75 here to a dynamic length
     memcpy(tron_prefix + 1, "TRON Signed Message:\n75", 23);
+
     SHA3_CTX sha3_ctx;
     keccak_init(&sha3_ctx);
     keccak_update(&sha3_ctx, tron_prefix, 24);
 
     uint8_t message_prefix[COMMON_PREFIX_LENGTH];
     memcpy(message_prefix, COMMON_PREFIX, COMMON_PREFIX_LENGTH);
+    debug_print_data("message_prefix = ", message_prefix, COMMON_PREFIX_LENGTH);
 
     keccak_update(&sha3_ctx, message_prefix, COMMON_PREFIX_LENGTH);
 

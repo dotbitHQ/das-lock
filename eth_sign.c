@@ -101,27 +101,23 @@ __attribute__((visibility("default"))) int validate_str(int type, uint8_t* messa
     eth_prefix[0] = 0x19;
     memcpy(eth_prefix + 1, "Ethereum Signed Message:\n", 25);
 
+    //convert message to hex
+    uint8_t message_hex[message_len * 2];
+    bin_to_hex(message_hex, message, message_len);
 
-    uint8_t message_hex_string[message_len * 2];
-    bin_to_hex(message_hex_string, message, message_len);
-
-    //use uint16 for sure
+    //common prefix
     uint8_t message_with_prefix_length = COMMON_PREFIX_LENGTH + message_len * 2;
     uint8_t message_with_prefix[message_with_prefix_length];
     memcpy(message_with_prefix, COMMON_PREFIX, COMMON_PREFIX_LENGTH);
-    memcpy(message_with_prefix + COMMON_PREFIX_LENGTH, message_hex_string, message_len * 2);
-    debug_print_data("message_with_prefix ", message_with_prefix, message_with_prefix_length);
-
-
-    uint8_t message_prefix[COMMON_PREFIX_LENGTH];
-    memcpy(message_prefix, COMMON_PREFIX, COMMON_PREFIX_LENGTH);
-
+    memcpy(message_with_prefix + COMMON_PREFIX_LENGTH, message_hex, message_len * 2);
+    debug_print_data("message_with_prefix : ", message_with_prefix, message_with_prefix_length);
 
     uint8_t len_str[10];
     int2str(message_with_prefix_length, len_str);
     size_t len_str_len = strlen((const char*)len_str);
     debug_print_data("len_str: ", len_str, len_str_len);
     debug_print_int("len_str_len: ", len_str_len);
+
     memcpy(eth_prefix + 26, len_str, len_str_len);
     debug_print_data("eth_prefix before keccak: ", eth_prefix, len_str_len + 26);
 
