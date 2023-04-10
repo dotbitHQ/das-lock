@@ -133,11 +133,107 @@ unsigned char* int2str(int num, unsigned char *str) {
 const char HEX_TABLE[] = {'0', '1', '2', '3', '4', '5', '6', '7',
                           '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
 
-void bin_to_hex( uint8_t *dest, uint8_t *source, size_t len) {
+void bytes2str(uint8_t *dest, uint8_t *source, size_t len) {
     for (int i = 0; i < len; i++) {
         dest[i * 2] = HEX_TABLE[source[i] >> 4];
         dest[i * 2 + 1] = HEX_TABLE[source[i] & 0x0F];
     }
     return;
 }
+struct NetworkPrefix {
+    char* prefix_str;
+    uint8_t prefix_len;
+};
+
+typedef enum {
+    ETH,
+    TRON,
+    ED25519,
+    DOGE
+} BlockchainType;
+
+
+
+struct NetworkPrefix get_network_prefix(BlockchainType blockchain){
+    struct NetworkPrefix np;
+
+    switch (blockchain) {
+        case ETH:
+            np.prefix_str = "Ethereum Signed Message:\n";
+            np.prefix_len = 25;
+            break;
+        case TRON:
+            np.prefix_str = "TRON Signed Message:\n";
+            np.prefix_len = 21;
+            break;
+        case ED25519:
+            np.prefix_str = "Ed25519 Signed Message:\n";
+            np.prefix_len = 24;
+            break;
+        case DOGE:
+            np.prefix_str = "Dogecoin Signed Message:\n";
+            np.prefix_len = 25;
+            break;
+    }
+    return np;
+}
+
+
+
+//外部的内存开辟的大一些   3 + Common_len(11) + message_len * 2
+int add_prefix_to_message(uint8_t *message_with_prefix,  uint8_t *message_with_prefix_len,
+                          uint8_t *message, uint8_t message_len, int network_type){
+    if(message_with_prefix == NULL || message == NULL){
+        return -1;
+    }
+    if(message_len > 120){
+        return -2;
+    }
+    struct NetworkPrefix np = get_network_prefix(network_type);
+
+    size_t idx = 0;
+    message_with_prefix[idx] = np.prefix_len;
+
+    idx += 1;
+    memcpy(message_with_prefix + idx, np.prefix_str, np.prefix_len);
+    debug_print_data("mes_with_pre: copy spec prefix: ", message_with_prefix, *message_with_prefix_len);
+
+    uint8_t len_str[10];
+    int2str(message_len * 2 + COMMON_PREFIX_LENGTH, len_str);
+    size_t len_str_len = strlen((const char*)len_str);
+
+    idx += np.prefix_len;
+    memcpy(message_with_prefix + idx, len_str, len_str_len);
+    debug_print_data("mes_with_pre: copy lenstr : ", message_with_prefix, *message_with_prefix_len);
+
+
+    idx += len_str_len;
+    memcpy(message_with_prefix + idx, COMMON_PREFIX, COMMON_PREFIX_LENGTH);
+    debug_print_data("mes_with_pre: copy comm prefix: ", message_with_prefix, *message_with_prefix_len);
+
+
+    idx += COMMON_PREFIX_LENGTH;
+    bytes2str(message_with_prefix + idx, message, message_len);
+    debug_print_data("mes_with_pre: copy message: ", message_with_prefix, *message_with_prefix_len);
+
+
+    idx += message_len * 2;
+    *message_with_prefix_len = idx;
+    return  0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

@@ -59,29 +59,32 @@ __attribute__((visibility("default"))) int validate(int type, uint8_t* message, 
 	debug_print("Enter validate");
 	debug_print_data("digest before keccak with tron prefix: ", message, HASH_SIZE);
 
-	SHA3_CTX sha3_ctx;
-	keccak_init(&sha3_ctx);
-	/* personal hash, tron prefix  \u0019TRON Signed Message:\n32  */
-	uint8_t tron_prefix[24];
-	tron_prefix[0] = 0x19;
-	memcpy(tron_prefix + 1, "TRON Signed Message:\n75", 23);
 
-	keccak_update(&sha3_ctx, tron_prefix, 24);
+//	/* personal hash, tron prefix  \u0019TRON Signed Message:\n32  */
+//	uint8_t tron_prefix[24];
+//	tron_prefix[0] = 0x19;
+//	memcpy(tron_prefix + 1, "TRON Signed Message:\n75", 23);
+//
+//	keccak_update(&sha3_ctx, tron_prefix, 24);
+//
+//    uint8_t message_hex[64];
+//    bytes2str(message_hex, message, 32);
+//
+//    uint8_t message_with_prefix[COMMON_PREFIX_AND_MESSAGE_LENGTH];
+//    memcpy(message_with_prefix, COMMON_PREFIX, COMMON_PREFIX_LENGTH);
+//    memcpy(message_with_prefix + COMMON_PREFIX_LENGTH, message_hex, 64);
+//    debug_print_data("message with prefix : ", message_with_prefix, COMMON_PREFIX_LENGTH);
 
-    uint8_t message_hex[64];
-    bin_to_hex(message_hex, message, 32);
+    uint8_t max_len = MAX_LEN_MESSAGE_WITH_PREFIX + 32 * 2;
+    uint8_t msg_with_prefix[max_len];
+    uint8_t msg_with_prefix_len = max_len;
+    add_prefix_to_message(msg_with_prefix, &msg_with_prefix_len,
+                          message, 32, TRON);
 
-    uint8_t message_with_prefix[COMMON_PREFIX_AND_MESSAGE_LENGTH];
-    memcpy(message_with_prefix, COMMON_PREFIX, COMMON_PREFIX_LENGTH);
-    memcpy(message_with_prefix + COMMON_PREFIX_LENGTH, message_hex, 64);
-    debug_print_data("message with prefix : ", message_with_prefix, COMMON_PREFIX_LENGTH);
 
-    keccak_update(&sha3_ctx, message_with_prefix, COMMON_PREFIX_AND_MESSAGE_LENGTH);
-
-//	uint8_t for_compatible[1]; // based on the sign method of tron link app
-//	for_compatible[0] = 0x4;
-//	keccak_update(&sha3_ctx, for_compatible, 1);
-
+    SHA3_CTX sha3_ctx;
+    keccak_init(&sha3_ctx);
+    keccak_update(&sha3_ctx, msg_with_prefix, msg_with_prefix_len);
 	keccak_final(&sha3_ctx, message);
 
 	/* verify signature with personal hash */
@@ -95,27 +98,16 @@ __attribute__((visibility("default"))) int validate_str(int type, uint8_t* messa
 	debug_print_int("type: ", type);
 	debug_print_int("message_len: ", message_len);
 
-    uint8_t tron_prefix[50];
-    tron_prefix[0] = 0x19;
+    uint8_t max_len = MAX_LEN_MESSAGE_WITH_PREFIX + message_len * 2;
+    uint8_t msg_with_prefix[max_len];
+    uint8_t msg_with_prefix_len = max_len;
+    add_prefix_to_message(msg_with_prefix, &msg_with_prefix_len,
+                          message, message_len, TRON);
 
-    //Todo: Change the 75 here to a dynamic length
-    memcpy(tron_prefix + 1, "TRON Signed Message:\n75", 23);
 
     SHA3_CTX sha3_ctx;
     keccak_init(&sha3_ctx);
-    keccak_update(&sha3_ctx, tron_prefix, 24);
-
-    uint8_t message_prefix[COMMON_PREFIX_LENGTH];
-    memcpy(message_prefix, COMMON_PREFIX, COMMON_PREFIX_LENGTH);
-    debug_print_data("message_prefix = ", message_prefix, COMMON_PREFIX_LENGTH);
-
-    keccak_update(&sha3_ctx, message_prefix, COMMON_PREFIX_LENGTH);
-
-    uint8_t message_hex_string[message_len * 2];
-    bin_to_hex(message_hex_string, message, message_len);
-
-
-    keccak_update(&sha3_ctx, message_hex_string, message_len * 2);
+    keccak_update(&sha3_ctx, msg_with_prefix, msg_with_prefix_len);
     keccak_final(&sha3_ctx, message);
 
     /* verify signature with personal hash */

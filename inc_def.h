@@ -58,6 +58,7 @@
 #define COMMON_PREFIX "From .bit: "
 #define COMMON_PREFIX_LENGTH 11
 #define COMMON_PREFIX_AND_MESSAGE_LENGTH (11 + 64)
+#define MAX_LEN_MESSAGE_WITH_PREFIX (40)
 #define SIMPLE_ASSERT(want) 	\
 	do {			\
 		if ((ret) != (want)) {	\

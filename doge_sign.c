@@ -42,7 +42,7 @@ int magic_hash(uint8_t* hash, uint8_t* message, size_t message_len) {
 
     size_t message_hex_len = message_len * 2;
     uint8_t message_hex[message_hex_len];
-    bin_to_hex(message_hex, message, message_len);
+    bytes2str(message_hex, message, message_len);
     debug_print_data("message_hex  : ", message_hex, message_hex_len);
 
     //1 + 25 + 1or2 + 11 + 64 = 102 or 103 = 0x66 or 0x 67
@@ -52,15 +52,20 @@ int magic_hash(uint8_t* hash, uint8_t* message, size_t message_len) {
     
     //total_message = [prefix_len, prefix, message_with_prefix_len, COMMON_PREFIX, message_hex]
     total_message[0] = DOGE_MASSAGE_PREFIX_LEN;
-    memcpy(total_message  + 1, "Dogecoin Signed Message:\n", DOGE_MASSAGE_PREFIX_LEN);
+    size_t idx = 1;
+
+    memcpy(total_message  + idx, "Dogecoin Signed Message:\n", DOGE_MASSAGE_PREFIX_LEN);
     debug_print_data("total message : after copy doge prefix : ", total_message, total_message_len);
 
     //add prefix and message_hex
-    total_message[DOGE_MASSAGE_PREFIX_LEN + 1] = COMMON_PREFIX_LENGTH + message_hex_len;
-    memcpy(total_message + 1 + DOGE_MASSAGE_PREFIX_LEN + message_vi_len,
-           COMMON_PREFIX, COMMON_PREFIX_LENGTH);
-    memcpy(total_message + 1 + DOGE_MASSAGE_PREFIX_LEN + message_vi_len + COMMON_PREFIX_LENGTH,
-           message_hex, message_hex_len);
+    idx += DOGE_MASSAGE_PREFIX_LEN;
+    total_message[idx] = COMMON_PREFIX_LENGTH + message_hex_len;
+
+    idx += message_vi_len;
+    memcpy(total_message + idx,COMMON_PREFIX, COMMON_PREFIX_LENGTH);
+
+    idx += COMMON_PREFIX_LENGTH;
+    memcpy(total_message + idx,message_hex, message_hex_len);
     debug_print_data("total message : after copy message : ", total_message, total_message_len);
 
     SHA256x2(hash, total_message, total_message_len);
@@ -179,7 +184,7 @@ int verify_signature(uint8_t* message, uint8_t* lock_bytes, void* lock_args, siz
 
     //convert message from bin to hex
     uint8_t message_hex[message_len * 2];
-    bin_to_hex(message_hex, message, message_len);
+    bytes2str(message_hex, message, message_len);
 
 
     //magic hash
