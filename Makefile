@@ -3,7 +3,7 @@ CC := $(TARGET)-gcc
 LD := $(TARGET)-gcc
 OBJCOPY := $(TARGET)-objcopy
 DEBUG_FLAGS := -DCKB_C_STDLIB_PRINTF
-CFLAGS := -Os -fPIC -nostdinc -nostdlib -nostartfiles -fvisibility=hidden -I . -I deps/ckb-c-stdlib -I deps/ckb-c-stdlib/libc -I deps/ckb-c-stdlib/molecule -I deps/secp256k1/src -I deps/secp256k1  -Wall -Werror -Wno-nonnull -Wno-nonnull-compare -Wno-unused-function
+CFLAGS ?= -Os -fPIC -nostdinc -nostdlib -nostartfiles -fvisibility=hidden -I . -I deps/ckb-c-stdlib -I deps/ckb-c-stdlib/libc -I deps/ckb-c-stdlib/molecule -I deps/secp256k1/src -I deps/secp256k1  -Wall -Werror -Wno-nonnull -Wno-nonnull-compare -Wno-unused-function
 #CFLAGS := -DSHARED_LIBRARY -Os -fPIC -nostdinc -nostdlib -nostartfiles -fvisibility=hidden -I . -I deps/ckb-c-stdlib -I deps/ckb-c-stdlib/libc -I deps/ckb-c-stdlib/molecule -I deps/secp256k1/src -I deps/secp256k1 -I deps/ed25519/src -I cryptos -Wall -Werror -Wno-nonnull -Wno-nonnull-compare -Wno-unused-function
 LDFLAGS := -Wl,-static -fdata-sections -ffunction-sections -Wl,--gc-sections
 
@@ -37,7 +37,7 @@ debug-all-via-docker: ${PROTOCOL_HEADER}
 	./tool/ckb-binary-patcher -i doge_sign.so.debug -o ./build/debug/doge_sign.so
 	cp dispatch.debug ./build/debug/dispatch
 	#cp ./build/debug/dispatch /mnt/ckb/das-sandbox-testnet2/contracts/dispatch
-	cp ./build/debug/* /home/jason/das/run-test/j-contract
+	# cp ./build/debug/* /home/jason/das/run-test/j-contract
 	#cp ./build/debug/* /mnt/ckb/das-sandbox-mainnet/contracts
 	#cp ./build/debug/dispatch ubuntu_root:/mnt/ckb/das-sandbox-mainnet/contracts/dispatch
 	#scp ./build/debug/dispatch ubuntu_root:/mnt/ckb/das-sandbox-testnet2/contracts/dispatch
