@@ -43,6 +43,8 @@ debug-all: $(filter debug_%, $(contract_entry_targets)) $(filter debug_%, $(dyn_
 
 debug_%: DEBUG_FLAGS = -DCKB_C_STDLIB_PRINTF
 
+$(contract_entry) $(dyn_libs): %: release_%
+
 $(filter debug_%, $(contract_entry_targets)): debug_%: build/debug/%
 $(filter release_%, $(contract_entry_targets)): release_%: build/release/%
 $(filter build/debug/%, $(contract_entry_files)): build/debug/%: c/%.c
