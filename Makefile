@@ -41,12 +41,17 @@ release-all: $(filter release_%, $(contract_entry_targets)) $(filter release_%, 
 debug-all: DEBUG_FLAGS = -DCKB_C_STDLIB_PRINTF
 debug-all: $(filter debug_%, $(contract_entry_targets)) $(filter debug_%, $(dyn_lib_targets))
 
+# Add DEBUG flags, if target is release, the DEBUG_FLAGS is empty
 debug_%: DEBUG_FLAGS = -DCKB_C_STDLIB_PRINTF
 
+# Target aliases
 $(contract_entry) $(dyn_libs): %: release_%
 
+# Target to actual output file
 $(filter debug_%, $(contract_entry_targets)): debug_%: build/debug/%
 $(filter release_%, $(contract_entry_targets)): release_%: build/release/%
+
+# Specify output file dependencies
 $(filter build/debug/%, $(contract_entry_files)): build/debug/%: c/%.c
 	mkdir -p build/debug > /dev/null
 	$(CC) $(CFLAGS) $(LDFLAGS) $(DEBUG_FLAGS) -o $@ $<
@@ -56,9 +61,11 @@ $(filter build/release/%, $(contract_entry_files)): build/release/%: c/%.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $(DEBUG_FLAGS) -o $@ $<
 	ckb-binary-patcher -i $@ -o $@
 
-
+# Target to actual output file
 $(filter debug_%, $(dyn_lib_targets)): debug_%: build/debug/%.so
 $(filter release_%, $(dyn_lib_targets)): release_%: build/release/%.so
+
+# Specify output file dependencies
 $(filter build/debug/%, $(dyn_lib_files)): build/debug/%.so: c/%.c
 	mkdir -p build/debug > /dev/null
 	$(CC) $(CFLAGS) $(LDFLAGS) $(DEBUG_FLAGS) -shared -o $@ $<
