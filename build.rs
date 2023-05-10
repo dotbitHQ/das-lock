@@ -121,7 +121,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 r#"
 pub mod {} {{
     pub const HASH: [u8; 32] = {:?};
-    pub const BINARY: &[u8] = include_bytes!("{}");
+    pub const BINARY: &[u8] = core::include_bytes!("{}");
 }}
 "#,
             f.replace(".so", ""),
