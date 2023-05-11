@@ -8,7 +8,7 @@ CFLAGS ?= -Os -fPIC -nostdinc -nostdlib -nostartfiles -fvisibility=hidden -I . -
 LDFLAGS := -Wl,-static -fdata-sections -ffunction-sections -Wl,--gc-sections
 
 # docker pull nervos/ckb-riscv-gnu-toolchain:gnu-bionic-20191012
-BUILDER_DOCKER := nervos/ckb-riscv-gnu-toolchain@sha256:aae8a3f79705f67d505d1f1d5ddc694a4fd537ed1c7e9622420a470d59ba2ec3
+BUILDER_DOCKER := yuluyi/ckb-dev-all-in-one:0.1.0-amd64
 
 
 PROTOCOL_HEADER := c/protocol.h
@@ -28,13 +28,13 @@ dyn_lib_files = $(foreach file, $(dyn_libs), build/release/$(file).so build/debu
 
 .PHONY: ckb-binary-patcher
 ckb-binary-patcher:
-	cargo install --git https://github.com/nervosnetwork/ckb-binary-patcher.git --rev b9489de4b3b9d59bc29bce945279bc6f28413113 > /dev/null
+	cargo install --git https://github.com/nervosnetwork/ckb-binary-patcher.git --rev b9489de4b3b9d59bc29bce945279bc6f28413113
 
 all-via-docker: ${PROTOCOL_HEADER}
-	docker run --rm -v `pwd`:/code ${BUILDER_DOCKER} bash -c "cd /code && make all"
+	docker run --rm -v `pwd`:/code ${BUILDER_DOCKER} bash -c "cd /code && make all CFLAGS='$(CFLAGS)'"
 
 debug-all-via-docker: ${PROTOCOL_HEADER}
-	docker run --rm -v `pwd`:/code ${BUILDER_DOCKER} bash -c "cd /code && make debug-all"
+	docker run --rm -v `pwd`:/code ${BUILDER_DOCKER} bash -c "cd /code && make debug-all CFLAGS='$(CFLAGS)'"
 
 all: release-all
 release-all: $(filter release_%, $(contract_entry_targets)) $(filter release_%, $(dyn_lib_targets))
@@ -52,12 +52,12 @@ $(filter debug_%, $(contract_entry_targets)): debug_%: build/debug/%
 $(filter release_%, $(contract_entry_targets)): release_%: build/release/%
 
 # Specify output file dependencies
-$(filter build/debug/%, $(contract_entry_files)): build/debug/%: c/%.c
-	mkdir -p build/debug > /dev/null
+$(filter build/debug/%, $(contract_entry_files)): build/debug/%: c/%.c ckb-binary-patcher
+	@mkdir -p build/debug
 	$(CC) $(CFLAGS) $(LDFLAGS) $(DEBUG_FLAGS) -o $@ $<
 	ckb-binary-patcher -i $@ -o $@
-$(filter build/release/%, $(contract_entry_files)): build/release/%: c/%.c
-	mkdir -p build/release > /dev/null
+$(filter build/release/%, $(contract_entry_files)): build/release/%: c/%.c ckb-binary-patcher
+	@mkdir -p build/release
 	$(CC) $(CFLAGS) $(LDFLAGS) $(DEBUG_FLAGS) -o $@ $<
 	ckb-binary-patcher -i $@ -o $@
 
@@ -66,12 +66,12 @@ $(filter debug_%, $(dyn_lib_targets)): debug_%: build/debug/%.so
 $(filter release_%, $(dyn_lib_targets)): release_%: build/release/%.so
 
 # Specify output file dependencies
-$(filter build/debug/%, $(dyn_lib_files)): build/debug/%.so: c/%.c
-	mkdir -p build/debug > /dev/null
+$(filter build/debug/%, $(dyn_lib_files)): build/debug/%.so: c/%.c ckb-binary-patcher
+	@mkdir -p build/debug > /dev/null
 	$(CC) $(CFLAGS) $(LDFLAGS) $(DEBUG_FLAGS) -shared -o $@ $<
 	ckb-binary-patcher -i $@ -o $@
-$(filter build/release/%, $(dyn_lib_files)): build/release/%.so: c/%.c
-	mkdir -p build/release > /dev/null
+$(filter build/release/%, $(dyn_lib_files)): build/release/%.so: c/%.c ckb-binary-patcher
+	@mkdir -p build/release > /dev/null
 	$(CC) $(CFLAGS) $(LDFLAGS) $(DEBUG_FLAGS) -shared -o $@ $<
 	ckb-binary-patcher -i $@ -o $@
 
