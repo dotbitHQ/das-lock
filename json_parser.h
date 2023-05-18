@@ -5,7 +5,7 @@
 #ifndef DAS_LOCK_JSON_PARSER_H
 #define DAS_LOCK_JSON_PARSER_H
 #include "utils_helper.h"
-
+//#include <string.h>
 #include "jsmn.h"
 #include "inc_def.h"
 
@@ -17,10 +17,25 @@ enum key_index {
     Jorigin,
     JcrossOrigin,
 };
+int mystrncmp(const char *str1, const char *str2, size_t n){
+    if(str1 == NULL || str2 == NULL) {
+        return -1;
+    }
+    while(n--){
+        if(*str1 != *str2) {
+            return *str1 - *str2;
+        }
+        str1 ++;
+        str2 ++;
+
+    }
+    return 0;
+}
+
 
 static int jsoneq(const char *json, jsmntok_t *tok, const char *s) {
     if (tok->type == JSMN_STRING && (int)strlen(s) == tok->end - tok->start &&
-        strncmp(json + tok->start, s, tok->end - tok->start) == 0) {
+        mystrncmp(json + tok->start, s, tok->end - tok->start) == 0) {
         return 0;
     }
     return -1;
@@ -35,15 +50,15 @@ int parse_keys(const char* buf, jsmntok_t* tok) {
     return -1;
 }
 
-int get_challenge_from_json(unsigned char* output, int output_len, unsigned char* json_buf, int buf_len){
-    int i, j, k, r, ret = -1;
+int get_challenge_from_json(unsigned char* output, size_t *output_len, unsigned char* json_buf, int buf_len){
+    int i = 0, r = 0, ret = -1;
     jsmn_parser p;
     jsmntok_t t[128];
 
     jsmn_init(&p);
 
     debug_print("start parse json");
-    ret = jsmn_parse(&p, json_buf, strlen(json_buf), t, sizeof(t) / sizeof(t[0]));
+    r = jsmn_parse(&p, (const char*)json_buf, strlen((const char*)json_buf), t, sizeof(t) / sizeof(t[0]));
     debug_print_int("parse ret", r);
     if (r < 0) {
         //printf("Failed to parse JSON: %d\n", r);
@@ -55,13 +70,13 @@ int get_challenge_from_json(unsigned char* output, int output_len, unsigned char
         //printf("Object expected\n");
         return -1;
     }
-
+    int key_idx = 0;
     for(i = 1; i < r; i++){
-        key = parse_keys(json_buf, &t[i]);
-        int value_length = t[i + 1].end - t[i + 1].start;
+        key_idx = parse_keys((const char*)json_buf, &t[i]);
+        size_t value_length = t[i + 1].end - t[i + 1].start;
         unsigned char* value_start = json_buf + t[i + 1].start;
 
-        switch (key) {
+        switch (key_idx) {
             case Jtype: {
                 debug_print_data("json parser: Type: ", value_start, value_length);
                 i++;
@@ -69,7 +84,7 @@ int get_challenge_from_json(unsigned char* output, int output_len, unsigned char
             }
             case Jchallenge : {
                 debug_print_data("json parser: Challenge: ", value_start, value_length);
-                if (output_len > value_length) {
+                if (*output_len > value_length) {
                     memcpy(output, value_start, value_length);
                     *output_len = value_length;
                 }else {

@@ -1,6 +1,7 @@
 
 #include "inc_def.h"
-
+#include "keylist.h"
+#define JUST_FOR_TEST
 int get_args(uint8_t *lock_args) {
 
 	debug_print("Enter get_args");
@@ -10,6 +11,10 @@ int get_args(uint8_t *lock_args) {
 	uint8_t script[SCRIPT_SIZE];
 	uint64_t len = SCRIPT_SIZE;
 	ret = ckb_load_script(script, &len, 0);
+#ifdef JUST_FOR_TEST
+    debug_print_int("ckb_load_script len = ",len);
+    debug_print_data("ckb_load_script = ", script, len);
+#endif
 	NORMAL_ASSERT(CKB_SUCCESS, ERROR_SYSCALL);
 	if (len > SCRIPT_SIZE) {
 		return ERROR_SCRIPT_TOO_LONG;
@@ -39,6 +44,7 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 
 	debug_print("Enter get_plain_and_cipher");
 	int ret = 0;
+    debug_print_int("__line__", __LINE__);
 
 	/* Load witness of first input */
 	uint8_t temp[TEMP_SIZE];
@@ -51,14 +57,17 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 	if (witness_len > DAS_MAX_LOCK_BYTES_SIZE) {
 		return ERROR_WITNESS_SIZE;
 	}
+    debug_print_int("__line__", __LINE__);
 
 	/* load signature */
 	mol_seg_t lock_bytes_seg;
 	ret = extract_witness_lock(temp, witness_len, &lock_bytes_seg);
 	NORMAL_ASSERT(CKB_SUCCESS, ERROR_ENCODING);
 
+    debug_print_int("__line__", __LINE__);
 
 	debug_print_data("temp after extract_witness_lock: ", temp, witness_len);
+    debug_print_int("__line__", __LINE__);
 
 	debug_print_int("alg_id: ", alg_id);
 	if (alg_id == 5) { // eip712
@@ -72,6 +81,9 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 		debug_print_data("message: ", message, HASH_SIZE);
 		return ret;
 	}
+
+    debug_print_int("__line__", __LINE__);
+
 	/*
 	   else if (alg_id == 6) {
 	   if (lock_bytes_seg.size != ED25519_SIGNATURE_SIZE) {
@@ -85,13 +97,28 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 	   }
 	   */
 	debug_print_int("lock_bytes_seg.size: ", lock_bytes_seg.size);
+    debug_print_int("__line__", __LINE__);
+    memcpy(lock_bytes, lock_bytes_seg.ptr, lock_bytes_seg.size);
 
-	memcpy(lock_bytes, lock_bytes_seg.ptr, lock_bytes_seg.size);
-		debug_print_data("lock_bytes: ", lock_bytes, SIGNATURE_SIZE);
+#ifdef JUST_FOR_TEST
+    //考虑到长度动态，有两种方式传递长度
+    //1. 这里 首字节置为长度
+    //2. 被调用方使用 strlen
+    //明显 strlen 更方便一些
+//    if (alg_id == 8) {
+//        lock_bytes[0] = lock_bytes_seg.size;
+//        memcpy(lock_bytes + 1, lock_bytes_seg.ptr, lock_bytes_seg.size);
+//    }else {
+//        memcpy(lock_bytes, lock_bytes_seg.ptr, lock_bytes_seg.size);
+//    }
+#endif
+    debug_print_data("lock_bytes: ", lock_bytes, SIGNATURE_SIZE);
 	debug_print_data("1temp after extract_witness_lock: ", temp, witness_len);
 	// get the offset of lock_bytes for sign
 	size_t multisig_script_len = 0;
-	if (alg_id == 1) {
+    debug_print_int("__line__", __LINE__);
+
+    if (alg_id == 1) {
 		uint8_t pubkeys_cnt = lock_bytes[3];
 		multisig_script_len = FLAGS_SIZE + BLAKE160_SIZE * pubkeys_cnt;
 
@@ -102,6 +129,7 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 			return ERROR_WITNESS_SIZE;
 		}
 	}
+    debug_print_int("__line__", __LINE__);
 
 	/* Load tx hash */
 	uint8_t tx_hash[HASH_SIZE];
@@ -114,12 +142,14 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 	}
 	debug_print_data("tx_hash: ", tx_hash, HASH_SIZE);
 
-	
-	blake2b_state blake2b_ctx;
+    debug_print_int("__line__", __LINE__);
+
+    blake2b_state blake2b_ctx;
 	blake2b_init(&blake2b_ctx, HASH_SIZE);
 	
 	blake2b_update(&blake2b_ctx, tx_hash, HASH_SIZE);
 
+    debug_print_int("__line__", __LINE__);
 
 	memset((void *)lock_bytes_seg.ptr + multisig_script_len, 0, lock_bytes_seg.size);
 	blake2b_update(&blake2b_ctx, (uint8_t *)&witness_len, sizeof(uint64_t));
@@ -130,6 +160,8 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 
 	// Digest same group witnesses
 	size_t i = 1;
+    debug_print_int("__line__", __LINE__);
+
 	while (1) {
 		ret = load_and_hash_witness(&blake2b_ctx, i, CKB_SOURCE_GROUP_INPUT);
 		if (ret == CKB_INDEX_OUT_OF_BOUND) {
@@ -138,9 +170,11 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 		NORMAL_ASSERT(CKB_SUCCESS, ERROR_SYSCALL);
 		i += 1;
 	}
+    debug_print_int("__line__", __LINE__);
 
 	// Digest witnesses that not covered by inputs
 	i = ckb_calculate_inputs_len();
+    debug_print_int("__line__", __LINE__);
 
 	while (1) {
 		ret = load_and_hash_witness(&blake2b_ctx, i, CKB_SOURCE_INPUT);
@@ -150,8 +184,31 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 		NORMAL_ASSERT(CKB_SUCCESS, ERROR_SYSCALL);
 		i += 1;
 	}
+    debug_print_int("__line__", __LINE__);
 
 	blake2b_final(&blake2b_ctx, message, HASH_SIZE);
+    debug_print_int("__line__", __LINE__);
+
+#ifdef JUST_FOR_TEST
+    if (alg_id == 8){
+        debug_print("alg_id = 8");
+        //或者在这里只是简单的拷贝到 lock_bytes 里面，在 webAuthn 的逻辑里面处理
+            //解析出来的 witness_args.lock 放到 lock_bytes
+            //计算好的 digest 放到 message ，这里的 digest 是 tx 的 digest
+        //毋须做任何多余的操作
+            //被调用者不知道它的长度， 使用 strlen 不是一个很好的方式
+
+        //取 json 里 交易的 digest 跟这里的比对
+        //计算 webauthn 的 digest （sha256
+        //lock args 里面放公钥列表
+        //返回签名， digest，公钥列表， 动态库里面进行公钥恢复和验签
+            //message 存储digetst
+            //lock bytes 存储签名 （定义一下结构
+                //子算法id， 签名内容 （根据子算法id确定签名的长度）
+                //
+        //return ret;
+    }
+#endif
 	return CKB_SUCCESS;
 }
 
@@ -177,6 +234,7 @@ int get_action_from_witness(uint8_t* temp, uint8_t* action, uint64_t* action_len
 	memcpy(action, temp + pre_len + action_len_len, *action_len);
 
 	debug_print_data("action: ", action, *action_len);
+	debug_print_string("action string: ", action, *action_len);
 	debug_print_int("action_len: ", *action_len);
 	return ret;
 }
@@ -273,6 +331,7 @@ int check_has_pure_type_script() {
 		uint8_t buffer[100];
 		uint64_t len = 100;
 		ret = ckb_load_cell_by_field(buffer, &len, 0, i, CKB_SOURCE_GROUP_INPUT, CKB_CELL_FIELD_TYPE);
+        debug_print_data("ckb_load_cell_by_field buffer = ", buffer, len);
 		if (ret == CKB_ITEM_MISSING) {
 			i++;
 			continue;
@@ -453,7 +512,14 @@ int get_lock_args(uint8_t* temp, uint8_t* das_args, uint8_t index, uint8_t* lock
     else if (*alg_id == 7) {
 		args1_len = RIPEMD160_HASH_SIZE;
 	}
-
+#ifdef JUST_FOR_TEST
+    if (*alg_id == 8) {
+        //get witness of input 1
+        //get keylist
+        //memcpy index key to args
+        return ret;
+    }
+#endif
 	if (0 == index) { // use first args (owner lock)
 		memcpy(lock_args, das_args + 1, args1_len);
 		return ret;
@@ -507,6 +573,41 @@ int get_code_hash(uint8_t index, uint8_t* code_hash) {
 	return ret;
 }
 
+int get_witness_of_key_list(uint8_t* witness_buf, uint64_t* witness_len){
+    int i = 0;
+    uint8_t das_type_wbkl[4] = {0x0b, 0x00, 0x00, 0x00};
+
+    memset(witness_buf, 0, MAX_WITNESS_SIZE);
+    int ret = 0;
+    for(i = 0; i < 10; i++){
+        debug_print_int("round i = ", i);
+        memset(witness_buf, 0, MAX_WITNESS_SIZE);
+
+        ret = ckb_load_witness(witness_buf, witness_len, 0, i, CKB_SOURCE_INPUT);
+
+        if(ret == CKB_SUCCESS){
+            debug_print_data("ret success data =", witness_buf, 30);
+        }else {
+            continue;
+        }
+
+        if (memcmp(witness_buf, "das", 3) != 0) {
+            continue;
+        }
+        if (memcpy(witness_buf + 3, das_type_wbkl, 4) != 0){
+            continue;
+        }else{
+            break;
+        }
+
+    }//end for
+
+    if(i == 10) {
+        debug_print("cannot find a witness that storage webauthn keylist");
+        return -1;
+    }
+    return 0;
+}
 
 
 int main() {
@@ -515,7 +616,40 @@ int main() {
 	uint8_t witness_action[MAX_WITNESS_SIZE];
 	uint64_t witness_action_len = MAX_WITNESS_SIZE;
 	size_t i = calculate_inputs_len();
+    debug_print_int("calculate_inputs_len = ", i);
 	ret = ckb_load_witness(witness_action, &witness_action_len, 0, i, CKB_SOURCE_INPUT);
+
+    int ret1, ret2;
+    uint8_t witness_tmp1[MAX_WITNESS_SIZE];
+    uint8_t witness_tmp2[MAX_WITNESS_SIZE];
+    uint64_t witness_action_len_tmp1 = MAX_WITNESS_SIZE;
+    uint64_t witness_action_len_tmp2 = MAX_WITNESS_SIZE;
+
+    for(int i = 0; i < 10; i++){
+        debug_print_int("round i = ", i);
+        memset(witness_tmp1, 0, MAX_WITNESS_SIZE);
+        memset(witness_tmp2, 0, MAX_WITNESS_SIZE);
+
+        ret1 = ckb_load_witness(witness_tmp1, &witness_action_len_tmp1, 0, i, CKB_SOURCE_INPUT);
+        ret2 = ckb_load_witness(witness_tmp2, &witness_action_len_tmp2, 0, i, CKB_SOURCE_OUTPUT);
+
+        if(ret1 == CKB_SUCCESS){
+            debug_print_data("ret1 success data =", witness_tmp1, 30);
+        }
+        if(ret2 == CKB_SUCCESS){
+             debug_print_data("ret2 success data =", witness_tmp2, 30);
+        }
+        if(ret1 != CKB_SUCCESS && ret2 != CKB_SUCCESS){
+            debug_print("all failed");
+        }
+
+    }
+
+#ifdef JUST_FOR_TEST
+    debug_print_int("witness_action_len = ", witness_action_len);
+    debug_print_data("witness_action = ", witness_action, witness_action_len);
+    debug_print_string("witness_action str =", witness_action, witness_action_len);
+#endif
 	SIMPLE_ASSERT(CKB_SUCCESS);
 
 	ret = check_skip_sign(witness_action);
@@ -531,12 +665,18 @@ int main() {
 
 	uint8_t das_args[DAS_ARGS_MAX_LEN];
 	ret = get_args(das_args);
+#ifdef JUST_FOR_TEST
+    debug_print_data("das_args = ", das_args, DAS_ARGS_MAX_LEN);
+#endif
 	SIMPLE_ASSERT(CKB_SUCCESS);
 	debug_print("after get_args");
 
 	uint8_t lock_args[DAS_MAX_LOCK_ARGS_SIZE];
 	uint8_t alg_id = -1;
 	ret = get_lock_args(witness_action, das_args, args_index, lock_args, &alg_id);
+#ifdef JUST_FOR_TEST
+    alg_id = 8;
+#endif
 	SIMPLE_ASSERT(CKB_SUCCESS);
 	debug_print_data("lock_args: ", lock_args, DAS_MAX_LOCK_ARGS_SIZE);
 
@@ -552,13 +692,37 @@ int main() {
 	}
 	SIMPLE_ASSERT(DAS_NOT_SKIP_CHECK_SIGN);
 
-	uint8_t message[HASH_SIZE];
-	uint8_t lock_bytes[DAS_MAX_LOCK_BYTES_SIZE];
+	uint8_t message[HASH_SIZE] = {0};
+	uint8_t lock_bytes[DAS_MAX_LOCK_BYTES_SIZE] = {0};
 	ret = get_plain_and_cipher(message, lock_bytes, alg_id);
 	SIMPLE_ASSERT(CKB_SUCCESS);
 	debug_print_data("message: ", message, HASH_SIZE);
 	debug_print("after generate digest message");
-
+#ifdef JUST_FOR_TEST
+    if(alg_id == 8) {
+        //get pubkey idx
+        unsigned char pk_idx = lock_bytes[66];
+        if(pk_idx > 10){
+            debug_print_int("get pubkey index out of bound ", pk_idx);
+            return -1;
+        }
+        //get witness
+        ret = get_witness_of_key_list(witness_action, &witness_action_len);
+        if(ret != 0){
+            debug_print_int("get get_witness_of_key_list failed", ret);
+            return -1;
+        }
+        //get payload
+        memset(lock_args, 0, 32);
+        uint8_t* molecule_data = witness_action + 7;
+        ret = get_payload_by_pk_index(molecule_data, witness_action_len - 7, lock_args, pk_idx, OLD);
+        if(ret != 0){
+            debug_print_int("get get_payload_by_pk_index failed", ret);
+            return -1;
+        }
+        debug_print_data("get payload from witness = ", lock_args, 32);
+    }
+#endif
 	uint8_t code_so[HASH_SIZE];
 	ret = get_code_hash(alg_id, code_so);
 	SIMPLE_ASSERT(CKB_SUCCESS);

@@ -59,6 +59,7 @@ int calculate_inputs_len() {
     if (ret == CKB_SUCCESS) {
       lo = hi;
       hi *= 2;
+
     } else {
       break;
     }

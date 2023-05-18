@@ -193,8 +193,12 @@ void base64_to_base64url( char* base64url, char* base64, int *len) {
 void base64url_to_base64(char* base64, char* base64url, int* len) {
 
     int i = 0;
-    int divisor = *len * 8 / 24;
-    int blank_len = (*len * 8 - divisor * 24) / 8;
+    int quotient = *len / 4;
+    int modulus = *len % 4;
+    if(modulus != 0) {
+        quotient += 1;
+    }
+    int blank_len = quotient * 4 - *len;
 
     memcpy(base64, base64url, *len);
 
