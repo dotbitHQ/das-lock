@@ -162,6 +162,8 @@ int get_lock_args_index(uint8_t* temp, uint8_t len, uint8_t* index) {
 		return ERR_DAS_PREFIX_NOT_MATCH;
 	}
 	*index = temp[len - 1];
+	debug_print_data("temp when get_lock_args_index", temp, len);
+	debug_print_int("temp len", len);
 	return ret;
 }
 
@@ -230,12 +232,16 @@ int check_cmd_match(uint8_t* temp, int type) {
 #include "skip_cmd_list.txt"
 	};
 	char* manager_only_str[] = {
-#include "manager_only_cmd_list.txt"
+#include "manager_allowed_cmd_list.txt"
 	};
 
 	uint8_t list_len0 = sizeof(skip_str) / sizeof(skip_str[0]);
 	uint8_t list_len1 = sizeof(manager_only_str) / sizeof(manager_only_str[0]);
 	uint8_t list_len = (type ? list_len0 : list_len1);
+	debug_print_int("list_len0: ", list_len0);
+	debug_print_int("list_len1: ", list_len1);
+	debug_print_int("list_len: ", list_len);
+
 	for (int i = 0; i < list_len; i++) {
 		char* standard_str;
 		if (type == SKIP_CMD) {
@@ -248,6 +254,7 @@ int check_cmd_match(uint8_t* temp, int type) {
 		//uint8_t for_cmp[standard_str_len];
 		//hex2str(standard_str, for_cmp);
 		debug_print_int("standard_str_len: ", standard_str_len);
+		debug_print_data("standard_str: ", (const uint8_t *)standard_str, standard_str_len);
 		if (standard_str_len == action_from_wit_len && memcmp(action_from_wit, standard_str, standard_str_len) == 0) {
 			debug_print("match success");
 			return DAS_CMD_MATCH;
