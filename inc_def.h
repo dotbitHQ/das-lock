@@ -81,7 +81,7 @@
 #include "ckb_syscalls.h"
 #include "keccak256.h"
 #include "protocol.h"
-#include "secp256k1_helper.h"
+//#include "secp256k1_helper.h"
 #include "common.h"
 
 #include "utils_helper.h"

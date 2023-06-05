@@ -6,10 +6,11 @@ array Uint8 [byte; 1];
 array Byte10 [byte; 10];
 
 
-vector WebAuthnKeyList <WebAuthnKey>;
+vector DeviceKeyList <DeviceKey>;
 
-struct WebAuthnKey {
-    alg: Uint8,
+struct DeviceKey {
+    main_alg_id: Uint8,
+    sub_alg_id: Uint8,
     cid: Byte10,
     pubkey: Byte10,
 }

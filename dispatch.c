@@ -1,6 +1,6 @@
 
 #include "inc_def.h"
-#include "keylist.h"
+#include "keylist_oprate.h"
 #define JUST_FOR_TEST
 int get_args(uint8_t *lock_args) {
 
@@ -96,26 +96,20 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 	   }
 	   }
 	   */
-	debug_print_int("lock_bytes_seg.size: ", lock_bytes_seg.size);
-    debug_print_int("__line__", __LINE__);
-    memcpy(lock_bytes, lock_bytes_seg.ptr, lock_bytes_seg.size);
+    if (alg_id == 8) {
+        //just copy all data into lock_bytes then compare tx_digest in dynamical library
+        //Danger! lock_bytes_seg.size should be less than 256
+        lock_bytes[0] = lock_bytes_seg.size;
+        memcpy(lock_bytes + 1, lock_bytes_seg.ptr, lock_bytes_seg.size);
+    }else {
+        memcpy(lock_bytes, lock_bytes_seg.ptr, lock_bytes_seg.size);
+    }
 
-#ifdef JUST_FOR_TEST
-    //考虑到长度动态，有两种方式传递长度
-    //1. 这里 首字节置为长度
-    //2. 被调用方使用 strlen
-    //明显 strlen 更方便一些
-//    if (alg_id == 8) {
-//        lock_bytes[0] = lock_bytes_seg.size;
-//        memcpy(lock_bytes + 1, lock_bytes_seg.ptr, lock_bytes_seg.size);
-//    }else {
-//        memcpy(lock_bytes, lock_bytes_seg.ptr, lock_bytes_seg.size);
-//    }
-#endif
     debug_print_data("lock_bytes: ", lock_bytes, SIGNATURE_SIZE);
-	debug_print_data("1temp after extract_witness_lock: ", temp, witness_len);
-	// get the offset of lock_bytes for sign
-	size_t multisig_script_len = 0;
+    //debug_print_data("1temp after extract_witness_lock: ", temp, witness_len);
+
+    // get the offset of lock_bytes for sign
+    size_t multisig_script_len = 0;
     debug_print_int("__line__", __LINE__);
 
     if (alg_id == 1) {
@@ -189,26 +183,8 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 	blake2b_final(&blake2b_ctx, message, HASH_SIZE);
     debug_print_int("__line__", __LINE__);
 
-#ifdef JUST_FOR_TEST
-    if (alg_id == 8){
-        debug_print("alg_id = 8");
-        //或者在这里只是简单的拷贝到 lock_bytes 里面，在 webAuthn 的逻辑里面处理
-            //解析出来的 witness_args.lock 放到 lock_bytes
-            //计算好的 digest 放到 message ，这里的 digest 是 tx 的 digest
-        //毋须做任何多余的操作
-            //被调用者不知道它的长度， 使用 strlen 不是一个很好的方式
 
-        //取 json 里 交易的 digest 跟这里的比对
-        //计算 webauthn 的 digest （sha256
-        //lock args 里面放公钥列表
-        //返回签名， digest，公钥列表， 动态库里面进行公钥恢复和验签
-            //message 存储digetst
-            //lock bytes 存储签名 （定义一下结构
-                //子算法id， 签名内容 （根据子算法id确定签名的长度）
-                //
-        //return ret;
-    }
-#endif
+
 	return CKB_SUCCESS;
 }
 
@@ -577,7 +553,7 @@ int get_witness_of_key_list(uint8_t* witness_buf, uint64_t* witness_len){
     int i = 0;
     uint8_t das_type_wbkl[4] = {0x0b, 0x00, 0x00, 0x00};
 
-    memset(witness_buf, 0, MAX_WITNESS_SIZE);
+    //memset(witness_buf, 0, MAX_WITNESS_SIZE);
     int ret = 0;
     for(i = 0; i < 10; i++){
         debug_print_int("round i = ", i);
@@ -594,7 +570,7 @@ int get_witness_of_key_list(uint8_t* witness_buf, uint64_t* witness_len){
         if (memcmp(witness_buf, "das", 3) != 0) {
             continue;
         }
-        if (memcpy(witness_buf + 3, das_type_wbkl, 4) != 0){
+        if (memcmp(witness_buf + 3, das_type_wbkl, 4) != 0){
             continue;
         }else{
             break;
@@ -619,31 +595,31 @@ int main() {
     debug_print_int("calculate_inputs_len = ", i);
 	ret = ckb_load_witness(witness_action, &witness_action_len, 0, i, CKB_SOURCE_INPUT);
 
-    int ret1, ret2;
-    uint8_t witness_tmp1[MAX_WITNESS_SIZE];
-    uint8_t witness_tmp2[MAX_WITNESS_SIZE];
-    uint64_t witness_action_len_tmp1 = MAX_WITNESS_SIZE;
-    uint64_t witness_action_len_tmp2 = MAX_WITNESS_SIZE;
-
-    for(int i = 0; i < 10; i++){
-        debug_print_int("round i = ", i);
-        memset(witness_tmp1, 0, MAX_WITNESS_SIZE);
-        memset(witness_tmp2, 0, MAX_WITNESS_SIZE);
-
-        ret1 = ckb_load_witness(witness_tmp1, &witness_action_len_tmp1, 0, i, CKB_SOURCE_INPUT);
-        ret2 = ckb_load_witness(witness_tmp2, &witness_action_len_tmp2, 0, i, CKB_SOURCE_OUTPUT);
-
-        if(ret1 == CKB_SUCCESS){
-            debug_print_data("ret1 success data =", witness_tmp1, 30);
-        }
-        if(ret2 == CKB_SUCCESS){
-             debug_print_data("ret2 success data =", witness_tmp2, 30);
-        }
-        if(ret1 != CKB_SUCCESS && ret2 != CKB_SUCCESS){
-            debug_print("all failed");
-        }
-
-    }
+//    int ret1, ret2;
+//    uint8_t witness_tmp1[MAX_WITNESS_SIZE];
+//    uint8_t witness_tmp2[MAX_WITNESS_SIZE];
+//    uint64_t witness_action_len_tmp1 = MAX_WITNESS_SIZE;
+//    uint64_t witness_action_len_tmp2 = MAX_WITNESS_SIZE;
+//
+//    for(int i = 0; i < 10; i++){
+//        debug_print_int("round i = ", i);
+//        memset(witness_tmp1, 0, MAX_WITNESS_SIZE);
+//        memset(witness_tmp2, 0, MAX_WITNESS_SIZE);
+//
+//        ret1 = ckb_load_witness(witness_tmp1, &witness_action_len_tmp1, 0, i, CKB_SOURCE_INPUT);
+//        ret2 = ckb_load_witness(witness_tmp2, &witness_action_len_tmp2, 0, i, CKB_SOURCE_OUTPUT);
+//
+//        if(ret1 == CKB_SUCCESS){
+//            debug_print_data("ret1 success data =", witness_tmp1, 30);
+//        }
+//        if(ret2 == CKB_SUCCESS){
+//            debug_print_data("ret2 success data =", witness_tmp2, 30);
+//        }
+//        if(ret1 != CKB_SUCCESS && ret2 != CKB_SUCCESS){
+//            debug_print("all failed");
+//        }
+//
+//    }
 
 #ifdef JUST_FOR_TEST
     debug_print_int("witness_action_len = ", witness_action_len);
@@ -701,26 +677,29 @@ int main() {
 #ifdef JUST_FOR_TEST
     if(alg_id == 8) {
         //get pubkey idx
-        unsigned char pk_idx = lock_bytes[66];
+        //0 total len, 1 sig len, 2 mainid, 3 subid, 4 pkidx,
+		//Todo check with doc 
+        unsigned char pk_idx = lock_bytes[4];
         if(pk_idx > 10){
             debug_print_int("get pubkey index out of bound ", pk_idx);
             return -1;
         }
         //get witness
         ret = get_witness_of_key_list(witness_action, &witness_action_len);
+        debug_print_int("get_witness_of_key_list witness_action_len = ", witness_action_len);
         if(ret != 0){
             debug_print_int("get get_witness_of_key_list failed", ret);
             return -1;
         }
         //get payload
-        memset(lock_args, 0, 32);
+        memset(lock_args, 0, DAS_MAX_LOCK_ARGS_SIZE);
         uint8_t* molecule_data = witness_action + 7;
         ret = get_payload_by_pk_index(molecule_data, witness_action_len - 7, lock_args, pk_idx, OLD);
         if(ret != 0){
             debug_print_int("get get_payload_by_pk_index failed", ret);
             return -1;
         }
-        debug_print_data("get payload from witness = ", lock_args, 32);
+        debug_print_data("get payload from witness = ", lock_args, DAS_MAX_LOCK_ARGS_SIZE);
     }
 #endif
 	uint8_t code_so[HASH_SIZE];
@@ -728,11 +707,12 @@ int main() {
 	SIMPLE_ASSERT(CKB_SUCCESS);
 	debug_print_data("code so: ", code_so, HASH_SIZE);
 
-	uint8_t code_buffer[128 * 1024] __attribute__((aligned(RISCV_PGSIZE)));
+	//warning! for test modify this from 128 * 1024 to 1024 * 1024
+	uint8_t code_buffer[1024 * 1024] __attribute__((aligned(RISCV_PGSIZE)));
 	uint64_t consumed_size = 0;
 	void *handle = NULL;
 	uint8_t hash_type = 1;
-	ret = ckb_dlopen2(code_so, hash_type, code_buffer, 128 * 1024, &handle, &consumed_size);
+	ret = ckb_dlopen2(code_so, hash_type, code_buffer, 1024 * 1024, &handle, &consumed_size);
 
 	
 	SIMPLE_ASSERT(CKB_SUCCESS);

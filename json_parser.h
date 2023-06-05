@@ -51,23 +51,28 @@ int parse_keys(const char* buf, jsmntok_t* tok) {
 }
 
 int get_challenge_from_json(unsigned char* output, size_t *output_len, unsigned char* json_buf, int buf_len){
+    debug_print("start get_challenge_from_json");
+    debug_print_int("json_len = ", buf_len);
+    debug_print_data("json_buf = ", json_buf, buf_len);
+
+    //init
     int i = 0, r = 0, ret = -1;
     jsmn_parser p;
     jsmntok_t t[128];
 
     jsmn_init(&p);
 
-    debug_print("start parse json");
-    r = jsmn_parse(&p, (const char*)json_buf, strlen((const char*)json_buf), t, sizeof(t) / sizeof(t[0]));
-    debug_print_int("parse ret", r);
+    size_t json_len = strlen((const char*)json_buf);
+    r = jsmn_parse(&p, (const char*)json_buf, json_len, t, sizeof(t) / sizeof(t[0]));
     if (r < 0) {
-        //printf("Failed to parse JSON: %d\n", r);
+        debug_print_int("failed to parse JSON , ret = ", ret);
         return -1;
     }
 
     /* Assume the top-level element is an object */
     if (r < 1 || t[0].type != JSMN_OBJECT) {
-        //printf("Object expected\n");
+        debug_print_int("t[0].type = ", t[0].type);
+        debug_print("Json object expected");
         return -1;
     }
     int key_idx = 0;
