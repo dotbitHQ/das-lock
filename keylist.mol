@@ -5,9 +5,6 @@ import blockchain;
 array Uint8 [byte; 1];
 array Byte10 [byte; 10];
 
-
-vector DeviceKeyList <DeviceKey>;
-
 struct DeviceKey {
     main_alg_id: Uint8,
     sub_alg_id: Uint8,
@@ -15,7 +12,16 @@ struct DeviceKey {
     pubkey: Byte10,
 }
 
+vector DeviceKeyList <DeviceKey>;
 
+
+
+table DeviceKeyListCellData {
+    // Device keys.
+    keys: DeviceKeyList,
+    // On destroy-device-key-list, send the remaining capacity of the refund_lock.
+    refund_lock: Script,
+}
 
 table DataEntity {
     // Indicates the cell in cell_deps/inputs/outputs to which this entity data belongs.

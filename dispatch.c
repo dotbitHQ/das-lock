@@ -96,14 +96,15 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 	   }
 	   }
 	   */
-    if (alg_id == 8) {
-        //just copy all data into lock_bytes then compare tx_digest in dynamical library
-        //Danger! lock_bytes_seg.size should be less than 256
-        lock_bytes[0] = lock_bytes_seg.size;
+    if(alg_id == 8) {
+        lock_bytes[0] = lock_bytes_seg.size; //Now it is fixed value 137 for secp256r1
         memcpy(lock_bytes + 1, lock_bytes_seg.ptr, lock_bytes_seg.size);
+
     }else {
         memcpy(lock_bytes, lock_bytes_seg.ptr, lock_bytes_seg.size);
+
     }
+
 
     debug_print_data("lock_bytes: ", lock_bytes, SIGNATURE_SIZE);
     //debug_print_data("1temp after extract_witness_lock: ", temp, witness_len);
@@ -489,12 +490,13 @@ int get_lock_args(uint8_t* temp, uint8_t* das_args, uint8_t index, uint8_t* lock
 		args1_len = RIPEMD160_HASH_SIZE;
 	}
 #ifdef JUST_FOR_TEST
-    if (*alg_id == 8) {
-        //get witness of input 1
-        //get keylist
-        //memcpy index key to args
-        return ret;
-    }
+    //Todo
+//    if (*alg_id == 8) {
+//        //get witness of input 1
+//        //get keylist
+//        //memcpy index key to args
+//        return ret;
+//    }
 #endif
 	if (0 == index) { // use first args (owner lock)
 		memcpy(lock_args, das_args + 1, args1_len);
@@ -549,7 +551,7 @@ int get_code_hash(uint8_t index, uint8_t* code_hash) {
 	return ret;
 }
 
-int get_witness_of_key_list(uint8_t* witness_buf, uint64_t* witness_len){
+int get_witness_with_key_list(uint8_t* witness_buf, uint64_t* witness_len){
     int i = 0;
     uint8_t das_type_wbkl[4] = {0x0b, 0x00, 0x00, 0x00};
 
@@ -677,15 +679,15 @@ int main() {
 #ifdef JUST_FOR_TEST
     if(alg_id == 8) {
         //get pubkey idx
-        //0 total len, 1 sig len, 2 mainid, 3 subid, 4 pkidx,
-		//Todo check with doc 
-        unsigned char pk_idx = lock_bytes[4];
+        //0 length(pubkey_index), 1 pubkey_index, 2 length(signature), [3-67] signature, 4 pkidx,
+        //Because you need lock bytes to provide pk_idx, put it here instead of the function get_lock_args
+        unsigned char pk_idx = lock_bytes[1];
         if(pk_idx > 10){
             debug_print_int("get pubkey index out of bound ", pk_idx);
             return -1;
         }
-        //get witness
-        ret = get_witness_of_key_list(witness_action, &witness_action_len);
+        //get witness, just use witness_action as tmp buffer
+        ret = get_witness_with_key_list(witness_action, &witness_action_len);
         debug_print_int("get_witness_of_key_list witness_action_len = ", witness_action_len);
         if(ret != 0){
             debug_print_int("get get_witness_of_key_list failed", ret);
@@ -693,7 +695,7 @@ int main() {
         }
         //get payload
         memset(lock_args, 0, DAS_MAX_LOCK_ARGS_SIZE);
-        uint8_t* molecule_data = witness_action + 7;
+        uint8_t* molecule_data = witness_action + 7; //jump over 7 bytes, "DAS + 4 bytes type id"
         ret = get_payload_by_pk_index(molecule_data, witness_action_len - 7, lock_args, pk_idx, OLD);
         if(ret != 0){
             debug_print_int("get get_payload_by_pk_index failed", ret);
