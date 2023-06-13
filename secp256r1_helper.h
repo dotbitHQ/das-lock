@@ -47,10 +47,15 @@ int secp256r1_pub_key_export_to_aff_buf(const secp256r1_context_t *context,
 int recover_public_key_from_sig(u8* signature, u8* message, u8 message_len, u8* pubkey1, u8* pubkey2){
     int ret;
 
+    debug_print_data("signature ", signature, 64);
+    debug_print_data("message ", message, message_len);
+
+
     uint8_t message_hash[32] = {0};
 
     //sha256x1
     sha256x1(message_hash, message, message_len);
+    debug_print_data("message_hash ", message_hash, 32);
 
     secp256r1_context_t context;
     ret = secp256r1_context_init(&context);
@@ -68,14 +73,14 @@ int recover_public_key_from_sig(u8* signature, u8* message, u8 message_len, u8* 
     //convert pubkey to vec
     ret = secp256r1_pub_key_export_to_aff_buf(&context, &pk_1, pubkey1, 64);
     debug_print_int("secp256r1_pub_key_export_to_aff_buf ret", ret);
-    print_pub_key(pubkey1, "recovered pk1");
+    print_pub_key(pubkey1, "recovered pk1 ");
     SIMPLE_ASSERT(ret);
 
 
 
     ret = secp256r1_pub_key_export_to_aff_buf(&context, &pk_2, pubkey2, 64);
     debug_print_int("secp256r1_pub_key_export_to_aff_buf ret", ret);
-    print_pub_key(pubkey2, "recovered pk2");
+    print_pub_key(pubkey2, "recovered pk2 ");
     SIMPLE_ASSERT(ret);
 
 

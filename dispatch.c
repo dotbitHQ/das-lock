@@ -96,14 +96,15 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 	   }
 	   }
 	   */
-    if(alg_id == 8) {
-        lock_bytes[0] = lock_bytes_seg.size; //Now it is fixed value 137 for secp256r1
-        memcpy(lock_bytes + 1, lock_bytes_seg.ptr, lock_bytes_seg.size);
-
-    }else {
+//    if(alg_id == 8) {
+//        lock_bytes[0] = lock_bytes_seg.size; //Now it is fixed value 137 for secp256r1
+//        memcpy(lock_bytes + 1, lock_bytes_seg.ptr, lock_bytes_seg.size);
+//
+//    }else {
+//        memcpy(lock_bytes, lock_bytes_seg.ptr, lock_bytes_seg.size);
+//
+//    }
         memcpy(lock_bytes, lock_bytes_seg.ptr, lock_bytes_seg.size);
-
-    }
 
 
     debug_print_data("lock_bytes: ", lock_bytes, SIGNATURE_SIZE);

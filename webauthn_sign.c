@@ -30,7 +30,7 @@ int verify_signature_secp256r1(uint8_t* message, uint8_t* signature, uint8_t* lo
     uint8_t pubkey1[64] = {0};
     uint8_t pubkey2[64] = {0};
     ret = recover_public_key_from_sig(signature, message, 32, pubkey1, pubkey2);
-    debug_print_int("recover_public_key_from_sig result ", ret);
+    debug_print_int("recover_public_key_from_sig result ret", ret);
     SIMPLE_ASSERT(0);
 
     //calculate public key sha256*5
@@ -45,11 +45,11 @@ int verify_signature_secp256r1(uint8_t* message, uint8_t* signature, uint8_t* lo
     if(cmp1 == 0 || cmp2 == 0){
         return 0;
     }
-    debug_print_data("payload expected", lock_args + 12, 10);
+    debug_print_data("payload expected ", lock_args + 12, 10);
     debug_print_data("payload real pubkey1 ", payload_pubkey1, 10);
     debug_print_data("payload real pubkey2 ", payload_pubkey2, 10);
 
-    debug_print("verify_signature_secp256r1 failed, payload pubkey not equal to lock args");
+    debug_print("verify_signature_secp256r1 failed, payload pubkey` not equal to lock args");
     return -1;
 }
 
@@ -94,29 +94,41 @@ __attribute__((visibility("default"))) int validate(
     debug_print_data("lock_bytes: ", lock_bytes, lock_bytes[0]);
     debug_print_data("lock_args: ", lock_args, DAS_MAX_LOCK_ARGS_SIZE);
 
-    //lock_bytes contains 4 parts, pubkey_index, signature, sha256(authnticator_data), sha256(client_data_json)
-    uint8_t pk_idx_offset = 1;
+
+    //test for sha256
+    char *test_str = "fcb00bb8066aefc6a896e9150c822ee6669a8f0c5ce4f8f3144db21df517b9f01fba11afc017c935df72f73d6f9a00e521636409dc95361065a77aa6299ec5b5";
+    uint8_t test_str_bytes[64] = {0};
+    size_t input_len = 64;
+    str2bin(test_str_bytes, (unsigned char*)test_str, input_len);
+    debug_print_data("test_str_bytes: ", test_str_bytes, 64);
+
+    uint8_t test_str_bytes2[SHA256_HASH_SIZE] = {0};
+    sha256x1(test_str_bytes2, test_str_bytes, 64);
+    debug_print_data("round 1 sha256 ", test_str_bytes2, SHA256_HASH_SIZE);
+    for(int i = 0; i < 4; i++) {
+        memcpy(test_str_bytes, test_str_bytes2, SHA256_HASH_SIZE);
+        sha256x1(test_str_bytes2, test_str_bytes, 32);
+        debug_print_int("i = ", i + 2);
+        debug_print_data("sha256 ", test_str_bytes2, SHA256_HASH_SIZE);
+    }
+    //lock_bytes contains 4 parts, pubkey_index, signature, sha256(authenticator_data), client_data_json
+    //it is a variable length array, the first byte is the length of the array
+    uint8_t pk_idx_offset = 0;
     uint8_t pk_idx_len = lock_bytes[pk_idx_offset];
     uint8_t pk_idx_value = lock_bytes[pk_idx_offset + 1];
-
-
 
     uint8_t sig_offset = pk_idx_offset + 2;
     uint8_t sig_len = lock_bytes[sig_offset];
     uint8_t *sig_value = lock_bytes + sig_offset + 1;
 
-
-
     uint8_t authn_hash_offset = sig_offset + sig_len + 1;
     uint8_t authn_hash_len = lock_bytes[authn_hash_offset];
     uint8_t *authn_hash_value = lock_bytes + authn_hash_offset + 1;
 
-
-    uint8_t json_hash_offset = authn_hash_offset + authn_hash_len + 1;
-    uint8_t json_hash_len = lock_bytes[json_hash_offset];
-    uint8_t *json_hash_value = lock_bytes + json_hash_offset + 1;
-
-
+    uint8_t json_offset = authn_hash_offset + authn_hash_len + 1;
+    //size_t json_len = lock_bytes[json_offset]; //json length is 2 bytes
+    size_t json_len = lock_bytes[json_offset] + lock_bytes[json_offset + 1] * 256;
+    uint8_t *json_value = lock_bytes + json_offset + 2;
 
     uint8_t main_alg_id = lock_args[0];
     uint8_t sub_alg_id = lock_args[1];
@@ -129,8 +141,8 @@ __attribute__((visibility("default"))) int validate(
     debug_print_data("sig_value = ", sig_value, sig_len);
     debug_print_int("authn_hash_len = ", authn_hash_len);
     debug_print_data("authn_hash_value = ", authn_hash_value, authn_hash_len);
-    debug_print_int("json_hash_len = ", json_hash_len);
-    debug_print_data("json_hash_value = ", json_hash_value, json_hash_len);
+    debug_print_int("json_len = ", json_len);
+    debug_print_string("json_value = ", json_value, json_len);
     debug_print_int("main_alg_id = ", main_alg_id);
     debug_print_int("sub_alg_id = ", sub_alg_id);
 //    int authn_hash_offset = sig_offset + sig_len + 1;
@@ -142,15 +154,16 @@ __attribute__((visibility("default"))) int validate(
 //    uint8_t *json = lock_bytes + json_offset + 1;
 
     //check if the length of lock_bytes is correct
-    if(lock_bytes[0] != pk_idx_len + sig_len + authn_hash_len + json_hash_len + 4){
-        debug_print_int("lock_bytes_len = ", lock_bytes[0]);
-        debug_print_int("pk_idx_len = ", pk_idx_len);
-        debug_print_int("sig_len = ", sig_len);
-        debug_print_int("authn_hash_len = ", authn_hash_len);
-        debug_print_int("json_len = ", json_hash_len);
-        debug_print("The length of lock bytes is not equal to the sum of the parts.");
-        return -1;
-    }
+
+//    if(lock_bytes[0] != pk_idx_len + sig_len + authn_hash_len + json_len + 4){
+//        debug_print_int("lock_bytes_len = ", lock_bytes[0]);
+//        debug_print_int("pk_idx_len = ", pk_idx_len);
+//        debug_print_int("sig_len = ", sig_len);
+//        debug_print_int("authn_hash_len = ", authn_hash_len);
+//        debug_print_int("json_len = ", json_hash_len);
+//        debug_print("The length of lock bytes is not equal to the sum of the parts.");
+//        return -1;
+//    }
 
     //check if the main_alg_id is supported
     if (main_alg_id != 8) {
@@ -166,27 +179,32 @@ __attribute__((visibility("default"))) int validate(
         return -1;
     }
 
-    //Use tx_digest to stitch webauthn's json
-    uint8_t json_tmp[TEMP_SIZE] = {0};
-    size_t json_len = -1;
+    //get challenge from json
+    char challenge_str[200] = {0};
+    int challenge_len = -1;
+    get_challenge_from_json(challenge_str, &challenge_len, json_value, json_len);
+    debug_print_string("challenge_str = ", (unsigned char*)challenge_str, challenge_len);
 
-    ret = splice_into_json(json_tmp, &json_len, message, SHA256_HASH_SIZE);
-    SIMPLE_ASSERT(0);
-    debug_print_string("json_tmp = ", json_tmp, json_len);
+    //convert from base64url to bytes
+    char tx_digest_str[100];
+    decode_base64url_to_string(tx_digest_str, challenge_str, &challenge_len);
 
-    //sha256 with the json_tmp
-    uint8_t json_hash_tmp[SHA256_HASH_SIZE] = {0};
-    sha256x1(json_hash_tmp, json_tmp, json_len);
+    //compare with the tx_digest
+    uint8_t tx_digest[HASH_SIZE] = {0};
+    str2bin(tx_digest, (unsigned char*)tx_digest_str, challenge_len);
 
-    //compare the result with the lock_bytes
-    ret = memcmp(json_hash_value, json_hash_tmp, SHA256_HASH_SIZE);
-    if(ret != 0) {
-        debug_print_data("sha256(json) expected =", json_hash_value, SHA256_HASH_SIZE);
-        debug_print_data("sha256(json) actual =", json_hash_tmp, SHA256_HASH_SIZE);
-        debug_print("The result after sha256 is inconsistent.");
-
+    ret = memcmp(tx_digest, message, HASH_SIZE);
+    if(ret != 0){
+        debug_print_data("tx_digest from json = ", tx_digest, HASH_SIZE);
+        debug_print_data("tx_digest from message = ", message, HASH_SIZE);
+        debug_print("tx_digest from json is not equal to tx_digest from message");
         return -1;
     }
+
+    //calculate the sha256 of the json
+    uint8_t json_hash_tmp[SHA256_HASH_SIZE] = {0};
+    sha256x1(json_hash_tmp, json_value, json_len);
+    debug_print_data("json_hash_tmp = ", json_hash_tmp, SHA256_HASH_SIZE);
 
     //calculate WebAuthn digest
     memset(message, 0, SHA256_HASH_SIZE); //use message as temp buffer

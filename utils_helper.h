@@ -156,4 +156,11 @@ void bin_to_hex( uint8_t *dest, uint8_t *source, size_t len) {
     return;
 }
 
+void str2bin(uint8_t *dest, uint8_t *source, size_t input_len) {
+    for (int i = 0; i < input_len; i++) {
+        dest[i] = (convertHexCharToInt(source[i * 2]) << 4) + convertHexCharToInt(source[i * 2 + 1]);
+    }
+    return;
+}
+
 #endif  // DAS_LOCK_UTILS_HELPER_H
