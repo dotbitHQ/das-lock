@@ -552,9 +552,11 @@ int get_code_hash(uint8_t index, uint8_t* code_hash) {
 	return ret;
 }
 
+//Todo need change the logical to get the witness
 int get_witness_with_key_list(uint8_t* witness_buf, uint64_t* witness_len){
+
     int i = 0;
-    uint8_t das_type_wbkl[4] = {0x0b, 0x00, 0x00, 0x00};
+    uint8_t das_type_wbkl[4] = {0x0d, 0x00, 0x00, 0x00};
 
     //memset(witness_buf, 0, MAX_WITNESS_SIZE);
     int ret = 0;
@@ -654,7 +656,7 @@ int main() {
 	uint8_t alg_id = -1;
 	ret = get_lock_args(witness_action, das_args, args_index, lock_args, &alg_id);
 #ifdef JUST_FOR_TEST
-    alg_id = 8;
+    //alg_id = 8;
 #endif
 	SIMPLE_ASSERT(CKB_SUCCESS);
 	debug_print_data("lock_args: ", lock_args, DAS_MAX_LOCK_ARGS_SIZE);

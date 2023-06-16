@@ -92,10 +92,11 @@ int get_payload_by_pk_index(uint8_t* in_data, size_t in_len, uint8_t* out_data, 
 
     mol = key.seg;
     debug_print_int("key.size ", mol.size);
+    //debug_print_data("key.content ", mol.ptr, mol.size);
 
     int cpy_len = mol.size > DAS_MAX_LOCK_ARGS_SIZE ? DAS_MAX_LOCK_ARGS_SIZE : mol.size;
     memcpy(out_data,mol.ptr, cpy_len);
-    //debug_print_data("output payload = ", out_data, 22);
+    debug_print_data("get payload = ", out_data, cpy_len);
     return ret;
 }
 

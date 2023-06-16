@@ -87,6 +87,7 @@ int verify_signature(uint8_t* message, uint8_t* sig, uint8_t* lock_args, size_t 
 __attribute__((visibility("default"))) int validate(
         int type, uint8_t* message, uint8_t* lock_bytes, uint8_t* lock_args) {
     int ret = 0;
+
     //print some log
     debug_print("Enter validate WebAuthn ");
     debug_print_int("type: ", type);
@@ -95,23 +96,7 @@ __attribute__((visibility("default"))) int validate(
     debug_print_data("lock_args: ", lock_args, DAS_MAX_LOCK_ARGS_SIZE);
 
 
-    //test for sha256
-    char *test_str = "fcb00bb8066aefc6a896e9150c822ee6669a8f0c5ce4f8f3144db21df517b9f01fba11afc017c935df72f73d6f9a00e521636409dc95361065a77aa6299ec5b5";
-    uint8_t test_str_bytes[64] = {0};
-    size_t input_len = 64;
-    str2bin(test_str_bytes, (unsigned char*)test_str, input_len);
-    debug_print_data("test_str_bytes: ", test_str_bytes, 64);
-
-    uint8_t test_str_bytes2[SHA256_HASH_SIZE] = {0};
-    sha256x1(test_str_bytes2, test_str_bytes, 64);
-    debug_print_data("round 1 sha256 ", test_str_bytes2, SHA256_HASH_SIZE);
-    for(int i = 0; i < 4; i++) {
-        memcpy(test_str_bytes, test_str_bytes2, SHA256_HASH_SIZE);
-        sha256x1(test_str_bytes2, test_str_bytes, 32);
-        debug_print_int("i = ", i + 2);
-        debug_print_data("sha256 ", test_str_bytes2, SHA256_HASH_SIZE);
-    }
-    //lock_bytes contains 4 parts, pubkey_index, signature, sha256(authenticator_data), client_data_json
+    //lock_bytes contains 4 parts, pubkey_index, signature, authenticator_data, client_data_json
     //it is a variable length array, the first byte is the length of the array
     uint8_t pk_idx_offset = 0;
     uint8_t pk_idx_len = lock_bytes[pk_idx_offset];
@@ -121,11 +106,11 @@ __attribute__((visibility("default"))) int validate(
     uint8_t sig_len = lock_bytes[sig_offset];
     uint8_t *sig_value = lock_bytes + sig_offset + 1;
 
-    uint8_t authn_hash_offset = sig_offset + sig_len + 1;
-    uint8_t authn_hash_len = lock_bytes[authn_hash_offset];
-    uint8_t *authn_hash_value = lock_bytes + authn_hash_offset + 1;
+    uint8_t authn_data_offset = sig_offset + sig_len + 1;
+    uint8_t authn_data_len = lock_bytes[authn_data_offset];
+    uint8_t *authn_data_value = lock_bytes + authn_data_offset + 1;
 
-    uint8_t json_offset = authn_hash_offset + authn_hash_len + 1;
+    uint8_t json_offset = authn_data_offset + authn_data_len + 1;
     //size_t json_len = lock_bytes[json_offset]; //json length is 2 bytes
     size_t json_len = lock_bytes[json_offset] + lock_bytes[json_offset + 1] * 256;
     uint8_t *json_value = lock_bytes + json_offset + 2;
@@ -139,31 +124,12 @@ __attribute__((visibility("default"))) int validate(
     debug_print_int("pk_idx_value = ", pk_idx_value);
     debug_print_int("sig_len = ", sig_len);
     debug_print_data("sig_value = ", sig_value, sig_len);
-    debug_print_int("authn_hash_len = ", authn_hash_len);
-    debug_print_data("authn_hash_value = ", authn_hash_value, authn_hash_len);
+    debug_print_int("authn_data_len = ", authn_data_len);
+    debug_print_data("authn_data_value = ", authn_data_value, authn_data_len);
     debug_print_int("json_len = ", json_len);
     debug_print_string("json_value = ", json_value, json_len);
     debug_print_int("main_alg_id = ", main_alg_id);
     debug_print_int("sub_alg_id = ", sub_alg_id);
-//    int authn_hash_offset = sig_offset + sig_len + 1;
-//    int authn_hash_len = lock_bytes[authn_hash_offset];
-//    uint8_t *authn_hash = lock_bytes + authn_hash_offset + 1;
-//
-//    int json_offset = authn_hash_offset + authn_hash_len + 1;
-//    int json_len = lock_bytes[json_offset];
-//    uint8_t *json = lock_bytes + json_offset + 1;
-
-    //check if the length of lock_bytes is correct
-
-//    if(lock_bytes[0] != pk_idx_len + sig_len + authn_hash_len + json_len + 4){
-//        debug_print_int("lock_bytes_len = ", lock_bytes[0]);
-//        debug_print_int("pk_idx_len = ", pk_idx_len);
-//        debug_print_int("sig_len = ", sig_len);
-//        debug_print_int("authn_hash_len = ", authn_hash_len);
-//        debug_print_int("json_len = ", json_hash_len);
-//        debug_print("The length of lock bytes is not equal to the sum of the parts.");
-//        return -1;
-//    }
 
     //check if the main_alg_id is supported
     if (main_alg_id != 8) {
@@ -210,7 +176,7 @@ __attribute__((visibility("default"))) int validate(
     memset(message, 0, SHA256_HASH_SIZE); //use message as temp buffer
     SHA256_CTX ctx;
     SHA256Init(&ctx);
-    SHA256Update(&ctx, authn_hash_value, authn_hash_len);
+    SHA256Update(&ctx, authn_data_value, authn_data_len);
     SHA256Update(&ctx, json_hash_tmp, SHA256_HASH_SIZE);
     SHA256Final(&ctx, message);
 
