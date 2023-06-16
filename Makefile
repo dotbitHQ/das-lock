@@ -49,7 +49,6 @@ debug-all-via-docker: ${PROTOCOL_HEADER}
 	./tool/ckb-binary-patcher -i ckb_multi_sign.so.debug -o ./build/debug/ckb_multi_sign.so
 	./tool/ckb-binary-patcher -i doge_sign.so.debug -o ./build/debug/doge_sign.so
 	./tool/ckb-binary-patcher -i webauthn_sign.so.debug -o ./build/debug/webauthn_sign.so
-	./tool/ckb-binary-patcher -i webauthn_sign.so.debug.debug -o ./build/debug/webauthn_sign.so.2
 	cp dispatch.debug ./build/debug/dispatch
 
 

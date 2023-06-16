@@ -25,6 +25,7 @@ int get_payload_by_pk_index(uint8_t* in_data, size_t in_len, uint8_t* out_data, 
     //print log
     debug_print_int("get_payload pk_idx = ", pk_idx);
     debug_print_int("get_payload MolTableData = ", m);
+    debug_print_int("get_payload in_len = ", in_len);
     debug_print_data("get_payload in_buf = ", in_data, in_len);
 
     //init
