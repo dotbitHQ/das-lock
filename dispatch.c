@@ -728,12 +728,12 @@ int main() {
         memset(lock_args, 0, DAS_MAX_LOCK_ARGS_SIZE);
         uint8_t* molecule_data = witness_action_tmp + 7; //jump over 7 bytes, "DAS + 4 bytes type id"
 
-        ret = get_payload_by_pk_index(molecule_data, witness_action_tmp_len, lock_args, pk_idx, OLD);
+        ret = get_payload_by_pk_index(molecule_data, witness_action_tmp_len - 7, lock_args, pk_idx, OLD);
         if(ret != 0){
             debug_print_int("get get_payload_by_pk_index failed ", ret);
             return -1;
         }
-        debug_print_data("get payload from witness = ", lock_args, DAS_MAX_LOCK_ARGS_SIZE);
+        debug_print_data("get payload from witness = ", lock_args, 22);
     }
 #endif
 	uint8_t code_so[HASH_SIZE];
