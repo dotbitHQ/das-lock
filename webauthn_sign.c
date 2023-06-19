@@ -35,20 +35,26 @@ int verify_signature_secp256r1(uint8_t* message, uint8_t* signature, uint8_t* lo
 
     //calculate public key sha256*5
     uint8_t payload_pubkey1[32] = {0};
-    uint8_t payload_pubkey2[32] = {0};
     sha256_many_round(payload_pubkey1, pubkey1, 64, 5);
-    sha256_many_round(payload_pubkey2, pubkey2, 64, 5);
-
-    //compare is equal
     int cmp1 = memcmp(payload_pubkey1, lock_args + 12, 10);
-    int cmp2 = memcmp(payload_pubkey2, lock_args + 12, 10);
-    if(cmp1 == 0 || cmp2 == 0){
+    if(cmp1 == 0) {
+        debug_print("verify_signature_secp256r1 success, pubkey1 match");
         return 0;
     }
+
+    //if pubkey1 not match, try pubkey2
+    uint8_t payload_pubkey2[32] = {0};
+    sha256_many_round(payload_pubkey2, pubkey2, 64, 5);
+    int cmp2 = memcmp(payload_pubkey2, lock_args + 12, 10);
+
+    if(cmp2 == 0){
+        debug_print("verify_signature_secp256r1 success, pubkey2 match");
+        return 0;
+    }
+
     debug_print_data("payload expected ", lock_args + 12, 10);
     debug_print_data("payload real pubkey1 ", payload_pubkey1, 10);
     debug_print_data("payload real pubkey2 ", payload_pubkey2, 10);
-
     debug_print("verify_signature_secp256r1 failed, payload pubkey` not equal to lock args");
     return -1;
 }
@@ -111,7 +117,7 @@ __attribute__((visibility("default"))) int validate(
     uint8_t *authn_data_value = lock_bytes + authn_data_offset + 1;
 
     uint8_t json_offset = authn_data_offset + authn_data_len + 1;
-    //size_t json_len = lock_bytes[json_offset]; //json length is 2 bytes
+    //size_t json_len = lock_bytes[json_offset]; //json length is 2 bytes, small endian
     size_t json_len = lock_bytes[json_offset] + lock_bytes[json_offset + 1] * 256;
     uint8_t *json_value = lock_bytes + json_offset + 2;
 
@@ -157,13 +163,13 @@ __attribute__((visibility("default"))) int validate(
 
     //compare with the tx_digest
     uint8_t tx_digest[HASH_SIZE] = {0};
-    str2bin(tx_digest, (unsigned char*)tx_digest_str, challenge_len);
+    str2bin(tx_digest, (unsigned char*)(tx_digest_str), challenge_len);
 
     ret = memcmp(tx_digest, message, HASH_SIZE);
     if(ret != 0){
-        debug_print_data("tx_digest from json = ", tx_digest, HASH_SIZE);
-        debug_print_data("tx_digest from message = ", message, HASH_SIZE);
-        debug_print("tx_digest from json is not equal to tx_digest from message");
+        debug_print_data("tx_digest from json parsed= ", tx_digest, HASH_SIZE);
+        debug_print_data("tx_digest from message calculated = ", message, HASH_SIZE);
+        debug_print("tx_digest from json is not equal to tx_digest calculated");
         return -1;
     }
 

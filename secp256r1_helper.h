@@ -51,11 +51,12 @@ int recover_public_key_from_sig(u8* signature, u8* message, u8 message_len, u8* 
     debug_print_data("message ", message, message_len);
 
 
-    uint8_t message_hash[32] = {0};
+    //uint8_t message_hash[32] = {0};
 
     //sha256x1
-    sha256x1(message_hash, message, message_len);
-    debug_print_data("message_hash ", message_hash, 32);
+    //sha256x1(message_hash, message, message_len);
+    //memcpy(message_hash, message, 32);
+    //debug_print_data("message_hash ", message_hash, 32);
 
     secp256r1_context_t context;
     ret = secp256r1_context_init(&context);
@@ -64,7 +65,7 @@ int recover_public_key_from_sig(u8* signature, u8* message, u8 message_len, u8* 
 
     ec_pub_key pk_1, pk_2;
 
-    ret = secp256r1_recover_public_key_from_signature(&context, &pk_1, &pk_2, signature, 64, message_hash, 32);
+    ret = secp256r1_recover_public_key_from_signature(&context, &pk_1, &pk_2, signature, 64, message, message_len);
     //ret = ecdsa_public_key_from_sig(&pk_1, &pk_2, &context.ec_params, sig_michael, 64, message_hash, 32);
     debug_print_int("secp256r1_recover_public_key_from_signature ret ", ret);
     SIMPLE_ASSERT(ret);

@@ -63,6 +63,7 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 	mol_seg_t lock_bytes_seg;
     if(alg_id == 8) {
         //uint64_t witness_len_temp = witness_len;
+        //Caution: witness_len_temp is real witness_len,
         uint64_t witness_len_temp = big_endian_hex_str2int((char* )temp, 4);
         debug_print_int("witness_len_temp: ", witness_len_temp);
         ret = extract_witness_lock(temp, witness_len_temp, &lock_bytes_seg);
@@ -103,14 +104,7 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 	   }
 	   }
 	   */
-//    if(alg_id == 8) {
-//        lock_bytes[0] = lock_bytes_seg.size; //Now it is fixed value 137 for secp256r1
-//        memcpy(lock_bytes + 1, lock_bytes_seg.ptr, lock_bytes_seg.size);
-//
-//    }else {
-//        memcpy(lock_bytes, lock_bytes_seg.ptr, lock_bytes_seg.size);
-//
-//    }
+
         memcpy(lock_bytes, lock_bytes_seg.ptr, lock_bytes_seg.size);
 
 
@@ -151,12 +145,16 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 	blake2b_init(&blake2b_ctx, HASH_SIZE);
 	
 	blake2b_update(&blake2b_ctx, tx_hash, HASH_SIZE);
-
+    debug_print_data("blake2b 01 tx_hash: ", tx_hash, HASH_SIZE);
     debug_print_int("__line__", __LINE__);
 
 	memset((void *)lock_bytes_seg.ptr + multisig_script_len, 0, lock_bytes_seg.size);
 	blake2b_update(&blake2b_ctx, (uint8_t *)&witness_len, sizeof(uint64_t));
+    debug_print_data("blake2b 02 witness_len: ", (uint8_t *)&witness_len, sizeof(uint64_t));
+
 	blake2b_update(&blake2b_ctx, temp, witness_len);
+    debug_print_data("blake2b 03 temp: ", temp, witness_len);
+    debug_print_int("__line__", __LINE__);
 
 
 	debug_print_int("witness_len: ", witness_len);
@@ -748,7 +746,8 @@ int main() {
 	uint8_t hash_type = 1;
 	ret = ckb_dlopen2(code_so, hash_type, code_buffer, 1024 * 1024, &handle, &consumed_size);
 
-	
+    debug_print_int("consumed size = ", consumed_size);
+    debug_print_int("ret = ", ret);
 	SIMPLE_ASSERT(CKB_SUCCESS);
 	debug_print("after ckb_dlopen2");
 
