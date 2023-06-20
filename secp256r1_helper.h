@@ -12,11 +12,9 @@ typedef struct {
     ec_params ec_params;
 } secp256r1_context_t;
 
-
 void print_pub_key(u8* pubkey, const char* title) {
     debug_print_data(title, pubkey, 64);
 }
-
 
 int secp256r1_context_init(secp256r1_context_t *context) {
     context->sig_algo = ECDSA;
@@ -41,15 +39,11 @@ int secp256r1_pub_key_export_to_aff_buf(const secp256r1_context_t *context,
     return ec_pub_key_export_to_aff_buf(pub_key, pub_key_buf, pub_key_buf_len);
 };
 
-
-
-
 int recover_public_key_from_sig(u8* signature, u8* message, u8 message_len, u8* pubkey1, u8* pubkey2){
     int ret;
 
     debug_print_data("signature ", signature, 64);
     debug_print_data("message ", message, message_len);
-
 
     //uint8_t message_hash[32] = {0};
 
@@ -60,33 +54,26 @@ int recover_public_key_from_sig(u8* signature, u8* message, u8 message_len, u8* 
 
     secp256r1_context_t context;
     ret = secp256r1_context_init(&context);
-    debug_print_int("secp256r1_context_init ret", ret);
+    debug_print_int("Context init, ret ", ret);
     SIMPLE_ASSERT(ret);
 
     ec_pub_key pk_1, pk_2;
-
     ret = secp256r1_recover_public_key_from_signature(&context, &pk_1, &pk_2, signature, 64, message, message_len);
     //ret = ecdsa_public_key_from_sig(&pk_1, &pk_2, &context.ec_params, sig_michael, 64, message_hash, 32);
-    debug_print_int("secp256r1_recover_public_key_from_signature ret ", ret);
+    debug_print_int("Recover PK from signature, ret ", ret);
     SIMPLE_ASSERT(ret);
-
 
     //convert pubkey to vec
     ret = secp256r1_pub_key_export_to_aff_buf(&context, &pk_1, pubkey1, 64);
-    debug_print_int("secp256r1_pub_key_export_to_aff_buf ret", ret);
-    print_pub_key(pubkey1, "recovered pk1 ");
+    debug_print_int("PK1 export to buf, ret ", ret);
+    print_pub_key(pubkey1, "PK1 = ");
     SIMPLE_ASSERT(ret);
-
-
 
     ret = secp256r1_pub_key_export_to_aff_buf(&context, &pk_2, pubkey2, 64);
-    debug_print_int("secp256r1_pub_key_export_to_aff_buf ret", ret);
-    print_pub_key(pubkey2, "recovered pk2 ");
+    debug_print_int("PK2 export to buf, ret ", ret);
+    print_pub_key(pubkey2, "PK2 = ");
     SIMPLE_ASSERT(ret);
-
 
     return ret;
 }
-
-
 #endif //SECP256R1_HELPER_H

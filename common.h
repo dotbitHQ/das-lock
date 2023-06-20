@@ -12,9 +12,13 @@ Defines commonly used high level functions and constants.
 #include "blake2b.h"
 
 /* Common errors */
+
 #define ERROR_ARGUMENTS_LEN -1
 #define ERROR_ENCODING -2
 #define ERROR_SYSCALL -3
+#define ERROR_ARGUMENTS_VALUE -4
+#define ERROR_NULL_PTR -5
+
 #define ERROR_SECP_RECOVER_PUBKEY -11
 #define ERROR_SECP_VERIFICATION -12
 #define ERROR_SECP_PARSE_PUBKEY -13
@@ -26,6 +30,10 @@ Defines commonly used high level functions and constants.
 #define ERROR_WITNESS_SIZE -22
 #define ERROR_INCORRECT_SINCE_FLAGS -23
 #define ERROR_INCORRECT_SINCE_VALUE -24
+#define ERROR_INCORRECT_DIGEST -25
+#define ERROR_MOLECULE_ENCODING -26
+#define ERROR_WITNESS_NOT_FOUND -27
+
 #define ERROR_PUBKEY_BLAKE160_HASH -31
 #define ERROR_PUBKEY_RIPEMD160_HASH -31
 

@@ -17,7 +17,7 @@ void print_mol_seg_t(mol_seg_t mol, const char* title) {
     debug_print_data(title, mol.ptr, mol.size);
 }
 //get DeviceKey by idx
-int get_payload_by_pk_index(uint8_t* in_data, size_t in_len, uint8_t* out_data, int pk_idx, enum MolTableData m) {
+int get_payload_by_pk_index(uint8_t* out_data, size_t* out_data_len, uint8_t* in_data, size_t in_len,  int pk_idx, enum MolTableData m) {
     mol_seg_t in_seg;
     in_seg.ptr = in_data;
     in_seg.size = in_len;
@@ -29,13 +29,13 @@ int get_payload_by_pk_index(uint8_t* in_data, size_t in_len, uint8_t* out_data, 
     debug_print_data("get_payload in_buf = ", in_data, in_len);
 
     //init
-    int ret = 0;
+    //int ret = 0;
     mol_seg_t mol = {0};
 
     //verify Data
     if (MolReader_Data_verify(&in_seg, false) != MOL_OK) {
         debug_print("cannot verify data mol reader\n");
-        return -1;
+        return ERROR_MOLECULE_ENCODING;
     }else {
         debug_print("verify data mol reader Success\n");
     }
@@ -60,7 +60,7 @@ int get_payload_by_pk_index(uint8_t* in_data, size_t in_len, uint8_t* out_data, 
     bool isnone = MolReader_DataEntityOpt_is_none(&mol);
     if(isnone) {
         debug_print_int("DataEntityOpt is none, MolTableData=", m);
-        return -1;
+        return ERROR_MOLECULE_ENCODING;
     }
 
     mol_seg_t entity;
@@ -81,14 +81,14 @@ int get_payload_by_pk_index(uint8_t* in_data, size_t in_len, uint8_t* out_data, 
         debug_print("choose public key out of bound");
         debug_print_int("choosed index = ", pk_idx);
         debug_print_int("key_list_len = ", key_list_len);
-        return -1;
+        return ERROR_MOLECULE_ENCODING;
     }
 
     mol_seg_res_t key;
     key = MolReader_DeviceKeyList_get(&keys, pk_idx);
     if(key.errno != MOL_OK){
         debug_print_int("MolReader_DeviceKeyList_get error ", key.errno);
-        return -1;
+        return ERROR_MOLECULE_ENCODING;
     }
 
     mol = key.seg;
@@ -98,13 +98,8 @@ int get_payload_by_pk_index(uint8_t* in_data, size_t in_len, uint8_t* out_data, 
     int cpy_len = mol.size > DAS_MAX_LOCK_ARGS_SIZE ? DAS_MAX_LOCK_ARGS_SIZE : mol.size;
     memcpy(out_data,mol.ptr, cpy_len);
     debug_print_data("get payload = ", out_data, cpy_len);
-    return ret;
+    *out_data_len = cpy_len;
+    return 0;
 }
-
-
-
-
-
-
 
 #endif //DAS_LOCK_KEYLIST_OPRATE_H

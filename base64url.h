@@ -190,7 +190,7 @@ void base64_to_base64url( char* base64url, char* base64, int *len) {
     *len = i;
 }
 
-void base64url_to_base64(char* base64, char* base64url, int* len) {
+void base64url_to_base64(char* base64, char* base64url, size_t* len) {
 
     int i = 0;
     int quotient = *len / 4;
@@ -220,34 +220,31 @@ void base64url_to_base64(char* base64, char* base64url, int* len) {
     }
 
     //base64[*len+i] = '\0';
-
     *len = *len + blank_len;
-
-
 }
 
 //
-int decode_base64url_to_string(char* str, char* base64url, int* len){
+int decode_base64url_to_string(char* str, char* base64url, size_t* len){
 
     if(str == NULL || base64url == NULL || len == NULL) {
         debug_print("decode_base64url_to_string: invalid input, NULL pointer");
-        return -1;
+        return ERROR_NULL_PTR;
     }
     debug_print_string("base64url = ", (unsigned char*)base64url, *len);
 
-    //Manually set the limit here to 1024
-    if(*len < 0 || *len > 1024){
-        debug_print("decode_base64url_to_string: invalid input, invalid length");
-        return -1;
-    }
-    char tmp[1024];
-    base64url_to_base64(tmp, base64url, len);
-    debug_print_string("base64 = ", (unsigned char*)tmp, *len);
+    //Manually set the limit here to 256
+    if(*len > 0 && *len < 256){
+        char tmp[256] = {0};
+        base64url_to_base64(tmp, base64url, len);
+        debug_print_string("base64 = ", (unsigned char*)tmp, *len);
 
-    base64_decode(str, tmp, (unsigned int)(*len));
-    *len = BASE64_DECODE_OUT_SIZE(*len);
-    debug_print_string("decoded base64 = ", (unsigned char*)str, *len);
-    return 0;
+        *len = base64_decode(str, tmp, (unsigned int)(*len));
+        //*len = BASE64_DECODE_OUT_SIZE(*len);
+        debug_print_string("decoded base64 = ", (unsigned char*)str, *len);
+        return 0;
+    }
+    debug_print("The length of base64url is illegal.");
+    return ERROR_ENCODING;
 }
 
 #endif //DAS_LOCK_BASE64URL_H

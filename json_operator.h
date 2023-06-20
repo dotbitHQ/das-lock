@@ -92,39 +92,40 @@ int parse_keys(const char* buf, jsmntok_t* tok) {
 //    return 0;
 //}
 //
-int get_challenge_from_json(char* output, int *output_len, unsigned char* json_buf, size_t buf_len){
-    debug_print("start get_challenge_from_json");
-    debug_print_int("json_len = ", buf_len);
-    debug_print_string("json_buf = ", json_buf, buf_len);
+int get_challenge_from_json(char* output, size_t *output_len, unsigned char* json_buf, size_t buf_len){
+    debug_print("Ready to parse json.");
+    //debug_print_int("json_len = ", buf_len);
+    debug_print_string("json = ", json_buf, buf_len);
 
     //init
     int i = 0, c = 0;
     jsmn_parser p;
-    jsmntok_t t[128];
+    jsmntok_t t[128]; // We expect no more than 128 tokens in one json
 
     jsmn_init(&p);
 
     size_t json_len = strlen((const char*)json_buf);
     if(json_len != buf_len) {
-        debug_print_int("json_len = ", json_len);
-        debug_print_int("buf_len = ", buf_len);
-        debug_print("json_len != buf_len");
-        return -1;
+        debug_print_int("json len in witness lv = ", json_len);
+        debug_print_int("json len in strlen = ", buf_len);
+        debug_print("There is a null value before or after the json data");
+        return ERROR_ENCODING;
     }
 
     c = jsmn_parse(&p, (const char*)json_buf, json_len, t, sizeof(t) / sizeof(t[0]));
     if (c < 0) {
-        debug_print_int("failed to parse JSON , count = ", c);
-        return -1;
+        debug_print_int("json parsing failed, the number of tokens is ", c);
+        return ERROR_ENCODING;
     }
 
     /* Assume the top-level element is an object */
     if (c < 1 || t[0].type != JSMN_OBJECT) {
         debug_print_int("t[0].type = ", t[0].type);
-        debug_print("Json object expected");
-        return -1;
+        debug_print("Json object expected.");
+        return ERROR_ENCODING;
     }
     int key_idx = 0;
+    bool find_challenge = false;
     for(i = 1; i < c; i++){
         key_idx = parse_keys((const char*)json_buf, &t[i]);
         size_t value_length = t[i + 1].end - t[i + 1].start;
@@ -143,6 +144,7 @@ int get_challenge_from_json(char* output, int *output_len, unsigned char* json_b
                 memcpy(output, value_start, cpy_len);
                 *output_len = cpy_len;
                 i++;
+                find_challenge = true;
                 break;
             }
             case Jorigin : {
@@ -157,9 +159,14 @@ int get_challenge_from_json(char* output, int *output_len, unsigned char* json_b
 
             }
             default: {
-                debug_print_data("parse json wrong, Unexpected key", json_buf + t[i].start, t[i].end - t[i].start);
-                return -1;
+                debug_print_string("Unexpected json key ", json_buf + t[i].start, t[i].end - t[i].start);
+                //return -1;
             }
+        }
+        if(find_challenge == true){
+            debug_print_data("json parser: Challenge: result", (unsigned char*)output, *output_len);
+            debug_print_int("json parser: Challenge: result len", *output_len);
+            break;
         }
     }
     return 0;
