@@ -16,6 +16,8 @@ int verify_signature_secp256r1(uint8_t* message, uint8_t* signature, uint8_t* lo
     debug_print_int("Recover the public key from the signature, result = ", ret);
     NORMAL_ASSERT(0, ERROR_SECP_RECOVER_PUBKEY);
 
+    //verify_test(signature, message, SHA256_HASH_SIZE, pk2);
+
     //calculate public key sha256*5 and compare with payload
     //Todo: The matching here and below can be implemented with a function.
     uint8_t payload_pk[SHA256_HASH_SIZE] = {0};
@@ -151,7 +153,6 @@ __attribute__((visibility("default"))) int validate(
     }
 
 
-
     //get challenge string from json that is base64url encoded
     char challenge_str[200] = {0}; //The challenge has a fixed length of 86 characters.
     size_t challenge_len = 200;
@@ -189,6 +190,7 @@ __attribute__((visibility("default"))) int validate(
     SHA256Update(&ctx, authn_data_value, authn_data_len);
     SHA256Update(&ctx, json_hash, SHA256_HASH_SIZE);
     SHA256Final(&ctx, message);
+
 
     //sha256x1(message, lock_bytes + sig_length, json_len);
     debug_print_data("webauthn_digest ", message, SHA256_HASH_SIZE);

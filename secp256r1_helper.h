@@ -39,6 +39,19 @@ int secp256r1_pub_key_export_to_aff_buf(const secp256r1_context_t *context,
     return ec_pub_key_export_to_aff_buf(pub_key, pub_key_buf, pub_key_buf_len);
 };
 
+/////////////////////test for verify ////////////////////////////////////////
+
+
+int secp256r1_verify_signature(const secp256r1_context_t *context, const u8 *sig,
+                           u8 siglen, const ec_pub_key *pub_key, const u8 *m,
+                           u32 mlen) {
+    int ret;
+    ret = ec_verify(sig, siglen, pub_key, m, mlen, context->sig_algo,
+                    context->hash_algo, NULL, 0);
+    debug_print_int("signature verification result: ", ret);
+    return ret;
+}
+//////////////////////////////////////////////////////////////////
 int recover_public_key_from_sig(u8* signature, u8* message, u8 message_len, u8* pubkey1, u8* pubkey2){
     int ret;
 
@@ -56,7 +69,6 @@ int recover_public_key_from_sig(u8* signature, u8* message, u8 message_len, u8* 
     ret = secp256r1_context_init(&context);
     debug_print_int("Context init, ret ", ret);
     SIMPLE_ASSERT(ret);
-
     ec_pub_key pk_1, pk_2;
     ret = secp256r1_recover_public_key_from_signature(&context, &pk_1, &pk_2, signature, 64, message, message_len);
     //ret = ecdsa_public_key_from_sig(&pk_1, &pk_2, &context.ec_params, sig_michael, 64, message_hash, 32);
@@ -74,6 +86,26 @@ int recover_public_key_from_sig(u8* signature, u8* message, u8 message_len, u8* 
     print_pub_key(pubkey2, "PK2 = ");
     SIMPLE_ASSERT(ret);
 
+
     return ret;
 }
+/////////////////////////////////////////////////////////
+//int verify_test(u8* signature, u8* message, u8 message_len, u8* pubkey){
+//
+//    secp256r1_context_t context;
+//    int ret;
+//    ret = secp256r1_context_init(&context);
+//    ec_pub_key pk_3;
+//    ret = ec_pub_key_import_from_aff_buf(&pk_3, &context.ec_params, pubkey, 64, context.sig_algo);
+//    debug_print_int("Import PK from buf, ret ", ret);
+//    ret = secp256r1_verify_signature(&context, signature, 64,
+//                                     &pk_3, message, message_len);
+//    debug_print_int("Verify signature, ret ", ret);
+//    if(ret > 100){
+//        return -1;
+//    }
+//    return 0;
+//
+//}
+////////////////////////////////////////////////////////
 #endif //SECP256R1_HELPER_H
