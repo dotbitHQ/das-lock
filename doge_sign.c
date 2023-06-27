@@ -45,7 +45,7 @@ int magic_hash(uint8_t* hash, uint8_t* message, size_t message_len) {
     bin_to_hex(message_hex, message, message_len);
     debug_print_data("message_hex  : ", message_hex, message_hex_len);
 
-    //1 + 25 + 1or2 + 11 + 64 = 102 or 103 = 0x66 or 0x 67
+    //1 + 25 + 1or2 + 11 + 64 = 102 or 103 = 0x66 or 0x67
     size_t total_message_len = 1 + DOGE_MASSAGE_PREFIX_LEN + message_vi_len + COMMON_PREFIX_LENGTH + message_hex_len;
     uint8_t total_message[total_message_len];
     debug_print_int("message total len: ", total_message_len);
