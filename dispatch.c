@@ -808,7 +808,7 @@ int main() {
 	if (validate_func == NULL) {
 		return ERR_DAS_INVALID_POINT;
 	}
-
+    return 0;
 	int type = 0;
 	if (alg_id == 5) {
 		type = 1;

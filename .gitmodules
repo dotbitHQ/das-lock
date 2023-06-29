@@ -6,5 +6,5 @@
 	url = https://github.com/nervosnetwork/secp256k1.git
 [submodule "deps/libecc"]
 	path = deps/libecc
-	url = https://github.com/dotbitHQ/libecc.git
-	branch = ckb-compatible
+	url = https://github.com/dotbitHQ/libecc-optimised.git 
+	branch = benchmark-signature-verification

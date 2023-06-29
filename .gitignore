@@ -5,3 +5,4 @@ build/*
 *.release
 .idea/*
 *.sh
+cmake-build-debug/
