@@ -654,33 +654,9 @@ int get_payload_from_witness(uint8_t* payload, size_t* payload_len, uint8_t* tem
 
 
 int main() {
+
 	int ret = CKB_SUCCESS;
-#ifdef JUST_FOR_TEST
-//    int jjj = 0;
-//    int something = 100;
-//    debug_print_int("test something = ", something);
-//
-//    uint8_t witness_action123[1024 * 1024];
-//    witness_action123[0] = 10;
-//    int k = 100;
-//    int l = 100;
-//    for(k = 0; k < 2; k ++){
-//        for(l = 0; l < 2; l++){
-//            for(jjj = 0; jjj < 1024 * 1024; jjj ++){
-//                witness_action123[jjj] = jjj % 200 * k + l;
-//            }
-//        }
-//
-//    }
-//
-//    if(witness_action123[12345] == 0x00){
-//        //debug_print("witness_action123[12345] == 0x00");
-//
-//    }else {
-//        return 0;
-//
-//    }
-#endif
+
 	uint8_t witness_action[MAX_WITNESS_SIZE];
 	uint64_t witness_action_len = MAX_WITNESS_SIZE;
 	size_t i = calculate_inputs_len();
@@ -704,18 +680,14 @@ int main() {
 	ret = get_args(das_args);
 
 
-#ifdef JUST_FOR_TEST
-    //debug_print_data("das_args = ", das_args, DAS_ARGS_MAX_LEN);
-#endif
+
 	SIMPLE_ASSERT(CKB_SUCCESS);
 	debug_print("after get_args");
 
 	uint8_t lock_args[DAS_MAX_LOCK_ARGS_SIZE];
 	uint8_t alg_id = -1;
 	ret = get_lock_args(witness_action, das_args, args_index, lock_args, &alg_id);
-#ifdef JUST_FOR_TEST
-    //alg_id = 8;
-#endif
+
 
 	SIMPLE_ASSERT(CKB_SUCCESS);
 	debug_print_data("lock_args: ", lock_args, DAS_MAX_LOCK_ARGS_SIZE);
@@ -761,29 +733,6 @@ int main() {
             return ERROR_ARGUMENTS_LEN;
         }
         debug_print_data("get payload from witness = ", lock_args, 22);
-
-//        uint8_t* witness_action_tmp = witness_action;
-//        uint64_t witness_action_tmp_len = MAX_WITNESS_SIZE;
-//        ret = get_witness_with_key_list(witness_action_tmp, &witness_action_tmp_len);
-//        debug_print_int("get_witness_of_key_list witness_action_len = ", witness_action_tmp_len);
-//        if(witness_action_tmp_len < 2000) {
-//            debug_print_data("get_witness_of_key_list witness_action = ", witness_action_tmp, witness_action_tmp_len);
-//        }
-//        if(ret != 0){
-//            debug_print_int("get get_witness_of_key_list failed ", ret);
-//            return -1;
-//        }
-//        //get payload
-//        memset(lock_args, 0, DAS_MAX_LOCK_ARGS_SIZE); //just use lock_args as tmp buffer
-//        uint8_t* molecule_data = witness_action_tmp + 7; //jump over 7 bytes, "DAS + 4 bytes type id"
-//
-//        //note: the length of real witness = payload is witness_action_tmp_len - 7
-//        ret = get_payload_by_pk_index(molecule_data, witness_action_tmp_len - 7, lock_args, pk_idx, OLD);
-//        if(ret != 0){
-//            debug_print_int("get get_payload_by_pk_index failed ", ret);
-//            return -1;
-//        }
-
     }
 
 	uint8_t code_so[HASH_SIZE];
@@ -808,7 +757,7 @@ int main() {
 	if (validate_func == NULL) {
 		return ERR_DAS_INVALID_POINT;
 	}
-    return 0;
+    
 	int type = 0;
 	if (alg_id == 5) {
 		type = 1;

@@ -96,7 +96,7 @@ int get_challenge_from_json(char* output, size_t *output_len, unsigned char* jso
     debug_print("Ready to parse json.");
     //debug_print_int("json_len = ", buf_len);
     debug_print_string("json = ", json_buf, buf_len);
-
+    debug_print_data("json = ", json_buf, buf_len);
     //init
     int i = 0, c = 0;
     jsmn_parser p;
@@ -106,8 +106,8 @@ int get_challenge_from_json(char* output, size_t *output_len, unsigned char* jso
 
     size_t json_len = strlen((const char*)json_buf);
     if(json_len != buf_len) {
-        debug_print_int("json len in witness lv = ", json_len);
-        debug_print_int("json len in strlen = ", buf_len);
+        debug_print_int("json len in witness lv = ", buf_len);
+        debug_print_int("json len in strlen = ", json_len);
         debug_print("There is a null value before or after the json data");
         return ERROR_ENCODING;
     }
