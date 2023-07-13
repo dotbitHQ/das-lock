@@ -1,7 +1,3 @@
-//
-// Created by peter on 23-5-12.
-//
-
 #ifndef DAS_LOCK_BASE64URL_H
 #define DAS_LOCK_BASE64URL_H
 

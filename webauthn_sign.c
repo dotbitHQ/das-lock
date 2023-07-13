@@ -138,8 +138,7 @@ __attribute__((visibility("default"))) int validate(
     size_t json_len = lock_bytes[json_offset] + lock_bytes[json_offset + 1] * 256;
     uint8_t *json_value = lock_bytes + json_offset + 2;
 
-    uint8_t main_alg_id = lock_args[0];
-    uint8_t sub_alg_id = lock_args[1];
+    uint8_t sub_alg_id = lock_args[0];
 
 
     //print some log
@@ -153,7 +152,6 @@ __attribute__((visibility("default"))) int validate(
     debug_print_data("authn_value = ", authn_data_value, authn_data_len);
     debug_print_int( "json_len = ", json_len);
     debug_print_data("json_value = ", json_value, json_len);
-    debug_print_int( "main_alg_id = ", main_alg_id);
     debug_print_int( "sub_alg_id = ", sub_alg_id);
 
     //check if value length is correct
@@ -162,19 +160,19 @@ __attribute__((visibility("default"))) int validate(
         return ERROR_ARGUMENTS_LEN;
     }
 
-    //check if pk_idx is supported, only support 0-9
+    //check if pk_idx is supported, only support 0-9, or 0xff
     //have checked the pk_idx_value in dispatch.c
-    if(pk_idx_value > 9) {
-        debug_print("Public key index out of range.");
-        return ERROR_ARGUMENTS_VALUE;
-    }
+//    if(pk_idx_value > 9) {
+//        debug_print("Public key index out of range.");
+//        return ERROR_ARGUMENTS_VALUE;
+//    }
 
     //check if the main_alg_id is supported
-    if (main_alg_id != 8) {
-        debug_print_int("main_alg_id = ", main_alg_id);
-        debug_print("Error flow, the main algorithm id is not 8.");
-        return ERROR_ARGUMENTS_VALUE;
-    }
+//    if (main_alg_id != 8) {
+//        debug_print_int("main_alg_id = ", main_alg_id);
+//        debug_print("Error flow, the main algorithm id is not 8.");
+//        return ERROR_ARGUMENTS_VALUE;
+//    }
 
     //check if the sig_sub_alg_id is supported, now only support secp256r1
     if(sub_alg_id != Secp256r1){
@@ -185,10 +183,10 @@ __attribute__((visibility("default"))) int validate(
     //sha256x5 for pubkey and compare with the pubkey` in lock_args
     uint8_t pubkey_hash[HASH_SIZE] = {0};
     sha256_many_round(pubkey_hash, pk_value, 64, 5);
-    ret = memcmp(pubkey_hash, lock_args + 12, 10);
+    ret = memcmp(pubkey_hash, lock_args + 11, 10);
     if(ret != 0){
         debug_print_data("pubkey_hash = ", pubkey_hash, 10);
-        debug_print_data("pubkey_hash in lock_args = ", lock_args + 12, 10);
+        debug_print_data("pubkey_hash in lock_args = ", lock_args + 11, 10);
         debug_print("pubkey_hash is not equal to pubkey` in lock_args");
         return ERROR_SECP_PARSE_PUBKEY;
     }

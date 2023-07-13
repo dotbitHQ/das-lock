@@ -1,7 +1,3 @@
-//
-// Created by peter on 23-5-11.
-//
-
 #ifndef DAS_LOCK_JSON_PARSER_H
 #define DAS_LOCK_JSON_PARSER_H
 #include "utils_helper.h"
