@@ -1,0 +1,35 @@
+DOCKER_IMAGE=yuluyi/ckb-dev-all-in-one:0.1.0-amd64
+DOCKER_CONTAINER="das-lock-dev"${PWD//\//_}
+CACHE_VOLUME="das-lock-cache"
+
+case $1 in
+start)
+  dir=$PWD
+  if [[ $2 == "-b" || $2 == "--background" ]]; then
+    docker run -d -t --rm \
+      --name $DOCKER_CONTAINER \
+      --network host \
+      -v .:/code \
+      -v $CACHE_VOLUME:/root/.cargo \
+      -v ~/.gitconfig:/root/.gitconfig:ro \
+      $DOCKER_IMAGE /bin/bash &>/dev/null
+  else
+    docker run -it --rm \
+      --name $DOCKER_CONTAINER \
+      --network host \
+      -v .:/code \
+      -v ~/.gitconfig:/root/.gitconfig:ro \
+      -v $CACHE_VOLUME:/root/.cargo \
+      $DOCKER_IMAGE \
+      /bin/bash
+  fi
+  ;;
+
+build)
+    if [[ $2 == '--release' ]]; then
+      docker exec -it -w /code $DOCKER_CONTAINER bash -c "cargo build --release"
+    else
+      docker exec -it -w /code $DOCKER_CONTAINER bash -c "cargo build"
+    fi
+    ;;
+esac
