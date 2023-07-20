@@ -94,7 +94,7 @@ __attribute__((visibility("default"))) int validate_str(int type, uint8_t* messa
 	debug_print_data("digest before keccak with eth prefix: ", message, message_len);
 	debug_print_int("type: ", type);
 	debug_print_int("message_len: ", message_len);
-	if (type == 1) { // eip712
+    if (type == 1) { // eip712
 		return verify_signature(message, lock_bytes, eth_address);
 	}
     uint8_t eth_prefix[50];

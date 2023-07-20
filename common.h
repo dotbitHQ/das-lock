@@ -36,6 +36,7 @@ Defines commonly used high level functions and constants.
 
 #define ERROR_PUBKEY_BLAKE160_HASH -31
 #define ERROR_PUBKEY_RIPEMD160_HASH -31
+#define ERROR_PUBKEY_SECP256R1_HASH -31
 
 /* anyone can pay errors */
 #define ERROR_OVERFLOW -41
