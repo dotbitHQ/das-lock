@@ -91,6 +91,7 @@ int calculate_inputs_len() {
   return hi;
 }
 
+
 int load_and_hash_witness(blake2b_state *ctx, size_t index, size_t source) {
   uint8_t temp[ONE_BATCH_SIZE];
   uint64_t len = ONE_BATCH_SIZE;

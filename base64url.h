@@ -42,41 +42,40 @@ static const unsigned char base64de[] = {
         255, 255, 255, 255, 255, 255, 255, 255,
 
         /* '(', ')', '*', '+', ',', '-', '.', '/', */
-        255, 255, 255,  62, 255, 255, 255,  63,
+        255, 255, 255, 62, 255, 255, 255, 63,
 
         /* '0', '1', '2', '3', '4', '5', '6', '7', */
-        52,  53,  54,  55,  56,  57,  58,  59,
+        52, 53, 54, 55, 56, 57, 58, 59,
 
         /* '8', '9', ':', ';', '<', '=', '>', '?', */
-        60,  61, 255, 255, 255, 255, 255, 255,
+        60, 61, 255, 255, 255, 255, 255, 255,
 
         /* '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', */
-        255,   0,   1,  2,   3,   4,   5,    6,
+        255, 0, 1, 2, 3, 4, 5, 6,
 
         /* 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', */
-        7,   8,   9,  10,  11,  12,  13,  14,
+        7, 8, 9, 10, 11, 12, 13, 14,
 
         /* 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', */
-        15,  16,  17,  18,  19,  20,  21,  22,
+        15, 16, 17, 18, 19, 20, 21, 22,
 
         /* 'X', 'Y', 'Z', '[', '\', ']', '^', '_', */
-        23,  24,  25, 255, 255, 255, 255, 255,
+        23, 24, 25, 255, 255, 255, 255, 255,
 
         /* '`', 'a', 'b', 'c', 'd', 'e', 'f', 'g', */
-        255,  26,  27,  28,  29,  30,  31,  32,
+        255, 26, 27, 28, 29, 30, 31, 32,
 
         /* 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', */
-        33,  34,  35,  36,  37,  38,  39,  40,
+        33, 34, 35, 36, 37, 38, 39, 40,
 
         /* 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', */
-        41,  42,  43,  44,  45,  46,  47,  48,
+        41, 42, 43, 44, 45, 46, 47, 48,
 
         /* 'x', 'y', 'z', '{', '|', '}', '~', del, */
-        49,  50,  51, 255, 255, 255, 255, 255
+        49, 50, 51, 255, 255, 255, 255, 255
 };
 
-unsigned int base64_encode(char *out, const unsigned char *in, unsigned int inlen )
-{
+unsigned int base64_encode(char *out, const unsigned char *in, unsigned int inlen) {
     int s;
     unsigned int i;
     unsigned int j;
@@ -122,9 +121,9 @@ unsigned int base64_encode(char *out, const unsigned char *in, unsigned int inle
 
     return j;
 }
+
 //
-unsigned int base64_decode(char *out, const char *in, unsigned int inlen)
-{
+unsigned int base64_decode(char *out, const char *in, unsigned int inlen) {
     unsigned int i;
     unsigned int j;
     unsigned char c;
@@ -141,7 +140,7 @@ unsigned int base64_decode(char *out, const char *in, unsigned int inlen)
             return 0;
         }
 
-        c = base64de[(unsigned char)in[i]];
+        c = base64de[(unsigned char) in[i]];
         if (c == 255) {
             return 0;
         }
@@ -170,28 +169,28 @@ unsigned int base64_decode(char *out, const char *in, unsigned int inlen)
 /*
  * (+/=)   > (-_ )
  */
-void base64_to_base64url( char* base64url, char* base64, int *len) {
+void base64_to_base64url(char *base64url, char *base64, int *len) {
     int i = 0;
-    for(i = 0; i < *len; i++){
-        if(base64[i] == '+'){
+    for (i = 0; i < *len; i++) {
+        if (base64[i] == '+') {
             base64url[i] = '-';
-        }else if(base64[i] == '/'){
+        } else if (base64[i] == '/') {
             base64url[i] = '_';
-        }else if(base64[i] == '='){
+        } else if (base64[i] == '=') {
             break;
-        }else {
+        } else {
             base64url[i] = base64[i];
         }
     }
     *len = i;
 }
 
-void base64url_to_base64(char* base64, char* base64url, size_t* len) {
+void base64url_to_base64(char *base64, char *base64url, size_t *len) {
 
     int i = 0;
     int quotient = *len / 4;
     int modulus = *len % 4;
-    if(modulus != 0) {
+    if (modulus != 0) {
         quotient += 1;
     }
     int blank_len = quotient * 4 - *len;
@@ -199,20 +198,20 @@ void base64url_to_base64(char* base64, char* base64url, size_t* len) {
     memcpy(base64, base64url, *len);
 
     //replace "-_" with "+/"
-    for(i = 0; i < *len; i++) {
-        if(base64[i] == '-'){
+    for (i = 0; i < *len; i++) {
+        if (base64[i] == '-') {
             base64url[i] = '+';
-        }else if(base64[i] == '_'){
+        } else if (base64[i] == '_') {
             base64url[i] = '/';
-        }else {
+        } else {
             base64url[i] = base64[i];
         }
     }
 
     //add "="
-    for(i = 0; i < blank_len; i++){
+    for (i = 0; i < blank_len; i++) {
         //printf("idx %d\n", *len + i);
-        base64[*len+i] = '=';
+        base64[*len + i] = '=';
     }
 
     //base64[*len+i] = '\0';
@@ -220,27 +219,27 @@ void base64url_to_base64(char* base64, char* base64url, size_t* len) {
 }
 
 //
-int decode_base64url_to_string(char* str, char* base64url, size_t* len){
+int decode_base64url_to_string(char *str, char *base64url, size_t *len) {
 
-    if(str == NULL || base64url == NULL || len == NULL) {
+    if (str == NULL || base64url == NULL || len == NULL) {
         debug_print("decode_base64url_to_string: invalid input, NULL pointer");
         return ERROR_NULL_PTR;
     }
-    debug_print_string("base64url = ", (unsigned char*)base64url, *len);
+    //debug_print_string("base64url = ", (unsigned char*)base64url, *len);
 
     //Manually set the limit here to 256
-    if(*len > 0 && *len < 256){
-        char tmp[256] = {0};
-        base64url_to_base64(tmp, base64url, len);
-        debug_print_string("base64 = ", (unsigned char*)tmp, *len);
-
-        *len = base64_decode(str, tmp, (unsigned int)(*len));
-        //*len = BASE64_DECODE_OUT_SIZE(*len);
-        debug_print_string("decoded base64 = ", (unsigned char*)str, *len);
-        return 0;
+    if (*len < 1 && *len > 256) {
+        debug_print("decode_base64url_to_string: invalid input, length out of range");
+        return ERROR_ARGUMENTS_LEN;
     }
-    debug_print("The length of base64url is illegal.");
-    return ERROR_ENCODING;
+    char tmp[256] = {0};
+    base64url_to_base64(tmp, base64url, len);
+    //debug_print_string("base64 = ", (unsigned char*)tmp, *len);
+
+    *len = base64_decode(str, tmp, (unsigned int) (*len));
+    //*len = BASE64_DECODE_OUT_SIZE(*len);
+    debug_print_string("decoded base64 = ", (unsigned char *) str, *len);
+    return 0;
 }
 
 #endif //DAS_LOCK_BASE64URL_H

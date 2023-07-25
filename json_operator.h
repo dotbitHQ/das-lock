@@ -91,8 +91,8 @@ int parse_keys(const char* buf, jsmntok_t* tok) {
 int get_challenge_from_json(char* output, size_t *output_len, unsigned char* json_buf, size_t buf_len){
     debug_print("Ready to parse json.");
     //debug_print_int("json_len = ", buf_len);
-    debug_print_string("json = ", json_buf, buf_len);
-    debug_print_data("json = ", json_buf, buf_len);
+    debug_print_string("json string = ", json_buf, buf_len);
+    //debug_print_data("json = ", json_buf, buf_len);
     //init
     int i = 0, c = 0;
     jsmn_parser p;
@@ -129,12 +129,12 @@ int get_challenge_from_json(char* output, size_t *output_len, unsigned char* jso
 
         switch (key_idx) {
             case Jtype: {
-                debug_print_data("json parser: Type: ", value_start, value_length);
+                //debug_print_string("json parser: Type: ", value_start, value_length);
                 i++;
                 break;
             }
             case Jchallenge : {
-                debug_print_data("json parser: Challenge: ", value_start, value_length);
+                //debug_print_string("json parser: Challenge: ", value_start, value_length);
                 //if value_length > output_len, only copy output_len bytes
                 size_t cpy_len = value_length > *output_len ? *output_len : value_length;
                 memcpy(output, value_start, cpy_len);
@@ -144,24 +144,24 @@ int get_challenge_from_json(char* output, size_t *output_len, unsigned char* jso
                 break;
             }
             case Jorigin : {
-                debug_print_data("json parser: Origin: ", value_start, value_length);
+                //debug_print_string("json parser: Origin: ", value_start, value_length);
                 i++;
                 break;
             }
             case JcrossOrigin : {
-                debug_print_data("json parser: CrossChain: ", value_start, value_length);
+                //debug_print_string("json parser: CrossChain: ", value_start, value_length);
                 i++;
                 break;
 
             }
             default: {
-                debug_print_string("Unexpected json key ", json_buf + t[i].start, t[i].end - t[i].start);
+                //debug_print_string("Unexpected json key ", json_buf + t[i].start, t[i].end - t[i].start);
                 //return -1;
             }
         }
         if(find_challenge == true){
-            debug_print_data("json parser: Challenge: result", (unsigned char*)output, *output_len);
-            debug_print_int("json parser: Challenge: result len", *output_len);
+            //debug_print_data("json parser: Challenge: result ", (unsigned char*)output, *output_len);
+            //debug_print_int("json parser: Challenge: result len", *output_len);
             break;
         }
     }

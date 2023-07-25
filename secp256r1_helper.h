@@ -28,7 +28,7 @@ typedef struct {
     ec_params ec_params;
 } secp256r1_context_t;
 
-void print_pub_key(u8* pubkey, const char* title) {
+void print_pub_key(u8 *pubkey, const char *title) {
     debug_print_data(title, pubkey, 64);
 }
 
@@ -57,8 +57,8 @@ int secp256r1_context_init(secp256r1_context_t *context) {
 //};
 
 int secp256r1_verify_signature(const secp256r1_context_t *context, const u8 *sig,
-                           u8 siglen, const ec_pub_key *pub_key, const u8 *m,
-                           u32 mlen) {
+                               u8 siglen, const ec_pub_key *pub_key, const u8 *m,
+                               u32 mlen) {
     int ret;
     ret = ec_verify(sig, siglen, pub_key, m, mlen, context->sig_algo,
                     context->hash_algo);
@@ -106,31 +106,31 @@ int secp256r1_verify_signature(const secp256r1_context_t *context, const u8 *sig
 //    return ret;
 //}
 
-int secp256r1_verify(u8* signature, u8* message, u8 message_len, u8* pubkey){
+int secp256r1_verify(u8 *signature, u8 *message, u8 message_len, u8 *pubkey) {
 
     int ret;
     secp256r1_context_t context;
 
     ret = secp256r1_context_init(&context);
-    debug_print_int("context init, ret ", ret);
+    //debug_print_int("secp256r1 context init, ret ", ret);
     SIMPLE_ASSERT(ret);
 
     u8 pj_pk_buf[96];
     convert_aff_buf_to_prj_buf(pubkey, 64, pj_pk_buf, 96);
-    debug_print_data("pj_pk_buf ", pj_pk_buf, 96);
+    //debug_print_data("secp256r1 pj_pk_buf ", pj_pk_buf, 96);
 
     ec_pub_key pk;
     ret = ec_pub_key_import_from_buf(&pk, &context.ec_params, pj_pk_buf, 96, context.sig_algo);
     //ret = ec_pub_key_import_from_aff_buf(&pk, &context.ec_params, pubkey, 64, context.sig_algo);
-    debug_print_int("import PK from buf, ret ", ret);
+    //debug_print_int("secp256r1 import PK from buf, ret ", ret);
     SIMPLE_ASSERT(ret);
 
     ret = secp256r1_verify_signature(&context, signature, 64,
                                      &pk, message, message_len);
-    debug_print_int("verify signature, ret ", ret);
+    debug_print_int("secp256r1 verify signature, ret ", ret);
     SIMPLE_ASSERT(ret);
 
-    return 0;
+    return ret;
 
 }
 
