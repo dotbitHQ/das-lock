@@ -13,8 +13,6 @@ int get_args(uint8_t *lock_args) {
     uint8_t script[SCRIPT_SIZE];
     uint64_t len = SCRIPT_SIZE;
     ret = ckb_load_script(script, &len, 0);
-    //debug_print_int("lock script len = ", len);
-    //debug_print_data("lock script data = ", script, len);
     NORMAL_ASSERT(CKB_SUCCESS, ERROR_SYSCALL);
     if (len > SCRIPT_SIZE) {
         return ERROR_SCRIPT_TOO_LONG;
@@ -57,16 +55,7 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
 
     /* load signature */
     mol_seg_t lock_bytes_seg;
-//    if(alg_id == 8) {
-//        //uint64_t witness_len_temp = witness_len;
-//        //note: the first 4 bytes is the length of witness
-//        uint64_t witness_len_temp = big_endian_hex_str2int((char* )temp, 4); //maybe the function is small endian really
-//        debug_print_int("witness_len_temp: ", witness_len_temp);
-//        debug_print_int("witness_len: ", witness_len);
-//        ret = extract_witness_lock(temp, witness_len_temp, &lock_bytes_seg);
-//    }else{
     ret = extract_witness_lock(temp, witness_len, &lock_bytes_seg);
-    //}
     NORMAL_ASSERT(CKB_SUCCESS, ERROR_ENCODING);
 
     debug_print_int("alg_id: ", alg_id);
@@ -281,7 +270,6 @@ int check_cmd_match(uint8_t *temp, int type) {
 int check_has_pure_type_script() {
     int ret = CKB_SUCCESS;
 
-    //char* balance_type_id = "334540e23ec513f691cdd9490818237cbc9675861e4f19c480e0c520c715fd33";
 #ifdef CKB_C_STDLIB_PRINTF
     char* balance_type_id = "4ff58f2c76b4ac26fdf675aa82541e02e4cf896279c6d6982d17b959788b2f0c";
 #else
@@ -463,7 +451,6 @@ int get_lock_args(uint8_t *temp, uint8_t *das_args, uint8_t index, uint8_t *lock
     size_t args1_len = BLAKE160_SIZE;
     memcpy(alg_id, das_args, 1);
     debug_print_data("das_args: ", das_args, 20);
-    //debug_print_int("alg_id: in func", *alg_id);
 
     if (*alg_id == 1) { // multi sign
         args1_len += sizeof(uint64_t);
@@ -486,7 +473,7 @@ int get_lock_args(uint8_t *temp, uint8_t *das_args, uint8_t index, uint8_t *lock
         }
         size_t args2_len = BLAKE160_SIZE;
         memcpy(alg_id, das_args + 1 + args1_len, 1);
-        //debug_print_int("alg_id: in func manager ", *alg_id);
+
         if (*alg_id == 1) { // multi sign
             args2_len += sizeof(uint64_t);
         } else if (*alg_id == 6) { // ed25519
@@ -528,64 +515,16 @@ int get_code_hash(uint8_t index, uint8_t *code_hash) {
     return ret;
 }
 
-//deprecated
-//int get_payload_from_witness(uint8_t *payload, size_t *payload_len, uint8_t *temp, size_t temp_len, uint8_t pk_idx) {
-//    //init
-//    int ret = CKB_SUCCESS;
-//
-//    //Caution: if the repo das-type update, this value should update too
-//    uint8_t das_type_wbkl[4] = {0x0d, 0x00, 0x00, 0x00};
-//
-//    //get witness
-//    size_t input_idx = calculate_inputs_len() + 1;
-//    int witness_keylist_idx = -1;
-//
-//    for (size_t i = input_idx; i < 20; i++) { //Caution: maybe 20 is not enough
-//        memset(temp, 0, temp_len); //if optimized in the future, can remove this memset
-//        size_t witness_len = MAX_WITNESS_SIZE;
-//        ret = ckb_load_witness(temp, &witness_len, 0, i, CKB_SOURCE_INPUT);
-//        if (ret == CKB_SUCCESS) {
-//            debug_print_int("read witness success, index = ", i);
-//            debug_print_int("witness len = ", witness_len);
-//            debug_print_data("witness data = ", temp, 20);
-//            temp_len = witness_len;
-//        } else {
-//            continue;
-//        }
-//        if ((memcmp(temp, "das", 3) == 0) &&
-//            (memcmp(temp + 3, das_type_wbkl, 4) == 0)) {
-//            witness_keylist_idx = i;
-//            break;
-//        }
-//
-//    }
-//    if (witness_keylist_idx == -1) {
-//        debug_print("witness not found");
-//        return ERROR_WITNESS_NOT_FOUND;
-//    }
-//    //get payload by idx
-//    //note: +7 for jump "das" and type_id
-//    //ret = get_payload_by_pk_index(payload , payload_len, temp + 7, temp_len - 7, pk_idx, OLD);
-//    ret = get_payload_by_pk_index(payload, payload_len, temp + 7, temp_len - 7, pk_idx);
-//
-//    return ret;
-//}
-
 /* calculate cell deps length */
 int calculate_cell_deps_len() {
     uint64_t len = 0;
-    /* lower bound, at least tx has one input */
     int lo = 0;
-    /* higher bound */
     int hi = 4;
     int ret;
-    /* try to load cell_dep until failing to increase lo and hi */
     while (1) {
         ret = ckb_load_cell_by_field(NULL, &len, 0, hi, CKB_SOURCE_CELL_DEP,
                                      CKB_CELL_FIELD_CAPACITY);
 
-        //debug_print_int("ckb_load_cell_by_field index ", hi);
-        //debug_print_int("ckb_load_cell_by_field ret", ret);
         if (ret == CKB_SUCCESS) {
             lo = hi;
             hi *= 2;
@@ -594,46 +533,30 @@ int calculate_cell_deps_len() {
             break;
         }
     }
-    //debug_print_int("lo = ", lo);
-    //debug_print_int("hi = ", hi);
-
-    /* now we get our lower bound and higher bound,
-     count number of inputs by binary search */
     int i;
     while (lo + 1 != hi) {
         i = (lo + hi) / 2;
         ret = ckb_load_cell_by_field(NULL, &len, 0, i, CKB_SOURCE_CELL_DEP,
                                      CKB_CELL_FIELD_CAPACITY);
-        //debug_print_int("ckb_load_cell_by_field index ", i);
-        //debug_print_int("ckb_load_cell_by_field ret", ret);
         if (ret == CKB_SUCCESS) {
             lo = i;
         } else {
             hi = i;
         }
     }
-    //debug_print_int("lo = ", lo);
-    //debug_print_int("hi = ", hi);
 
-    /* now lo is last input index and hi is length of inputs */
     return hi;
 }
 
 /* calculate witness length */
 int calculate_witnesses_len() {
     uint64_t len = 0;
-    /* lower bound, at least tx has one input */
     int lo = 0;
-    /* higher bound */
     int hi = 4;
     int ret;
-    /* try to load cell_dep until failing to increase lo and hi */
     while (1) {
-        //witness_len = MAX_WITNESS_SIZE;
         ret = ckb_load_witness(NULL, &len, 0, hi, CKB_SOURCE_INPUT);
 
-        //debug_print_int("ckb_load_cell_by_field index ", hi);
-        //debug_print_int("ckb_load_cell_by_field ret", ret);
         if (ret == CKB_SUCCESS) {
             lo = hi;
             hi *= 2;
@@ -643,8 +566,6 @@ int calculate_witnesses_len() {
         }
     }
 
-    /* now we get our lower bound and higher bound,
-     count number of inputs by binary search */
     int i;
     while (lo + 1 != hi) {
         i = (lo + hi) / 2;
@@ -657,7 +578,6 @@ int calculate_witnesses_len() {
         }
     }
 
-    /* now lo is last input index and hi is length of inputs */
     return hi;
 }
 /*
@@ -686,16 +606,12 @@ int get_data_hash(uint8_t* output, size_t* output_len, uint8_t* temp, size_t tem
         cells_number = 255;
     }
     debug_print_int("cell deps num ", cells_number);
-//    if(field == CKB_SOURCE_CELL_DEP){
-//        cells_number = 100;
-//    }else if(field == CKB_SOURCE_INPUT){
-//        cells_number = 100;
-//    }
-//    debug_print_int("cell number = ", cells_number);
 
     //Iterate over all cell_deps
     //when the type id is DeviceKeyListCell and lock_args is the incoming lock_args, save data.hash
     for(int i = 0; i < cells_number; i++){
+
+
         //step1: load type script to temp and get code hash
         temp_len = TEMP_SIZE;
         ret = ckb_load_cell_by_field(temp, &temp_len, 0, i, field, CKB_CELL_FIELD_TYPE);

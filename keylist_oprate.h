@@ -13,65 +13,6 @@ enum MolTableData {
 void print_mol_seg_t(mol_seg_t mol, const char *title) {
     debug_print_data(title, mol.ptr, mol.size);
 }
-//
-////get data section by
-//int get_data_section(uint8_t *out_data, size_t *out_data_len, uint8_t *in_data, size_t in_len, enum MolTableData m) {
-//    mol_seg_t in_seg;
-//    in_seg.ptr = in_data;
-//    in_seg.size = in_len;
-//
-//    //print log
-//    debug_print_int("get_data_section in_len = ", in_len);
-//    debug_print_data("get_data_section in_buf = ", in_data, in_len);
-//
-//    //init
-//    int ret = 0;
-//    mol_seg_t mol = {0};
-//
-//    //verify Data
-//    if (MolReader_Data_verify(&in_seg, false) != MOL_OK) {
-//        debug_print("cannot verify data mol reader\n");
-//        return ERROR_MOLECULE_ENCODING;
-//    } else {
-//        debug_print("verify data mol reader Success\n");
-//    }
-//
-//    //get Data
-//    switch (m) {
-//        case DEP : {
-//            mol = MolReader_Data_get_dep(&in_seg);
-//            print_mol_seg_t(mol, "dep ");
-//            break;
-//        }
-//        case OLD : {
-//            mol = MolReader_Data_get_old(&in_seg);
-//            print_mol_seg_t(mol, "old ");
-//            break;
-//        }
-//        case NEW : {
-//            mol = MolReader_Data_get_new(&in_seg);
-//            print_mol_seg_t(mol, "new ");
-//            break;
-//        }
-//    }
-//
-//    //get entity
-//    mol_seg_t entity;
-//    entity = MolReader_DataEntity_get_entity(&mol);
-//    print_mol_seg_t(entity, "DataEntity.entity  ");
-//
-//
-//    //get Bytes
-//    mol_seg_t bytes_device_key_list_cell;
-//    bytes_device_key_list_cell = MolReader_Bytes_raw_bytes(&entity);
-//    print_mol_seg_t(bytes_device_key_list_cell, "bytes_device_key_list_cell ");
-//
-//    //copy data to out_data
-//    memcpy(out_data, bytes_device_key_list_cell.ptr, bytes_device_key_list_cell.size);
-//    *out_data_len = bytes_device_key_list_cell.size;
-//
-//    return ret;
-//}
 
 //get DeviceKey by idx
 //int get_payload_by_pk_index(uint8_t* out_data, size_t* out_data_len, uint8_t* in_data, size_t in_len,  int pk_idx, enum MolTableData m) {
@@ -98,24 +39,6 @@ int get_payload_by_pk_index(uint8_t *out_data, size_t *out_data_len, uint8_t *in
         debug_print("verify data mol reader Success\n");
     }
 
-    //get Data
-//    switch (m) {
-//        case DEP : {
-//            mol = MolReader_Data_get_dep(&in_seg);
-//            print_mol_seg_t(mol, "dep ");
-//            break;
-//        }
-//        case OLD : {
-//            mol = MolReader_Data_get_old(&in_seg);
-//            print_mol_seg_t(mol, "old ");
-//            break;
-//        }
-//        case NEW : {
-//            mol = MolReader_Data_get_new(&in_seg);
-//            print_mol_seg_t(mol, "new ");
-//            break;
-//        }
-//    }
 
     //try to get Dep first, if it fails then try to get Old, if it fails again return an error
     mol = MolReader_Data_get_dep(&in_seg);
@@ -311,19 +234,9 @@ int get_payload_by_pk_index_with_hash_check_0d(uint8_t *out_data, size_t *out_da
     return 0;
 }
 
-//void to_little_endian(size_t num, uint8_t *buf) {
-//    buf[0] = num & 0xff;
-//    buf[1] = (num >> 8) & 0xff;
-//    buf[2] = (num >> 16) & 0xff;
-//    buf[3] = (num >> 24) & 0xff;
-//}
 
-
-
-int get_payload_by_pk_index_with_hash_check_0f(uint8_t *out_data, size_t *out_data_len,
-                                               uint8_t *in_data, size_t in_len, int pk_idx, uint8_t *hash,
-                                               size_t hash_len) {
-
+int get_payload_by_pk_index_with_hash_check_0f(uint8_t *out_data, size_t *out_data_len, uint8_t *in_data, size_t in_len,
+                                               int pk_idx, uint8_t *hash, size_t hash_len) {
 
     uint8_t step1[BLAKE2B_BLOCK_SIZE];
     blak2b_hash(step1, in_data, in_len); //data

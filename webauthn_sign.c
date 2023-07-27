@@ -62,7 +62,7 @@ int get_tx_digest_from_json(uint8_t *tx_digest, uint8_t *json_data, size_t json_
     SIMPLE_ASSERT(0);
 
     //convert from string to bytes
-    // 10 is the length of "From .bit "
+    //11 is the length of "From .bit "
     //if the tx_digest_str starts with "From .bit ", it's the main did, otherwise it's the sub did
     if (memcmp(tx_digest_str, COMMON_PREFIX, COMMON_PREFIX_LENGTH) == 0) {
         memcpy(tx_digest, tx_digest_str, COMMON_PREFIX_LENGTH);
