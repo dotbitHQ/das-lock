@@ -15,14 +15,8 @@ PASSED_R1_CFLAGS := -Os -fPIC -nostdinc -nostdlib -DCKB_DECLARATION_ONLY -DWORDS
 CFLAGS_R1 := -fPIC -Os -fno-builtin-printf -nostdinc -nostdlib -nostartfiles -fvisibility=hidden -fdata-sections -ffunction-sections -I deps/libecc -I deps/libecc/src -I deps/libecc/src/external_deps -I deps/ckb-c-stdlib -I deps/ckb-c-stdlib/molecule -I deps/ckb-c-stdlib/libc -Wall -Werror -Wno-nonnull -Wno-nonnull-compare -Wno-unused-function -DWORDSIZE=64 -D__unix__ -DWITH_STDLIB -I deps/secp256k1/src -I deps/secp256k1
 LDFLAGS_R1 := -Wl,-static -Wl,--gc-sections
 
-
-
-
-
-
 # docker pull nervos/ckb-riscv-gnu-toolchain:gnu-bionic-20191012
 BUILDER_DOCKER := nervos/ckb-riscv-gnu-toolchain@sha256:aae8a3f79705f67d505d1f1d5ddc694a4fd537ed1c7e9622420a470d59ba2ec3
-
 
 PROTOCOL_HEADER := ./protocol.h
 PROTOCOL_SCHEMA := ./blockchain.mol
