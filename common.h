@@ -46,6 +46,11 @@ Defines commonly used high level functions and constants.
 #define ERROR_DUPLICATED_INPUTS -45
 #define ERROR_DUPLICATED_OUTPUTS -46
 
+/* device key list cell errors */
+#define ERROR_DEVICE_KEY_LIST_ENCODING -51
+#define ERROR_DEVICE_KEY_LIST_CELL_NOT_FOUND -52
+#define ERROR_DEVICE_KEY_LIST_CELL_NOT_MATCH -53
+
 /* since */
 #define SINCE_VALUE_BITS 56
 #define SINCE_VALUE_MASK 0x00ffffffffffffff

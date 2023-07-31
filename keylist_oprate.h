@@ -116,7 +116,7 @@ void blak2b_hash(uint8_t *out, uint8_t *in, size_t in_len) {
     blake2b_final(&blake2b_ctx, out, BLAKE2B_BLOCK_SIZE);
 }
 
-int get_payload_by_pk_index_with_hash_check_0d(uint8_t *out_data, size_t *out_data_len,
+int get_payload_from_molecule_entity_data(uint8_t *out_data, size_t *out_data_len,
                                                uint8_t *in_data, size_t in_len, int pk_idx, uint8_t *hash,
                                                size_t hash_len, enum MolTableData m) {
 
@@ -174,8 +174,11 @@ int get_payload_by_pk_index_with_hash_check_0d(uint8_t *out_data, size_t *out_da
     print_mol_seg_t(bytes_device_key_list_cell, "bytes_device_key_list_cell ");
 
     //hash and check
+    uint8_t step1[BLAKE2B_BLOCK_SIZE];
     uint8_t for_cmp[BLAKE2B_BLOCK_SIZE];
-    blak2b_hash(for_cmp, bytes_device_key_list_cell.ptr, bytes_device_key_list_cell.size);
+
+    blak2b_hash(step1, bytes_device_key_list_cell.ptr, bytes_device_key_list_cell.size);
+    blak2b_hash(for_cmp, step1, BLAKE2B_BLOCK_SIZE);
 
     bool find_hash = false;
     for (int i = 0; i < hash_len; i += HASH_SIZE) {
@@ -235,7 +238,7 @@ int get_payload_by_pk_index_with_hash_check_0d(uint8_t *out_data, size_t *out_da
 }
 
 
-int get_payload_by_pk_index_with_hash_check_0f(uint8_t *out_data, size_t *out_data_len, uint8_t *in_data, size_t in_len,
+int get_payload_from_molecule_cell_data(uint8_t *out_data, size_t *out_data_len, uint8_t *in_data, size_t in_len,
                                                int pk_idx, uint8_t *hash, size_t hash_len) {
 
     uint8_t step1[BLAKE2B_BLOCK_SIZE];

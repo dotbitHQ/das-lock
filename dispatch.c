@@ -58,7 +58,7 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
     ret = extract_witness_lock(temp, witness_len, &lock_bytes_seg);
     NORMAL_ASSERT(CKB_SUCCESS, ERROR_ENCODING);
 
-    debug_print_int("alg_id: ", alg_id);
+    //debug_print_int("alg_id: ", alg_id);
     if (alg_id == 5) { // eip712
         debug_print_int("lock_bytes_seg.size: ", lock_bytes_seg.size);
         if (lock_bytes_seg.size != SIGNATURE_SIZE + HASH_SIZE + CHAIN_ID_LEN) {
@@ -119,14 +119,14 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
     blake2b_init(&blake2b_ctx, HASH_SIZE);
 
     blake2b_update(&blake2b_ctx, tx_hash, HASH_SIZE);
-    debug_print_data("blake2b 01 tx_hash: ", tx_hash, HASH_SIZE);
+    //debug_print_data("blake2b 01 tx_hash: ", tx_hash, HASH_SIZE);
 
     memset((void *) lock_bytes_seg.ptr + multisig_script_len, 0, lock_bytes_seg.size);
     blake2b_update(&blake2b_ctx, (uint8_t * ) & witness_len, sizeof(uint64_t));
-    debug_print_data("blake2b 02 witness_len: ", (uint8_t * ) & witness_len, sizeof(uint64_t));
+    //debug_print_data("blake2b 02 witness_len: ", (uint8_t * ) & witness_len, sizeof(uint64_t));
 
     blake2b_update(&blake2b_ctx, temp, witness_len);
-    debug_print_data("blake2b 03 temp: ", temp, 30);
+    //debug_print_data("blake2b 03 temp: ", temp, 30);
 
     debug_print_int("witness_len: ", witness_len);
 
@@ -355,7 +355,7 @@ int check_skip_sign_for_update_sub_account(uint8_t *temp) {
     ret = get_action_from_witness(temp, action_from_wit, &action_from_wit_len);
     SIMPLE_ASSERT(CKB_SUCCESS);
 
-    debug_print_data("action_from_wit: ", action_from_wit, action_from_wit_len);
+    //debug_print_data("action_from_wit: ", action_from_wit, action_from_wit_len);
     char *standard_str = "update_sub_account";
     size_t standard_str_len = strlen(standard_str);
     if (memcmp(action_from_wit, standard_str, standard_str_len) == 0) {
@@ -389,7 +389,7 @@ int check_skip_sign_for_buy_account(uint8_t *temp, uint64_t alg_id) {
     ret = get_action_from_witness(temp, action_from_wit, &action_from_wit_len);
     SIMPLE_ASSERT(CKB_SUCCESS);
 
-    debug_print_data("action_from_wit: ", action_from_wit, action_from_wit_len);
+    //debug_print_data("action_from_wit: ", action_from_wit, action_from_wit_len);
     char *standard_str = "buy_account";
     size_t standard_str_len = strlen(standard_str);
     if (memcmp(action_from_wit, standard_str, standard_str_len) == 0) {
@@ -581,11 +581,10 @@ int calculate_witnesses_len() {
     return hi;
 }
 /*
- * specify lock_args and field in transaction, then search for the content
+ * specify lock_args and field in transaction, then search in cell_deps or inputs
  * if there are multiple cells, return all
  */
-int get_data_hash(uint8_t* output, size_t* output_len, uint8_t* temp, size_t temp_len, uint8_t* lock_args,
-                  size_t lock_args_len, int field, bool is_owner){
+int get_data_hash_inner(uint8_t* output, size_t* output_len, uint8_t* temp, size_t temp_len, uint8_t* lock_args, int field, bool is_owner){
 
     int ret;
     size_t output_len_temp = 0;
@@ -601,16 +600,20 @@ int get_data_hash(uint8_t* output, size_t* output_len, uint8_t* temp, size_t tem
     hex2str(device_key_list_type_id, expected_type_id);
 
     //get cell_deps len
-    int cells_number = calculate_cell_deps_len();
+    int cells_number;
+    if (field == CKB_SOURCE_INPUT){
+        cells_number = calculate_inputs_len();
+    }else {
+        cells_number = calculate_cell_deps_len();
+    }
     if(cells_number < 1){ //no cell_deps found, maybe the logic of calculate_cell_deps_len is wrong
         cells_number = 255;
     }
-    debug_print_int("cell deps num ", cells_number);
+    debug_print_int("cells_number ", cells_number);
 
     //Iterate over all cell_deps
     //when the type id is DeviceKeyListCell and lock_args is the incoming lock_args, save data.hash
     for(int i = 0; i < cells_number; i++){
-
 
         //step1: load type script to temp and get code hash
         temp_len = TEMP_SIZE;
@@ -639,7 +642,7 @@ int get_data_hash(uint8_t* output, size_t* output_len, uint8_t* temp, size_t tem
             debug_print_int("cell type_hash not match, index = ", i);
             continue;
         }
-        debug_print_int("The type hash of the cell matches successfully, index = ", i);
+        debug_print_int("s1: The type hash of the cell matches successfully, index = ", i);
 
         //step2: get lock script
         temp_len = TEMP_SIZE;
@@ -661,7 +664,7 @@ int get_data_hash(uint8_t* output, size_t* output_len, uint8_t* temp, size_t tem
         //get lock args
         mol_seg_t args_seg = MolReader_Script_get_args(&lock_script);
         mol_seg_t args_bytes_seg = MolReader_Bytes_raw_bytes(&args_seg);
-        debug_print_data("lock args in cell = ", args_bytes_seg.ptr, args_bytes_seg.size);
+        debug_print_data("s2: lock args in cell = ", args_bytes_seg.ptr, args_bytes_seg.size);
 
         //compare lock_args
         uint8_t* lock_args_temp;
@@ -669,12 +672,12 @@ int get_data_hash(uint8_t* output, size_t* output_len, uint8_t* temp, size_t tem
         if(is_owner) {
             lock_args_temp = args_bytes_seg.ptr + 1;
         }else {
-            lock_args_temp = args_bytes_seg.ptr + 23;
+            lock_args_temp = args_bytes_seg.ptr + WEBAUTHN_PAYLOAD_LEN + 3;
         }
         ret = memcmp(lock_args_temp, lock_args, payload_len);
         if(ret != 0){
-            debug_print_data("lock_args in cell_deps = ", lock_args_temp, lock_args_len);
-            debug_print_data("lock_args in inputs = ", lock_args, lock_args_len);
+            debug_print_data("lock_args in cell_deps = ", lock_args_temp, payload_len);
+            debug_print_data("lock_args in inputs = ", lock_args, payload_len);
             debug_print_int("lock_args not match, index = ", i);
             continue;
         }
@@ -685,7 +688,7 @@ int get_data_hash(uint8_t* output, size_t* output_len, uint8_t* temp, size_t tem
             debug_print_int("load cell.data_hash failed, index = ", i);
             continue;
         }
-        debug_print_data("data_hash in cell = ", temp, temp_len);
+        debug_print_data("s3: data_hash in cell = ", temp, temp_len);
 
         memcpy(output + output_len_temp, temp, temp_len);
         output_len_temp += temp_len;
@@ -695,13 +698,26 @@ int get_data_hash(uint8_t* output, size_t* output_len, uint8_t* temp, size_t tem
 
     if(output_len_temp == 0){
         debug_print("data_hash not found");
-        return -1;
+        return ERROR_DEVICE_KEY_LIST_CELL_NOT_FOUND;
     }else {
         *output_len = output_len_temp;
         return CKB_SUCCESS;
     }
 }
 
+int get_data_hash(uint8_t* output, size_t* output_len, uint8_t* temp, uint8_t* lock_args, bool is_owner, bool* in_inputs){
+    size_t temp_len = TEMP_SIZE;
+
+    //get data.hash from cell_deps
+    if (get_data_hash_inner(output, output_len, temp, temp_len, lock_args, CKB_SOURCE_INPUT, is_owner) == ERROR_DEVICE_KEY_LIST_CELL_NOT_FOUND){
+        temp_len = TEMP_SIZE;
+        *in_inputs = false;
+        return get_data_hash_inner(output, output_len, temp, temp_len, lock_args,  CKB_SOURCE_CELL_DEP, is_owner);
+    }else {
+        *in_inputs = true;
+        return 0;
+    }
+}
 /*
  * lock_args
  * lock_args_len
@@ -710,39 +726,20 @@ int get_data_hash(uint8_t* output, size_t* output_len, uint8_t* temp, size_t tem
  * args_index  0: owner 1: manager
  *
  */
-int get_payload_from_cell(uint8_t *lock_args, size_t *lock_args_len, uint8_t *temp, uint8_t pk_idx, uint8_t args_index){
+int get_payload_from_cell(uint8_t *lock_args, uint8_t *temp, uint8_t pk_idx, uint8_t args_index){
     int ret = CKB_SUCCESS;
-
-    bool is_owner = false;
-    if(args_index == 0){ //
-        is_owner = true;
-    }else if(args_index == 1){
-        is_owner = false;
-    }else {
-        //The validity of this value has been checked in get_lock_args, and the else here is redundant.
-        return ERROR_ARGUMENTS_VALUE;
-    }
 
     //used to store multiple data.hash
     uint8_t data_hashs[TEMP_SIZE];
     size_t data_hashs_len = TEMP_SIZE;
-    size_t temp_len = TEMP_SIZE;
+    bool device_key_list_cell_in_inputs;
     //get data.hash from cell_deps
-    ret = get_data_hash(data_hashs, &data_hashs_len, temp, temp_len, lock_args, *lock_args_len, CKB_SOURCE_CELL_DEP, is_owner);
-
-
-    //if data_hash not found in cell_deps, then get data.hash from inputs
-    if(ret == -1){
-        ret = get_data_hash(data_hashs, &data_hashs_len, temp, TEMP_SIZE, lock_args, *lock_args_len, CKB_SOURCE_INPUT, is_owner);
-        if (ret == -1){
-            debug_print("cannot find a device key list cell that qualified");
-            return -1;
-        }
-    }
+    ret = get_data_hash(data_hashs, &data_hashs_len, temp, lock_args, args_index == 0 ? true : false, &device_key_list_cell_in_inputs);
+    SIMPLE_ASSERT(0);
 
     //Caution: if the repo das-type update, this value should update too
-    const uint8_t data_type_1[4] = {0x0d, 0x00, 0x00, 0x00};
-    const uint8_t data_type_2[4] = {0x0f, 0x00, 0x00, 0x00};
+    const uint8_t data_type_1[4] = {0x0d, 0x00, 0x00, 0x00}; //DeviceKeyListEntityData
+    const uint8_t data_type_2[4] = {0x0f, 0x00, 0x00, 0x00}; //DeviceKeyListCellData
 
     //get witness
     size_t start_idx = calculate_inputs_len();
@@ -757,7 +754,7 @@ int get_payload_from_cell(uint8_t *lock_args, size_t *lock_args_len, uint8_t *te
 
     int key_list_witness_idx = -1;
     size_t witness_len;
-
+    size_t lock_args_len;
     for (size_t i = start_idx; i < end_idx; i++) {
         witness_len = MAX_WITNESS_SIZE;
         ret = ckb_load_witness(temp, &witness_len, 0, i, CKB_SOURCE_INPUT);
@@ -765,26 +762,25 @@ int get_payload_from_cell(uint8_t *lock_args, size_t *lock_args_len, uint8_t *te
             debug_print_int("read witness success, index = ", i);
             debug_print_int("witness len = ", witness_len);
             debug_print_data("witness data[0..20] = ", temp, 20);
-            temp_len = witness_len;
         } else {
             continue;
         }
 
         if (memcmp(temp, "das", 3) == 0){
-            if(memcmp(temp + 3, data_type_1, 4) == 0) {
+            if(memcmp(temp + 3, data_type_1, 4) == 0 && device_key_list_cell_in_inputs == true){
                 debug_print("find a device key list cell that qualified, 0x0d");
-                ret = get_payload_by_pk_index_with_hash_check_0d(lock_args, lock_args_len,temp + 7, temp_len - 7,  pk_idx, data_hashs, data_hashs_len, OLD);
+                ret = get_payload_from_molecule_entity_data(lock_args, &lock_args_len,temp + 7, witness_len - 7,  pk_idx, data_hashs, data_hashs_len, OLD);
                 if(ret != 0){
-                    debug_print("get_payload_by_pk_index_with_hash_check_0d failed");
+                    debug_print("get_payload_from_molecule_entity_data failed");
                     continue;
                 }
                 key_list_witness_idx = i;
                 break;
-            }else if(memcmp(temp + 3, data_type_2, 4) == 0){
+            }else if(memcmp(temp + 3, data_type_2, 4) == 0 && device_key_list_cell_in_inputs == false){
                 debug_print("find a device key list cell that qualified, 0x0f");
-                get_payload_by_pk_index_with_hash_check_0f(lock_args, lock_args_len, temp + 7, temp_len - 7, pk_idx, data_hashs, data_hashs_len);
+                ret = get_payload_from_molecule_cell_data(lock_args, &lock_args_len, temp + 7, witness_len - 7, pk_idx, data_hashs, data_hashs_len);
                 if(ret != 0){
-                    debug_print("get_payload_by_pk_index_with_hash_check_0f failed");
+                    debug_print("get_payload_from_molecule_cell_data failed");
                     continue;
                 }
                 key_list_witness_idx = i;
@@ -796,10 +792,10 @@ int get_payload_from_cell(uint8_t *lock_args, size_t *lock_args_len, uint8_t *te
     }//end for
     if (key_list_witness_idx == -1) {
         debug_print("The witness containing the key list was not found.");
-        return ERROR_WITNESS_NOT_FOUND;
+        return ERROR_DEVICE_KEY_LIST_CELL_NOT_MATCH;
+    }else {
+        return 0;
     }
-
-    return ret;
 }
 
 int main() {
@@ -837,8 +833,8 @@ int main() {
     uint8_t alg_id = -1;
     ret = get_lock_args(witness_action, das_args, args_index, lock_args, &alg_id);
     SIMPLE_ASSERT(CKB_SUCCESS);
-    debug_print_data("lock_args: ", lock_args, DAS_MAX_LOCK_ARGS_SIZE);
-    debug_print_int("alg_id: ", alg_id);
+    //debug_print_data("lock_args: ", lock_args, DAS_MAX_LOCK_ARGS_SIZE);
+    //debug_print_int("alg_id: ", alg_id);
 
     ret = check_skip_sign_for_buy_account(witness_action, alg_id);
     if (ret == DAS_SKIP_CHECK_SIGN) {
@@ -875,8 +871,7 @@ int main() {
             //get the payload according to the public key index and store it in lock_args
             //just use witness_action as temp buffer
             //use args_index to distinguish between owner and manager
-            size_t lock_args_len = DAS_MAX_LOCK_ARGS_SIZE;
-            ret = get_payload_from_cell(lock_args, &lock_args_len, witness_action, pk_idx, args_index);
+            ret = get_payload_from_cell(lock_args, witness_action, pk_idx, args_index);
             debug_print_int("get_payload from witness, ret = ", ret);
             SIMPLE_ASSERT(0);
 

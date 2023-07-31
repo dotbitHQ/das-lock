@@ -63,7 +63,7 @@ int get_tx_digest_from_json(uint8_t *tx_digest, uint8_t *json_data, size_t json_
 
     //convert from string to bytes
     //11 is the length of "From .bit "
-    //if the tx_digest_str starts with "From .bit ", it's the main account, otherwise it's the sub account
+    //If there is no From.bit at the beginning, it will report an error and exit
     if (memcmp(tx_digest_str, COMMON_PREFIX, COMMON_PREFIX_LENGTH) == 0) {
         memcpy(tx_digest, tx_digest_str, COMMON_PREFIX_LENGTH);
         str2bin(tx_digest + COMMON_PREFIX_LENGTH, (unsigned char *) (tx_digest_str + COMMON_PREFIX_LENGTH),
@@ -73,9 +73,6 @@ int get_tx_digest_from_json(uint8_t *tx_digest, uint8_t *json_data, size_t json_
         return -1; //
 
     }
-    //debug_print_string("tx_digest = ", tx_digest, COMMON_PREFIX_LENGTH);
-    //str2bin(tx_digest + COMMON_PREFIX_LENGTH, (unsigned char*)(tx_digest_str + COMMON_PREFIX_LENGTH), challenge_len - 10);
-
     return 0;
 }
 /*
@@ -132,9 +129,9 @@ __attribute__((visibility("default"))) int validate(int type, uint8_t *message, 
     debug_print_int("authn_len = ", authn_data_len);
     debug_print_data("authn_value = ", authn_data_value, authn_data_len);
     debug_print_int("json_len = ", json_len);
-    debug_print_data("json_value = ", json_value, json_len);
+    debug_print_string("json_value = ", json_value, json_len);
     debug_print_int("sub_alg_id = ", sub_alg_id);
-
+    debug_print_data("lock_args = ", lock_args, 22);
     //check if value length is correct
     if (pk_idx_len != 1 || sig_len != 64 || pk_len != 64) {
         debug_print("Data parsing error, please check the length of the public key index and signature.");
@@ -157,7 +154,7 @@ __attribute__((visibility("default"))) int validate(int type, uint8_t *message, 
     //sha256x5 for pubkey and compare with the pubkey` in lock_args
     uint8_t pubkey_hash[HASH_SIZE] = {0};
     sha256_many_round(pubkey_hash, pk_value, 64, 5);
-    ret = memcmp(pubkey_hash, lock_args + 11, 10);
+    ret = memcmp(pubkey_hash, lock_args + 11, 10); //11 is the offset of pubkey` in lock_args
     if (ret != 0) {
         debug_print_data("pubkey_hash calculated = ", pubkey_hash, 10);
         debug_print_data("pubkey_hash in lock_args = ", lock_args + 11, 10);
@@ -249,7 +246,7 @@ __attribute__((visibility("default"))) int validate_str(int type, uint8_t *messa
     debug_print_int("json_len = ", json_len);
     debug_print_data("json_value = ", json_value, json_len);
     debug_print_int("sub_alg_id = ", sub_alg_id);
-
+    debug_print_data("lock_args = ", lock_args, 22);
     //check if value length is correct
     if (pk_idx_len != 1 || sig_len != 64 || pk_len != 64) {
         debug_print("Data parsing error, please check the length of the public key index and signature.");
