@@ -175,6 +175,12 @@ void sha256x2(uchar* dst, uchar* src, uint src_len) {
 
 }
 void sha256_many_round(uchar* dst, uchar* src, uint src_len, uint round) {
+    //Caution: round must be less than 256
+    if(round > 255) {
+        memset(dst, 0, SHA256_HASH_SIZE);
+        return;
+    }
+
     int i = 0 ;
     uchar tmp[SHA256_HASH_SIZE] = {0};
 

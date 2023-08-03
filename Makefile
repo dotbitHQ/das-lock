@@ -6,11 +6,14 @@ DEBUG_FLAGS := -DCKB_C_STDLIB_PRINTF
 CFLAGS := -Os -fPIC -nostdinc -nostdlib -nostartfiles -fvisibility=hidden -I . -I deps/ckb-c-stdlib -I deps/ckb-c-stdlib/libc -I deps/ckb-c-stdlib/molecule -I deps/secp256k1/src -I deps/secp256k1  -Wall -Werror -Wno-nonnull -Wno-nonnull-compare -Wno-unused-function
 LDFLAGS := -Wl,-static -fdata-sections -ffunction-sections -Wl,--gc-sections
 
-
-SECP256R1_DEP := deps/libecc/build/libsign.a
+LIBECC_PATH := deps/libecc
+SECP256R1_DEP := ${LIBECC_PATH}/build/libarith.a ${LIBECC_PATH}/build/libec.a ${LIBECC_PATH}/build/libsign.a
 PASSED_R1_CFLAGS := -Os -fPIC -nostdinc -nostdlib -DCKB_DECLARATION_ONLY -DWORDSIZE=64 -D__unix__ -DWITH_STDLIB  -fdata-sections -ffunction-sections -I ../ckb-c-stdlib/libc
 CFLAGS_R1 := -D__SHARED_LIBRARY__ -Os -fPIC -pie -fno-builtin-printf -nostdinc -nostdlib -nostartfiles -fvisibility=hidden  -Wl,--dynamic-list webauthn.syms -I deps/libecc -I deps/libecc/src -I deps/libecc/src/external_deps -I deps/ckb-c-stdlib -I deps/ckb-c-stdlib/molecule -I deps/ckb-c-stdlib/libc -Wall -Werror -Wno-nonnull -Wno-nonnull-compare -Wno-unused-function -DWORDSIZE=64 -D__unix__ -DWITH_STDLIB -I deps/secp256k1/src -I deps/secp256k1
 
+
+CFLAGS_LIBECC := -fPIC -O3 -fno-builtin -DUSER_NN_BIT_LEN=256 -DWORDSIZE=64 -DWITH_STDLIB -DWITH_BLANK_EXTERNAL_DEPENDENCIES -DCKB_DECLARATION_ONLY -DWITH_LL_U256_MONT
+CFLAGS_LINK_TO_LIBECC := -fno-builtin -DWORDSIZE=64 -DWITH_STDLIB -DWITH_BLANK_EXTERNAL_DEPENDENCIES -fno-builtin-printf -I ${LIBECC_PATH}/src -I ${LIBECC_PATH}/src/external_deps
 # docker pull nervos/ckb-riscv-gnu-toolchain:gnu-bionic-20191012
 BUILDER_DOCKER := nervos/ckb-riscv-gnu-toolchain@sha256:aae8a3f79705f67d505d1f1d5ddc694a4fd537ed1c7e9622420a470d59ba2ec3
 
@@ -90,19 +93,20 @@ doge_sign.so.release: doge_sign.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -shared -o $@ $<
 
 webauthn_sign.so.debug: webauthn_sign.c $(SECP256R1_DEP)
-	$(CC) $(CFLAGS_R1) $(LDFLAGS) $(DEBUG_FLAGS) -o $@ $< $(SECP256R1_DEP) deps/libecc/src/external_deps/rand.c deps/libecc/src/external_deps/print.c
-	#$(CC) $(CFLAGS_R1) $(LDFLAGS_R1) $(DEBUG_FLAGS) -D__SHARED_LIBRARY__ -fPIC -fPIE -pie -Wl,--dynamic-list webauthn.syms $< $(SECP256R1_DEP) deps/libecc/src/external_deps/rand.c deps/libecc/src/external_deps/print.c  -o $@
-	$(OBJCOPY) --only-keep-debug $@ $@.debug
-	$(OBJCOPY) --strip-debug --strip-all $@
+	$(CC) $(CFLAGS) $(CFLAGS_LINK_TO_LIBECC) $(LDFLAGS) $(DEBUG_FLAGS) -o $@ -D__SHARED_LIBRARY__ -pie -Wl,--dynamic-list webauthn.syms $< $(SECP256R1_DEP) deps/libecc/src/external_deps/rand.c deps/libecc/src/external_deps/print.c
+	#$(CC) $(CFLAGS_OPTIMIZED) $(CFLAGS_LINK_TO_LIBECC_OPTIMIZED) $(DEBUG_FLAGS) $(LDFLAGS_OPTIMIZED)  $< $(SECP256R1_DEP) deps/libecc/src/external_deps/rand.c deps/libecc/src/external_deps/print.c -o $@
+	#$(OBJCOPY) --only-keep-debug $@ $@.debug
+	$(OBJCOPY) --strip-all $@
 
 webauthn_sign.so.release: webauthn_sign.c $(SECP256R1_DEP)
-	$(CC) $(CFLAGS_R1) $(LDFLAGS) -o $@ $< $(SECP256R1_DEP) deps/libecc/src/external_deps/rand.c deps/libecc/src/external_deps/print.c
-	$(OBJCOPY) --only-keep-debug $@ $@.debug
-	$(OBJCOPY) --strip-debug --strip-all $@
+	$(CC) $(CFLAGS) $(CFLAGS_LINK_TO_LIBECC) $(LDFLAGS) -o $@ -D__SHARED_LIBRARY__ -pie -Wl,--dynamic-list webauthn.syms $< $(SECP256R1_DEP) deps/libecc/src/external_deps/rand.c deps/libecc/src/external_deps/print.c
+	#$(OBJCOPY) --only-keep-debug $@ $@.debug
+	$(OBJCOPY) --strip-all $@
 
 $(SECP256R1_DEP):
-	cd deps/libecc && \
-	CC=$(CC) LD=$(LD) CFLAGS="${PASSED_R1_CFLAGS}" BLINDING=0 COMPLETE=0 make 64
+	make -C ${LIBECC_PATH} LIBECC_WITH_LL_U256_MONT=1 CC=${CC} LD=${LD} CFLAGS="$(CFLAGS_LIBECC)"
+	#cd deps/libecc && \
+	#CC=$(CC) LD=$(LD) CFLAGS="${PASSED_R1_CFLAGS}" BLINDING=0 COMPLETE=0 make 64
 
 
 ${PROTOCOL_HEADER}: ${PROTOCOL_SCHEMA}

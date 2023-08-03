@@ -885,11 +885,11 @@ int main() {
     debug_print_data("code so: ", code_so, HASH_SIZE);
 
     //warning! for test modify this from 128 * 1024 to 1024 * 1024
-    uint8_t code_buffer[128 * 1024] __attribute__((aligned(RISCV_PGSIZE)));
+    uint8_t code_buffer[1024 * 1024] __attribute__((aligned(RISCV_PGSIZE)));
     uint64_t consumed_size = 0;
     void *handle = NULL;
     uint8_t hash_type = 1;
-    ret = ckb_dlopen2(code_so, hash_type, code_buffer, 128 * 1024, &handle, &consumed_size);
+    ret = ckb_dlopen2(code_so, hash_type, code_buffer, 1024 * 1024, &handle, &consumed_size);
 
     debug_print_int("consumed size = ", consumed_size);
     debug_print_int("ckb_dlopen2 ret = ", ret);
