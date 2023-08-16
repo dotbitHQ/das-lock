@@ -594,7 +594,7 @@ int get_data_hash_inner(uint8_t* output, size_t* output_len, uint8_t* temp, size
     char* device_key_list_type_id = "9986d68bbf798e21238f8e5f58178354a8aeb7cc3f38e2abcb683e6dbb08f737";
 #else
     //mainnet
-    char* device_key_list_type_id = "00000000000000000000000000000000000000000000000000000000000000000";
+    char* device_key_list_type_id = "e1a03a44d5705926c34bddd974cb0d3b06a56718db8a2c63d77e06a6385331c9";
 #endif
     uint8_t expected_type_id[HASH_SIZE];
     hex2str(device_key_list_type_id, expected_type_id);
