@@ -4,3 +4,9 @@
 [submodule "deps/secp256k1"]
 	path = deps/secp256k1
 	url = https://github.com/nervosnetwork/secp256k1.git
+[submodule "deps/libecc-riscv-optimized"]
+	path = deps/libecc-riscv-optimized
+	url = https://github.com/dotbitHQ/libecc-riscv-optimized.git
+[submodule "deps/ckb-binary-patcher"]
+	path = deps/ckb-binary-patcher
+	url = https://github.com/nervosnetwork/ckb-binary-patcher
