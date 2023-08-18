@@ -4,8 +4,8 @@
 #define DOGE_MASSAGE_PREFIX_LEN  25
 
 #include "inc_def.h"
-#include "deps/cryptos/sha256.h"
-#include "deps/cryptos/ripemd160.h"
+#include "sha256.h"
+#include "ripemd160.h"
 
 
 //const char HEX_TABLE[] = {'0', '1', '2', '3', '4', '5', '6', '7',
@@ -63,7 +63,7 @@ int magic_hash(uint8_t* hash, uint8_t* message, size_t message_len) {
            message_hex, message_hex_len);
     debug_print_data("total message : after copy message : ", total_message, total_message_len);
 
-    SHA256x2(hash, total_message, total_message_len);
+    sha256x2(hash, total_message, total_message_len);
     debug_print_data("sha256x2 : ", hash, SHA256_HASH_SIZE);
     return 0;
 }
@@ -139,7 +139,7 @@ int recover_public_key(uint8_t *pubkey, uint8_t* msg, uint8_t* sig_doge, size_t*
 void hash160(uint8_t* hash, uint8_t* pub_key, size_t pubkey_len){
     uint8_t sha256_hash[SHA256_HASH_SIZE] = {0};
 
-    SHA256(sha256_hash, pub_key, pubkey_len);
+    sha256x1(sha256_hash, pub_key, pubkey_len);
     debug_print_data("hash160 sha256 : ", sha256_hash, SHA256_HASH_SIZE);
 
     RIPEMD160(hash, sha256_hash, SHA256_HASH_SIZE);

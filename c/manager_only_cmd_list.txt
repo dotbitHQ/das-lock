@@ -1,3 +1,6 @@
 "edit_records",
-"create_sub_account"
+"create_sub_account",
+"update_sub_account",
+"config_sub_account",
+"config_sub_account_custom_script"
 

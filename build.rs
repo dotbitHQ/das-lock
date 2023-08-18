@@ -71,6 +71,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     Command::new("make").current_dir("deps/secp256k1").run();
 
+    //build libecc
+    Command::new("make")
+        .arg("libecc")
+        .run();
+
+    //build dispatch
+
     let files = [
         "dispatch",
         "eth_sign.so",
@@ -79,6 +86,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "ed25519_sign.so",
         "ckb_multi_sign.so",
         "doge_sign.so",
+        "webauthn_sign.so",
     ];
 
     // Profile = release | debug
@@ -95,7 +103,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     // Overwrite CFLAGS for makefile because newer gcc will introduce warnings in no-array-bounds, no-dangling-pointer, no-stringop-overflow
-    build_command.arg("CFLAGS=-Os -fPIC -nostdinc -nostdlib -nostartfiles -fvisibility=hidden -I . -I deps/ckb-c-stdlib -I deps/ckb-c-stdlib/libc -I deps/ckb-c-stdlib/molecule -I deps/secp256k1/src -I deps/secp256k1  -Wall -Werror -Wno-nonnull -Wno-nonnull-compare -Wno-unused-function -Wno-array-bounds -Wno-dangling-pointer -Wno-stringop-overflow");
+    build_command.arg("CFLAGS=-Os -fPIC -nostdinc -nostdlib -nostartfiles -fvisibility=hidden -I . -I deps/ckb-c-stdlib -I deps/ckb-c-stdlib/libc -I deps/ckb-c-stdlib/molecule -I deps/secp256k1/src -I deps/secp256k1  -Wall -Werror -Wno-nonnull -Wno-nonnull-compare -Wno-unused-function");
+    //build_command.arg("CFLAGS=-Os -fPIC -nostdinc -nostdlib -nostartfiles -fvisibility=hidden -I . -I deps/ckb-c-stdlib -I deps/ckb-c-stdlib/libc -I deps/ckb-c-stdlib/molecule -I deps/secp256k1/src -I deps/secp256k1  -Wall -Werror -Wno-nonnull -Wno-nonnull-compare -Wno-unused-function -Wno-array-bounds -Wno-dangling-pointer -Wno-stringop-overflow");
 
     build_command.run();
 
@@ -139,7 +148,9 @@ pub mod {} {{
     cargo_emit::rerun_if_changed!(
         "c",
         "src",
-        "build.rs"
+        "build.rs",
+        "deps/ckb-c-std",
+        "deps/libecc-riscv-optimised",
     );
     Ok(())
 }

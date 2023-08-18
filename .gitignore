@@ -8,3 +8,4 @@ build/*
 *.sh
 target
 src/contracts/*
+cmake-build-debug/

@@ -1,8 +1,9 @@
 #ifndef DOGECOIN_MESSAGE_C_SHA256_H
 #define DOGECOIN_MESSAGE_C_SHA256_H
 #define SHA256_HASH_SIZE 32
-void SHA256(unsigned char* dst, unsigned char* src, unsigned int src_len);
-void SHA256x2(unsigned char* dst,  unsigned char* src, unsigned int src_len);
+void sha256x1(unsigned char* dst, unsigned char* src, unsigned int src_len);
+void sha256x2(unsigned char* dst,  unsigned char* src, unsigned int src_len);
+void sha256_many_round(unsigned char* dst,  unsigned char* src, unsigned int src_len, unsigned int round);
 
 
 //#include <stdlib.h>
@@ -23,8 +24,8 @@ typedef struct {
 #define ROTLEFT(a,b) (((a) << (b)) | ((a) >> (32-(b))))
 #define ROTRIGHT(a,b) (((a) >> (b)) | ((a) << (32-(b))))
 
-#define CH(x,y,z) (((x) & (y)) ^ (~(x) & (z)))
-#define MAJ(x,y,z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
+#define CH0(x,y,z) (((x) & (y)) ^ (~(x) & (z)))
+#define MAJ0(x,y,z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
 #define EP0(x) (ROTRIGHT(x,2) ^ ROTRIGHT(x,13) ^ ROTRIGHT(x,22))
 #define EP1(x) (ROTRIGHT(x,6) ^ ROTRIGHT(x,11) ^ ROTRIGHT(x,25))
 #define SIG0(x) (ROTRIGHT(x,7) ^ ROTRIGHT(x,18) ^ ((x) >> 3))
@@ -61,8 +62,8 @@ void SHA256Transform(SHA256_CTX *ctx, uchar data[])
     h = ctx->state[7];
 
     for (i = 0; i < 64; ++i) {
-        t1 = h + EP1(e) + CH(e, f, g) + k[i] + m[i];
-        t2 = EP0(a) + MAJ(a, b, c);
+        t1 = h + EP1(e) + CH0(e, f, g) + k[i] + m[i];
+        t2 = EP0(a) + MAJ0(a, b, c);
         h = g;
         g = f;
         f = e;
@@ -151,27 +152,47 @@ void SHA256Final(SHA256_CTX *ctx, uchar hash[])
     }
 }
 
-void SHA256(uchar* dst, uchar* src, uint src_len) {
+void sha256x1(uchar* dst, uchar* src, uint src_len) {
     SHA256_CTX ctx;
     SHA256Init(&ctx);
     SHA256Update(&ctx, src, src_len);
     SHA256Final(&ctx, dst);
 }
-void SHA256x2(uchar* dst, uchar* src, uint src_len) {
+void sha256x2(uchar* dst, uchar* src, uint src_len) {
 
-    SHA256(dst, src, src_len);
+    sha256x1(dst, src, src_len);
 
     //The first round's result as the second round's input
     if(src_len >= SHA256_HASH_SIZE){
-        SHA256(src, dst, SHA256_HASH_SIZE);
+        sha256x1(src, dst, SHA256_HASH_SIZE);
         memcpy(dst, src, SHA256_HASH_SIZE);
     }
     else {
         uchar second_round_dst[SHA256_HASH_SIZE] = {0};
-        SHA256(second_round_dst, dst, SHA256_HASH_SIZE);
+        sha256x1(second_round_dst, dst, SHA256_HASH_SIZE);
         memcpy(dst, second_round_dst, SHA256_HASH_SIZE);
     }
 
 }
+
+
+void sha256_many_round(uchar* dst, uchar* src, uint src_len, uint round) {
+    //Caution: round must be less than 256
+    if(round > 255) {
+        memset(dst, 0, SHA256_HASH_SIZE);
+        return;
+    }
+
+    int i = 0 ;
+    uchar tmp[SHA256_HASH_SIZE] = {0};
+
+    sha256x1(dst, src, src_len);
+
+    for(i = 0; i < round - 1; i++ ){
+        sha256x1(tmp, dst, SHA256_HASH_SIZE);
+        memcpy(dst, tmp, SHA256_HASH_SIZE);
+    }
+}
+
 #endif //DOGECOIN_MESSAGE_C_SHA256_H
 
