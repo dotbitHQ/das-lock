@@ -2,7 +2,7 @@
 #include "sha256.h"
 #include "json_operator.h"
 #include "secp256r1_helper.h"
-
+#include "keylist_oprate.h"
 enum SubAlgId {
     Secp256r1 = 7,
 };
@@ -115,6 +115,32 @@ __attribute__((visibility("default"))) int validate(int type, uint8_t *message, 
     //note: json length is 2 bytes, small endian
     size_t json_len = lock_bytes[json_offset] + lock_bytes[json_offset + 1] * 256;
     uint8_t *json_value = lock_bytes + json_offset + 2;
+
+    //Because need lock_bytes to provide pk_idx, put it here instead of the function get_lock_args
+    //get pubkey idx
+    unsigned char pk_idx = pk_idx_value;
+    //
+    unsigned char args_index = type;
+    debug_print_int("pk_idx = ", pk_idx);
+
+    //255 is for the case that don't have DeviceKeyListCell, just use lock_args to verify
+    if (pk_idx != 255) {
+        if (pk_idx > 9) {
+            debug_print_int("public key index out of bounds, pk idx = ", pk_idx);
+            return ERROR_ARGUMENTS_VALUE;
+        }
+
+        //get the payload according to the public key index and store it in lock_args
+        //just use witness_action as temp buffer
+        //use args_index to distinguish between owner and manager
+        unsigned char temp[MAX_WITNESS_SIZE] = {0};
+        ret = get_payload_from_cell(lock_args, temp, pk_idx, args_index);
+        debug_print_int("get_payload from witness, ret = ", ret);
+        SIMPLE_ASSERT(0);
+
+        debug_print_data("payload from cell = ", lock_args, 21);
+    }
+
 
     uint8_t sub_alg_id = lock_args[0];
 
