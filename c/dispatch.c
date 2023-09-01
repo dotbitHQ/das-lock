@@ -116,7 +116,7 @@ int get_plain_and_cipher(uint8_t *message, uint8_t *lock_bytes, uint8_t alg_id) 
     blake2b_update(&blake2b_ctx, tx_hash, HASH_SIZE);
 
 
-    //这里其实内存越界了，但是不会出错，因为开辟的内存足够大
+    //it's out of bound but it's ok
     memset((void *) lock_bytes_seg.ptr + multisig_script_len, 0, lock_bytes_seg.size);
     blake2b_update(&blake2b_ctx, (uint8_t * ) & witness_len, sizeof(uint64_t));
     blake2b_update(&blake2b_ctx, temp, witness_len);

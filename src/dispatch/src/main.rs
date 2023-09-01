@@ -22,6 +22,7 @@ mod mempool;
 mod sha256;
 mod types;
 mod utils;
+mod structures;
 
 use ckb_std::default_alloc;
 

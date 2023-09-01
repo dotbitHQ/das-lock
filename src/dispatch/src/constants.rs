@@ -1,6 +1,6 @@
 use crate::error::Error;
 use alloc::vec::Vec;
-use hex::FromHexError;
+use crate::structures::AlgId;
 #[cfg(all(feature = "mainnet", feature = "testnet2"))]
 core::compile_error!("features `mainnet` and `testnet2` cannot be enabled simultaneously");
 
@@ -10,6 +10,8 @@ core::compile_error!("features `mainnet` and `testnet3` cannot be enabled simult
 #[cfg(all(feature = "testnet2", feature = "testnet3"))]
 core::compile_error!("features `testnet2` and `testnet3` cannot be enabled simultaneously");
 
+
+#[allow(dead_code)]
 #[cfg(feature = "mainnet")]
 const TYPE_ID_TABLE: [&str; 9] = [
     "f7e5ee57bfc0a17d3796cdae5a5b07c590668777166499d56178d510e1344765", //ckb
@@ -23,6 +25,7 @@ const TYPE_ID_TABLE: [&str; 9] = [
     "1d13b5f6956c55dc13e8fb58b8aa7be2db429078d131fc140ccf94132a302a57", //webauthn
 ];
 
+#[allow(dead_code)]
 #[cfg(feature = "testnet2")]
 const TYPE_ID_TABLE: [&str; 9] = [
     "c9fc9f3dc050f8bf11019842a2426f48420f79da511dd169ee243f455e9f84ed", //ckb
@@ -36,6 +39,7 @@ const TYPE_ID_TABLE: [&str; 9] = [
     "b2d54e4da02130a9f7a9067ced1996180c0f2b122a6399090649a1050a66b2d8", //webauthn
 ];
 
+#[allow(dead_code)]
 #[cfg(feature = "testnet3")]
 const TYPE_ID_TABLE: [&str; 9] = [
     "c9fc9f3dc050f8bf11019842a2426f48420f79da511dd169ee243f455e9f84ed", //ckb
@@ -50,51 +54,63 @@ const TYPE_ID_TABLE: [&str; 9] = [
 ];
 
 //tyep id checksum
+
+#[allow(dead_code)]
 #[cfg(feature = "mainnet")]
 const TYPE_ID_CHECK: [u32; 9] = [4280, 4675, 0, 4569, 4397, 4569, 4543, 4467, 4467];
 
+#[allow(dead_code)]
 #[cfg(feature = "testnet2")]
 const TYPE_ID_CHECK: [u32; 9] = [4452, 4499, 0, 4154, 4472, 4154, 4508, 4485, 4223];
 
+#[allow(dead_code)]
 #[cfg(feature = "testnet3")]
 const TYPE_ID_CHECK: [u32; 9] = [4452, 4499, 0, 4154, 4472, 4154, 4508, 4485, 4223];
 
+#[allow(dead_code)]
 #[cfg(feature = "mainnet")]
 const SUB_ACCOUNT_TYPE_ID: &str =
     "63516de8bb518ed1225e3b63f138ccbe18e417932d240f1327c8e86ba327f4b4";
 
+#[allow(dead_code)]
 #[cfg(feature = "testnet2")]
 const SUB_ACCOUNT_TYPE_ID: &str =
     "8bb0413701cdd2e3a661cc8914e6790e16d619ce674930671e695807274bd14c";
 
+#[allow(dead_code)]
 #[cfg(feature = "testnet3")]
 const SUB_ACCOUNT_TYPE_ID: &str =
     "8bb0413701cdd2e3a661cc8914e6790e16d619ce674930671e695807274bd14c";
 
+#[allow(dead_code)]
 #[cfg(feature = "mainnet")]
 const BALANCE_TYPE_ID: &str = "ebafc1ebe95b88cac426f984ed5fce998089ecad0cd2f8b17755c9de4cb02162";
 
+
+#[allow(dead_code)]
 #[cfg(feature = "testnet2")]
 const BALANCE_TYPE_ID: &str = "4ff58f2c76b4ac26fdf675aa82541e02e4cf896279c6d6982d17b959788b2f0c";
 
+#[allow(dead_code)]
 #[cfg(feature = "testnet3")]
 const BALANCE_TYPE_ID: &str = "4ff58f2c76b4ac26fdf675aa82541e02e4cf896279c6d6982d17b959788b2f0c";
 
 //convert the hex string into [u8] then return all
-pub fn get_type_id(alg_id: u8) -> Result<Vec<u8>, Error> {
+pub fn get_type_id(alg_id: AlgId) -> Result<Vec<u8>, Error> {
     let len = TYPE_ID_TABLE.len();
     if alg_id as usize >= len {
         return Err(Error::InvalidAlgId);
     }
 
-    //not support yet
-    if alg_id == 2 || alg_id == 1 {
+    //not support ckb yet
+    if alg_id == AlgId::CkbMultiSig || alg_id == AlgId::AlwaysSuccess {
         return Err(Error::InvalidAlgId);
     }
 
     let type_id = TYPE_ID_TABLE[alg_id as usize];
 
-    Ok(hex::decode(type_id).map_err(|_| Error::InvalidAlgId)?)
+    Ok(decode_hex("type id", type_id))
+    //Ok(hex::decode(type_id).map_err(|_| Error::InvalidAlgId)?)
 }
 
 fn decode_hex(title: &str, hex_str: &str) -> Vec<u8> {
@@ -114,9 +130,33 @@ pub fn get_balance_type_id() -> Vec<u8> {
 pub fn get_sub_account_type_id() -> Vec<u8> {
     decode_hex("sub account type id", SUB_ACCOUNT_TYPE_ID)
 }
+#[allow(dead_code)]
 fn checksum(s: &str) -> u32 {
     s.as_bytes().iter().map(|&b| b as u32).sum()
 }
+
+
+
+pub const MAX_WITNESS_SIZE: usize = 32768;
+pub const ONE_BATCH_SIZE: usize = 32768;
+
+pub const SCRIPT_SIZE: usize = 32768;
+
+pub const SIZE_UINT64: usize = core::mem::size_of::<u64>();
+
+pub const BLAKE160_SIZE: usize = 20;
+pub const RIPEMD160_HASH_SIZE: usize = 20;
+pub const HASH_SIZE: usize = 32;
+pub const WEBAUTHN_PAYLOAD_LEN: usize = 20;
+
+pub const SIGNATURE_SIZE : usize = 64;
+pub const CHAIN_ID_LEN: usize = 8;
+pub const WITNESS_ARGS_LOCK_LEN: usize = SIGNATURE_SIZE + HASH_SIZE + CHAIN_ID_LEN;
+pub const WITNESS_ARGS_HEADER_LEN: usize = 16;
+// 1 byte for sub alg id, 20 bytes for payload
+pub const WEBAUTHN_SIZE: usize = 1 + WEBAUTHN_PAYLOAD_LEN;
+
+pub const FLAGS_SIZE: usize = 4;
 
 //todo fn get_devicekey_list_type_id
 

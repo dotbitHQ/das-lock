@@ -1,24 +1,20 @@
 extern crate alloc;
 
-use alloc::ffi::CString;
 use alloc::ffi::NulError;
-use alloc::{fmt, format};
+use alloc::{fmt};
 use ckb_std::{
     ckb_types::core::ScriptHashType,
     dynamic_loading_c_impl::{CKBDLContext, Library, Symbol},
-    //high_level::spawn_cell,
     syscalls::SysError,
 };
-//use log::info;
-// use core::ffi::CStr;
-use alloc::collections::BTreeMap;
-use alloc::vec::Vec;
-use core::mem::size_of_val;
-use core::mem::transmute;
-use das_types::constants::LockRole;
-use hex::encode;
 use crate::debug_log;
+use alloc::collections::BTreeMap;
+use core::mem::size_of_val;
+use hex::encode;
+use crate::structures::AlgId;
+use crate::utils::generate_sighash_all::MAX_WITNESS_SIZE;
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub enum CkbAuthError {
     UnknowAlgorithmID,
@@ -50,7 +46,9 @@ impl fmt::Display for CkbAuthError {
             CkbAuthError::UnknowAlgorithmID => write!(f, "Unknown Algorithm ID"),
             CkbAuthError::DynamicLinkingUninit => write!(f, "Dynamic Linking is uninitialized"),
             CkbAuthError::LoadDLError => write!(f, "Error loading dynamic library"),
-            CkbAuthError::LoadDLFuncError => write!(f, "Error loading function from dynamic library"),
+            CkbAuthError::LoadDLFuncError => {
+                write!(f, "Error loading function from dynamic library")
+            }
             CkbAuthError::RunDLError => write!(f, "Error running dynamic library code"),
             CkbAuthError::ExecError(err) => write!(f, "Execution error: {:?}", err),
             CkbAuthError::EncodeArgs => write!(f, "Error encoding arguments"),
@@ -203,70 +201,49 @@ impl CKBDLLoader {
     }
 }
 
-fn copy_from_slice_diy(dst: &mut [u8], src: &[u8]) {
-    let len = src.len();
-    for i in 0..len {
-        if i <  30 {
-            debug_log!("copy {}: {}-{}", i, src[i], dst[i]);
-        }
-        dst[i] = src[i];
-    }
-
-}
+// fn copy_from_slice_diy(dst: &mut [u8], src: &[u8]) {
+//     let len = src.len();
+//     for i in 0..len {
+//         if i < 30 {
+//             debug_log!("copy {}: {}-{}", i, src[i], dst[i]);
+//         }
+//         dst[i] = src[i];
+//     }
+// }
 pub fn ckb_auth_dl(
     role: u8,
-    alg_id: u8,
+    alg_id: AlgId,
     code_hash: &[u8; 32],
     message: &[u8; 32],
     lock_bytes: &[u8],
     lock_args: &[u8],
 ) -> Result<i32, CkbAuthError> {
-    debug_log!("ckb_auth_dl");
+    debug_log!("Prepare to run auth in dynamic linking.");
     debug_log!("role: {}", role);
     debug_log!("alg_id: {}", alg_id);
-    // debug_log!("code_hash: {}", encode(code_hash));
-    // debug_log!("message: {}", encode(message));
-    // debug_log!("lock_bytes: {}", encode(lock_bytes));
+    debug_log!("code_hash: {}", encode(code_hash));
+    debug_log!("message: {}", encode(message));
+    debug_log!("lock_bytes: {}", encode(lock_bytes));
     debug_log!("lock_args: {}", encode(lock_args));
 
-    // for i in 0..lock_args.len() {
-    //     debug_log!("1lock_args[{}]: {}", i, lock_args[i]);
-    // }
-    // for i in 0..18 {
-    //     let a = lock_args[i];
-    //     debug_log!("3lock_args[{}]: {}", i, lock_args[i]);
-    //     //lock_args_copy[i] = lock_args[i];
-    // }
     let entry = CkbEntryType {
         code_hash: code_hash.clone(),
         hash_type: ScriptHashType::Type,
         entry_category: EntryCategoryType::DynamicLinking,
     };
 
-    // for i in 0..18 {
-    //     let a = lock_args[i];
-    //     debug_log!("4lock_args[{}]: {}", i, lock_args[i]);
-    //     //lock_args_copy[i] = lock_args[i];
-    // }
-
-    //what the hell ???
+    //must before get_validate_func
     let mut message_copy = [0u8; 32];
-    let mut lock_bytes_copy = [0u8; 4096];
+    let mut lock_bytes_copy = [0u8; MAX_WITNESS_SIZE];
     let mut lock_args_copy = [0u8; 128];
 
     message_copy[0..message.len()].copy_from_slice(message);
     lock_bytes_copy[0..lock_bytes.len()].copy_from_slice(lock_bytes);
     lock_args_copy[0..lock_args.len()].copy_from_slice(lock_args);
 
-    debug_log!("ckb entry code_hash: {:02x?}", entry.code_hash);
-    debug_log!("ckb entry hash_type: {:?}", entry.hash_type as u8);
-    debug_log!("ckb entry entry_category: {:?}", entry.entry_category as u8);
-
-    // for i in 0..18 {
-    //     let a = lock_args[i];
-    //     debug_log!("4lock_args[{}]: {}", i, lock_args[i]);
-    //     //lock_args_copy[i] = lock_args[i];
-    // }
+    //debug_log!("ckb entry code_hash: {:02x?}", entry.code_hash);
+    //debug_log!("ckb entry hash_type: {:?}", entry.hash_type as u8);
+    //debug_log!("ckb entry entry_category: {:?}", entry.entry_category as u8);
 
     let func: Symbol<CkbAuthValidate> = CKBDLLoader::get().get_validate_func(
         &entry.code_hash,
@@ -279,46 +256,17 @@ pub fn ckb_auth_dl(
     //     debug_log!("5lock_args[{}]: {}", i, lock_args[i]);
     //     //lock_args_copy[i] = lock_args[i];
     // }
+
     let type_ = {
-        if alg_id == 5 {
+        if alg_id == AlgId::Eip712 {
             1
-        } else if alg_id == 8 {
+        } else if alg_id == AlgId::WebAuthn {
             role as i32
-        }else {
+        } else {
             0
         }
     };
-    //let mut message_copy = [0u8; 32];
-    //message_copy.copy_from_slice(message);
-    //copy_from_slice_diy(&mut message_copy, message);
-    //debug_log!("message.len(): {}", message.len());
 
-    //let mut lock_bytes_copy = [0u8; 801];
-
-    //debug_log!("lock_bytes.len(): {}", lock_bytes.len());
-
-
-
-    //lock_bytes_copy[..lock_bytes.len()].copy_from_slice(lock_bytes);
-    //copy_from_slice_diy(&mut lock_bytes_copy, lock_bytes);
-    //debug_log!("lock_bytes_copy.len(): {}", lock_bytes_copy.len());
-
-
-
-    //debug_log!("lock_args {}", encode(lock_args_copy));
-
-    //debug_log!("lock_args.len(): {}", lock_args.len());
-    //lock_args_copy[..lock_args.len()].copy_from_slice(lock_args);
-    //debug_log!("lock_args_copy.len(): {}", lock_args_copy.len());
-
-    //debug_log!("type_: {}", type_);
-    //let tmp = lock_args[0];
-
-    //debug_log!("tmp = {}", tmp);
-
-    //debug_log!("lock_args_copy: {:02x?}", &lock_args_copy);
-    //debug_log!("message_copy: {:02x?}", &message_copy);
-    //debug_log!("lock_bytes_copy: {:02x?}", &lock_bytes_copy);
 
     let rc_code = unsafe {
         func(
@@ -330,9 +278,12 @@ pub fn ckb_auth_dl(
     };
 
     match rc_code {
-        0 => Ok(0),
+        0 => {
+            debug_log!("Run auth success in dynamic linking.");
+            Ok(0)
+        },
         _ => {
-            debug_log!("run auth error({}) in dynamic linking", rc_code);
+            debug_log!("Run auth error({}) in dynamic linking", rc_code);
             Err(CkbAuthError::RunDLError)
         }
     }

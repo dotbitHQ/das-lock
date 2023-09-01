@@ -14,6 +14,7 @@ pub enum Error {
     LoadDLError,
     RunAuthError,
     InvalidDasWitness,
+
     NumOutOfBound,
     InvalidRole,
     ManagerNotAllowed,
@@ -26,6 +27,7 @@ pub enum Error {
     CheckFailSubAccFirstInputCell,
     InvalidPubkeyIndex,
     InvalidMolecule,
+    UnknownAlgorithmID,
 }
 
 impl From<SysError> for Error {

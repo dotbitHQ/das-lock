@@ -72,7 +72,7 @@ pub fn generate_sighash_all() -> Result<[u8; 32], Error> {
     Ok(msg)
 }
 
-fn load_and_hash_witness(
+pub fn load_and_hash_witness(
     ctx: &mut Blake2b,
     start: usize,
     index: usize,
@@ -103,12 +103,12 @@ fn load_and_hash_witness(
     Ok(())
 }
 
-fn calculate_inputs_len() -> Result<usize, Error> {
+pub fn calculate_inputs_len() -> Result<usize, Error> {
     let mut temp = [0u8; 8];
     let mut i = 0;
     loop {
-        let sysret = load_input_by_field(&mut temp, 0, i, Source::Input, InputField::Since);
-        match sysret {
+        let ret = load_input_by_field(&mut temp, 0, i, Source::Input, InputField::Since);
+        match ret {
             Err(SysError::IndexOutOfBound) => break,
             Err(x) => return Err(x.into()),
             Ok(_) => i += 1,
