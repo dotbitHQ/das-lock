@@ -1,18 +1,18 @@
 extern crate alloc;
 
+use crate::debug_log;
+use crate::structures::AlgId;
+use crate::utils::generate_sighash_all::MAX_WITNESS_SIZE;
+use alloc::collections::BTreeMap;
 use alloc::ffi::NulError;
-use alloc::{fmt};
+use alloc::fmt;
 use ckb_std::{
     ckb_types::core::ScriptHashType,
     dynamic_loading_c_impl::{CKBDLContext, Library, Symbol},
     syscalls::SysError,
 };
-use crate::debug_log;
-use alloc::collections::BTreeMap;
 use core::mem::size_of_val;
 use hex::encode;
-use crate::structures::AlgId;
-use crate::utils::generate_sighash_all::MAX_WITNESS_SIZE;
 
 #[allow(dead_code)]
 #[derive(Debug)]
@@ -267,7 +267,6 @@ pub fn ckb_auth_dl(
         }
     };
 
-
     let rc_code = unsafe {
         func(
             type_,
@@ -281,7 +280,7 @@ pub fn ckb_auth_dl(
         0 => {
             debug_log!("Run auth success in dynamic linking.");
             Ok(0)
-        },
+        }
         _ => {
             debug_log!("Run auth error({}) in dynamic linking", rc_code);
             Err(CkbAuthError::RunDLError)

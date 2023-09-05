@@ -10,7 +10,7 @@
 //     }
 //     output
 // }
-//
+
 // #[test]
 // fn test_sha256_once() {
 //     let data = b"Hello, world!";

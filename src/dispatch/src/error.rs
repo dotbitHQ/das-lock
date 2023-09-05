@@ -1,12 +1,16 @@
 use ckb_std::error::SysError;
+
 /// Error
 #[repr(i8)]
 #[allow(dead_code)]
+#[derive(Debug, PartialEq)]
 pub enum Error {
+    //System Error
     IndexOutOfBound = 1,
     ItemMissing,
     LengthNotEnough,
     Encoding,
+
     // Add customized errors here...
     ArgsError,
     WitnessError,
@@ -28,6 +32,11 @@ pub enum Error {
     InvalidPubkeyIndex,
     InvalidMolecule,
     UnknownAlgorithmID,
+    WitnessNotFound,
+    LoadWitnessError,
+    WitnessTooLarge,
+    WitnessStructureError,
+    InvalidWitness,
 }
 
 impl From<SysError> for Error {

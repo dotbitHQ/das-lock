@@ -1,27 +1,40 @@
 extern crate alloc;
 
-use alloc::string::String;
 use crate::error::Error;
+use alloc::string::String;
 use ckb_std::{
     ckb_constants::{CellField, Source},
-
-    ckb_types::{bytes::Bytes, packed::Script, prelude::{Unpack, Entity}},
-    high_level::{load_script, load_cell_lock_hash, load_script_hash, load_tx_hash},
+    ckb_types::{
+        bytes::Bytes,
+        packed::Script,
+        prelude::{Entity, Unpack},
+    },
+    high_level::{load_cell_lock_hash, load_script, load_script_hash, load_tx_hash},
     syscalls::{self, load_cell_by_field, load_witness, SysError},
 };
 use core::convert::TryFrom;
 use core::result::Result;
 
-use crate::constants::{BLAKE160_SIZE, FLAGS_SIZE, get_balance_type_id, get_sub_account_type_id, get_type_id, HASH_SIZE, MAX_WITNESS_SIZE, ONE_BATCH_SIZE, RIPEMD160_HASH_SIZE, SCRIPT_SIZE, SIGNATURE_SIZE, SIZE_UINT64, WEBAUTHN_SIZE, WITNESS_ARGS_HEADER_LEN, WITNESS_ARGS_LOCK_LEN};
-use crate::dlopen::{ckb_auth_dl};
+use crate::constants::{
+    get_balance_type_id, get_sub_account_type_id, get_type_id, BLAKE160_SIZE, FLAGS_SIZE,
+    HASH_SIZE, MAX_WITNESS_SIZE, ONE_BATCH_SIZE, RIPEMD160_HASH_SIZE, SCRIPT_SIZE, SIGNATURE_SIZE,
+    SIZE_UINT64, WEBAUTHN_SIZE, WITNESS_ARGS_HEADER_LEN, WITNESS_ARGS_LOCK_LEN,
+};
+use crate::debug_log;
+use crate::dlopen::ckb_auth_dl;
 use crate::structures::CmdMatchStatus::{DasNotPureLockCell, DasPureLockCell};
 use crate::structures::MatchStatus::{Match, NotMatch};
 use crate::structures::SkipSignOrNot::{NotSkip, Skip};
-use crate::structures::{DasAction, MatchStatus, Role, AlgId, LockArgs, SkipSignOrNot, SignInfo, CmdMatchStatus};
-use crate::utils::{bytes_to_u32_le, check_num_boundary, new_blake2b};
-use crate::debug_log;
+use crate::structures::{
+    AlgId, CmdMatchStatus, DasAction, LockArgs, MatchStatus, Role, SignInfo, SkipSignOrNot,
+};
 use crate::utils::generate_sighash_all::{calculate_inputs_len, load_and_hash_witness};
+use crate::utils::{bytes_to_u32_le, check_num_boundary, new_blake2b};
 
+use das_proc_macro::{test_level};
+
+#[cfg(test)]
+use crate::test_framework::Testable;
 
 fn check_cmd_match(action: &DasAction) -> MatchStatus {
     match action {
@@ -36,7 +49,6 @@ fn check_cmd_match(action: &DasAction) -> MatchStatus {
         _ => MatchStatus::NotMatch,
     }
 }
-
 
 fn check_witness_das_header(data: &[u8]) -> Result<(), Error> {
     //[0..3] = "das"
@@ -59,7 +71,6 @@ fn check_witness_das_header(data: &[u8]) -> Result<(), Error> {
     Ok(())
 }
 fn get_witness_action(temp: &[u8]) -> Result<(DasAction, Role), Error> {
-
     //check if the header is action witness
     check_witness_das_header(temp)?;
 
@@ -107,15 +118,16 @@ fn get_witness_action(temp: &[u8]) -> Result<(DasAction, Role), Error> {
 fn get_payload_len(alg_id: u8) -> Result<usize, Error> {
     let alg = AlgId::try_from(alg_id)?;
     match alg {
-        AlgId::CkbMultiSig => { Ok(BLAKE160_SIZE + SIZE_UINT64)}
-        AlgId::Ed25519 => {Ok(HASH_SIZE)}
-        AlgId::DogeCoin => {Ok(RIPEMD160_HASH_SIZE)}
-        AlgId::WebAuthn => {Ok(WEBAUTHN_SIZE)}
-        _ => {Ok(BLAKE160_SIZE)}
+        AlgId::CkbMultiSig => Ok(BLAKE160_SIZE + SIZE_UINT64),
+        AlgId::Ed25519 => Ok(HASH_SIZE),
+        AlgId::DogeCoin => Ok(RIPEMD160_HASH_SIZE),
+        AlgId::WebAuthn => Ok(WEBAUTHN_SIZE),
+        _ => Ok(BLAKE160_SIZE),
     }
 }
 fn check_and_downgrade_alg_id(action: &DasAction, alg_id: AlgId) -> AlgId {
-    if alg_id != AlgId::Eip712 { //if not Eip712, then return alg_id;
+    if alg_id != AlgId::Eip712 {
+        //if not Eip712, then return alg_id;
         return alg_id;
     }
     //if match the downgrade list, then downgrade to Eth
@@ -128,7 +140,6 @@ fn check_and_downgrade_alg_id(action: &DasAction, alg_id: AlgId) -> AlgId {
     }
 }
 fn get_lock_args(action: &DasAction, role: Role) -> Result<LockArgs, Error> {
-
     let script = load_script()?;
     let args: Bytes = script.args().unpack();
     //let args_len = args.len();
@@ -165,7 +176,6 @@ fn get_lock_args(action: &DasAction, role: Role) -> Result<LockArgs, Error> {
 
 #[allow(unused_assignments)]
 fn get_self_index_in_inputs() -> Result<usize, Error> {
-
     let script_hash = load_script_hash()?;
     debug_log!("script_hash = {:02x?}", script_hash);
 
@@ -186,7 +196,10 @@ fn get_self_index_in_inputs() -> Result<usize, Error> {
     Ok(i)
 }
 
-fn check_skip_sign_for_buy_account(action: &DasAction, alg_id: AlgId) -> Result<SkipSignOrNot, Error> {
+fn check_skip_sign_for_buy_account(
+    action: &DasAction,
+    alg_id: AlgId,
+) -> Result<SkipSignOrNot, Error> {
     if alg_id != AlgId::Eip712 {
         return Ok(NotSkip);
     }
@@ -268,9 +281,7 @@ fn get_plain_and_cipher(alg_id: AlgId) -> Result<SignInfo, Error> {
         return Err(Error::Encoding);
     }
 
-
     if alg_id == AlgId::Eip712 {
-
         if lock_length != WITNESS_ARGS_LOCK_LEN {
             return Err(Error::InvalidWitnessArgsLock);
         }
@@ -288,7 +299,6 @@ fn get_plain_and_cipher(alg_id: AlgId) -> Result<SignInfo, Error> {
 
     //copy signature before clear
     let signature = temp[lock_field_start_index..lock_field_end_index].to_vec();
-
 
     // Clear lock field to zero, then digest the first witness
     // lock_bytes_seg.ptr actually points to the memory in temp buffer.
@@ -455,7 +465,7 @@ pub fn main() -> Result<(), Error> {
         let pk_idx = sign_info.signature[1];
 
         if pk_idx != 255 && pk_idx > 9 {
-                return Err(Error::InvalidPubkeyIndex);
+            return Err(Error::InvalidPubkeyIndex);
         }
     }
 
@@ -483,7 +493,119 @@ pub fn main() -> Result<(), Error> {
 
     Ok(())
 }
-// #[cfg(test)]
-// fn test_hello_world() {
-//     debug_log!("Hello world!");
+
+//unit test for these function
+
+#[test_level(1)]
+fn test_hello_world() {
+    debug_log!("Hello world!");
+}
+//
+// #[test_case]
+// fn test_check_witness_das_header() {
+//     //success
+//     let witness = "0x5123451241ab";
+//     let bytes_witness = hex::decode(witness).unwrap();
+//     let ret = check_witness_das_header(bytes_witness.as_slice());
+//     assert_eq!(ret.is_ok(), true);
+//
+//     //fail
 // }
+//
+//
+// #[test_case]
+// fn test_get_witness_action(){
+//     //success
+//     let witness = "0x646173000";
+//     let bytes_witness = hex::decode(witness).unwrap();
+//     let ret = get_witness_action(bytes_witness.as_slice());
+//     match ret {
+//         Ok((action, role)) => {
+//             assert_eq!(action, DasAction::ConfirmProposal);
+//             assert_eq!(role, Role::Owner);
+//         }
+//         Err(e) => {
+//             panic!("get_witness_action error: {:?}", e);
+//         }
+//
+//     }
+//
+//     //fail
+//     let witness = "0x646173000";
+//     let bytes_witness = hex::decode(witness).unwrap();
+//     let ret = get_witness_action(bytes_witness.as_slice());
+//     assert_eq!(ret.is_err(), true);
+//     match ret {
+//         Ok(_) => {}
+//         Err(e) => {
+//             assert_eq!(e, Error::InvalidDasWitness);
+//         }
+//     }
+// }
+
+#[test_level(1)]
+fn test_get_payload_len() {
+    let expected_payload_len = [
+        20, //0, ckb
+        28, //1, ckb multi
+        20, //2, always success
+        20, //3, eth
+        20, //4, tron
+        20, //5, eip712
+        32, //6, ed25519
+        20, //7, doge
+        21, //8, webauthn
+    ];
+    for i in 0..expected_payload_len.len() {
+        let alg_id = i as u8;
+        let ret = get_payload_len(alg_id);
+        match ret {
+            Ok(x) => {
+                assert_eq!(x, expected_payload_len[i]);
+            }
+            Err(e) => {
+                panic!("get_payload_len error: {:?}", e);
+            }
+        }
+    }
+}
+
+#[test_level(1)]
+fn test_check_and_downgrade_alg_id() {
+    //alg != eip712
+    let action = DasAction::EnableSubAccount;
+    let alg_id = AlgId::Ckb;
+    let ret = check_and_downgrade_alg_id(&action, alg_id);
+    assert_eq!(ret, AlgId::Ckb);
+
+    //action match downgrade list
+    let action = DasAction::EnableSubAccount;
+    let alg_id = AlgId::Eip712;
+    let ret = check_and_downgrade_alg_id(&action, alg_id);
+    assert_eq!(ret, AlgId::Eth);
+}
+
+//test get_lock_args
+#[test_level(2)]
+fn test_get_lock_args() {
+    //note here, the payload is not the real payload, just for test
+    //how to run all test case in on tx? sandbox only
+    let ret = load_script();
+    match ret {
+        Ok(s) => {
+            debug_log!("load_script success: {:?}", s);
+        }
+        Err(e) => {
+            panic!("load_script error: {:?}", e);
+        }
+    }
+}
+
+
+#[test_level(1)]
+fn test_run_1(){
+    assert_eq!(2 + 2, 4);
+}
+
+
+//tx should map with test case

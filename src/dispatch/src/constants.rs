@@ -1,6 +1,11 @@
 use crate::error::Error;
-use alloc::vec::Vec;
 use crate::structures::AlgId;
+use alloc::vec::Vec;
+use das_proc_macro::{test_level};
+
+#[cfg(test)]
+use crate::test_framework::Testable;
+
 #[cfg(all(feature = "mainnet", feature = "testnet2"))]
 core::compile_error!("features `mainnet` and `testnet2` cannot be enabled simultaneously");
 
@@ -9,7 +14,6 @@ core::compile_error!("features `mainnet` and `testnet3` cannot be enabled simult
 
 #[cfg(all(feature = "testnet2", feature = "testnet3"))]
 core::compile_error!("features `testnet2` and `testnet3` cannot be enabled simultaneously");
-
 
 #[allow(dead_code)]
 #[cfg(feature = "mainnet")]
@@ -86,7 +90,6 @@ const SUB_ACCOUNT_TYPE_ID: &str =
 #[cfg(feature = "mainnet")]
 const BALANCE_TYPE_ID: &str = "ebafc1ebe95b88cac426f984ed5fce998089ecad0cd2f8b17755c9de4cb02162";
 
-
 #[allow(dead_code)]
 #[cfg(feature = "testnet2")]
 const BALANCE_TYPE_ID: &str = "4ff58f2c76b4ac26fdf675aa82541e02e4cf896279c6d6982d17b959788b2f0c";
@@ -135,8 +138,6 @@ fn checksum(s: &str) -> u32 {
     s.as_bytes().iter().map(|&b| b as u32).sum()
 }
 
-
-
 pub const MAX_WITNESS_SIZE: usize = 32768;
 pub const ONE_BATCH_SIZE: usize = 32768;
 
@@ -149,7 +150,7 @@ pub const RIPEMD160_HASH_SIZE: usize = 20;
 pub const HASH_SIZE: usize = 32;
 pub const WEBAUTHN_PAYLOAD_LEN: usize = 20;
 
-pub const SIGNATURE_SIZE : usize = 64;
+pub const SIGNATURE_SIZE: usize = 64;
 pub const CHAIN_ID_LEN: usize = 8;
 pub const WITNESS_ARGS_LOCK_LEN: usize = SIGNATURE_SIZE + HASH_SIZE + CHAIN_ID_LEN;
 pub const WITNESS_ARGS_HEADER_LEN: usize = 16;
@@ -167,3 +168,56 @@ pub const FLAGS_SIZE: usize = 4;
 //         print!("{}, ", checksum(i));
 //     }
 // }
+#[test_level(1)]
+fn test_get_type_id() {
+    let expected_check_sum = TYPE_ID_CHECK;
+    for (id, expected) in TYPE_ID_TABLE.iter().zip(expected_check_sum.iter()) {
+        let real = checksum(id);
+        assert_eq!(expected, &real);
+    }
+}
+#[cfg(feature = "mainnet")]
+#[test_level(1)]
+fn test_get_type_id_mainnet() {
+    let expected_type_id_str = "f7e5ee57bfc0a17d3796cdae5a5b07c590668777166499d56178d510e1344765";
+
+    let real_ckb_type_id = TYPE_ID_TABLE[0];
+    assert_eq!(expected_type_id_str, real_ckb_type_id);
+
+    let real_ckb_checksum = TYPE_ID_CHECK[0];
+    let ckb_checksum = checksum(expected_type_id_str);
+    assert_eq!(ckb_checksum, real_ckb_checksum);
+}
+
+#[cfg(feature = "testnet2")]
+#[test_level(1)]
+fn test_get_type_id_testnet2() {
+    let expected_type_id_str = "c9fc9f3dc050f8bf11019842a2426f48420f79da511dd169ee243f455e9f84ed";
+
+    let real_ckb_type_id = TYPE_ID_TABLE[0];
+    assert_eq!(expected_type_id_str, real_ckb_type_id);
+
+    let real_ckb_checksum = TYPE_ID_CHECK[0];
+    let ckb_checksum = checksum(expected_type_id_str);
+    assert_eq!(ckb_checksum, real_ckb_checksum);
+}
+
+#[cfg(feature = "testnet3")]
+#[test_level(1)]
+fn test_get_type_id_testnet3() {
+    let expected_type_id_str = "c9fc9f3dc050f8bf11019842a2426f48420f79da511dd169ee243f455e9f84ed";
+
+    let real_ckb_type_id = TYPE_ID_TABLE[0];
+    assert_eq!(expected_type_id_str, real_ckb_type_id);
+
+    let real_ckb_checksum = TYPE_ID_CHECK[0];
+    let ckb_checksum = checksum(expected_type_id_str);
+    assert_eq!(ckb_checksum, real_ckb_checksum);
+}
+
+#[test_level(1)]
+fn test_decode_hex() {
+    let expected = alloc::vec![0x12, 0x34, 0x56, 0x78];
+    let real = decode_hex("test", "12345678");
+    assert_eq!(expected, real);
+}

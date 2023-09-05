@@ -19,13 +19,24 @@ blake2b-rs = {version = "0.2.0", default-features = false}
 #base64 = {version = "0.21", default-features = false, features = ["alloc"]}
 #strum = { version = "0.25" }
 #strum_macros = "0.25"
-das-types = { git = "https://github.com/dotbitHQ/das-types-private.git", default-features = false }
+das-types = { git = "https://github.com/dotbitHQ/das-types-private.git", default-features = false, rev = "17e1a0e" }
+das-core = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false }
 
+das-proc-macro = { path = "../../das-proc-macro"}
 [features]
 default = []
-mainnet = []
-testnet2 = []
-testnet3 = []
+mainnet = ["das-core/mainnet", "das-types/no_std"]
+testnet2 = ["das-core/testnet", "das-types/no_std"]
+testnet3 = ["das-core/testnet", "das-types/no_std"]
+
+#for test
+test-single = ["das-proc-macro/test-single"]
+test-partial = ["das-proc-macro/test-partial"]
+test-dev = ["das-proc-macro/test-dev"]
+test-all = ["das-proc-macro/test-all"]
+#[package.metadata.bootimage]
+#test-success-exit-code = -1
+
 
 
 [profile.release]

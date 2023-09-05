@@ -9,20 +9,26 @@
 #![feature(lang_items)]
 #![feature(alloc_error_handler)]
 #![feature(panic_info_message)]
-
+#![feature(custom_test_frameworks)]
+#![reexport_test_harness_main = "test_main"]
+#![test_runner(test_framework::my_runner)]
 //define modules
-mod base64url;
 mod constants;
+
 mod dlopen;
 mod entry;
 mod error;
-mod json_parse;
+mod json_parser;
 mod macros;
-mod mempool;
 mod sha256;
+mod structures;
 mod types;
 mod utils;
-mod structures;
+#[cfg(test)]
+mod test_framework;
+mod witness_parser;
+mod lv_parser;
+mod cell_parser;
 
 use ckb_std::default_alloc;
 
@@ -31,8 +37,15 @@ default_alloc!();
 
 fn program_entry() -> i8 {
     //Call main function and return error code
+    #[cfg(not(test))]
     match entry::main() {
         Ok(_) => 0,
         Err(err) => err as i8,
     }
+
+    //Call test_main function and return error code
+    #[cfg(test)]
+    test_main();
+    #[cfg(test)] // this is needed to avoid compilation error,
+    return -1; //use -1 to avoid use test version in real program
 }

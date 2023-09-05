@@ -81,13 +81,13 @@
 // }
 //
 // pub fn extract_challenge(input: &[u8]) -> Result<String, serde_json::Error> {
-//     // 将 &[u8] 转换为 str
+//     // convert &[u8] to str
 //     let input_str = str::from_utf8(input).map_err(|_| serde_json::Error::custom("Invalid UTF-8"))?;
 //
-//     // 反序列化 JSON 数据
+//     // deserilize JSON data
 //     let data: WebAuthnJson = serde_json::from_str(input_str)?;
 //
-//     // 检查字符串是否具有86个字符
+//     // check the length of challenge string
 //     if data.challenge.len() == 86 {
 //         Ok(data.challenge)
 //     } else {

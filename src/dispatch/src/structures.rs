@@ -1,29 +1,18 @@
-use alloc::{fmt, format};
-use alloc::string::String;
-use alloc::vec::Vec;
-use core::mem::transmute;
 use crate::error::Error;
+use alloc::string::{String};
+use alloc::vec::Vec;
+use alloc::{fmt, format};
+use core::mem::transmute;
+
+
+#[cfg(test)]
+use crate::test_framework::Testable;
+use das_proc_macro::{test_level};
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum CmdMatchStatus {
-    // //Jump over das-lock
-    // Skip,
-    // //manager is not allowed to call this cmd
-    // ManagerNotAllow,
-    // //buy account
-    // BuyAccount,
-    // //normal cmd
-    // Normal,
-    // //DAS_NOT_SKIP_CHECK_SIGN
-    // DasNotSkipCheckSign,
-    // //DAS_SKIP_CHECK_SIGN
-    // DasSkipCheckSign,
-    // //update sub account
-    // UpdateSubAccount,
     DasPureLockCell = 10000,
     DasNotPureLockCell = 10001,
-    // DasCmdMatch,
-    // DasCmdNotMatch,
 }
 
 #[derive(Debug, PartialEq)]
@@ -37,12 +26,6 @@ pub(crate) enum SkipSignOrNot {
     Skip,
     NotSkip,
 }
-
-// #[derive(Debug, PartialEq)]
-// pub enum CmdType {
-//     Skip,
-//     ManagerAllowed,
-// }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Role {
@@ -105,7 +88,6 @@ impl fmt::Display for SignInfo {
 }
 
 //strum cannot use in no_std
-// //todo: replace this from string to das-type enum and match with 4 bytes header not string
 // #[derive(Debug, PartialEq, EnumString, Display)]
 // pub enum DasAction {
 //     #[strum(serialize = "confirm_proposal")]
@@ -215,7 +197,6 @@ impl fmt::Display for DasAction {
     }
 }
 
-
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum AlgId {
@@ -239,9 +220,7 @@ impl Into<u8> for AlgId {
 impl TryFrom<u8> for AlgId {
     type Error = Error;
     fn try_from(value: u8) -> Result<Self, Self::Error> {
-        if value >= AlgId::Ckb.into()
-            && value <= AlgId::WebAuthn.into()
-        {
+        if value >= AlgId::Ckb.into() && value <= AlgId::WebAuthn.into() {
             Ok(unsafe { transmute(value) })
         } else {
             Err(Error::UnknownAlgorithmID)
@@ -266,7 +245,6 @@ impl fmt::Display for AlgId {
     }
 }
 
-
 #[derive(Debug)]
 pub struct LockArgs {
     pub alg_id: AlgId,
@@ -275,7 +253,7 @@ pub struct LockArgs {
 
 impl LockArgs {
     pub fn new(alg_id: AlgId, payload: Vec<u8>) -> Self {
-        LockArgs {alg_id, payload }
+        LockArgs { alg_id, payload }
     }
 
     // pub fn alg_id(&self) -> AlgId {
@@ -288,6 +266,65 @@ impl LockArgs {
 }
 impl fmt::Display for LockArgs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "alg_id: {}, payload: 0x{}", self.alg_id, hex::encode(&self.payload))
+        write!(
+            f,
+            "alg_id: {}, payload: 0x{}",
+            self.alg_id,
+            hex::encode(&self.payload)
+        )
     }
+}
+
+//unit test
+#[test_level(1)]
+fn test_from_string_into_das_action() {
+    assert_eq!(
+        DasAction::from("confirm_proposal"),
+        DasAction::ConfirmProposal
+    );
+    assert_eq!(DasAction::from("renew_account"), DasAction::RenewAccount);
+    assert_eq!(DasAction::from("accept_offer"), DasAction::AcceptOffer);
+    assert_eq!(
+        DasAction::from("unlock_account_for_cross_chain"),
+        DasAction::UnlockAccountForCrossChain
+    );
+    assert_eq!(
+        DasAction::from("force_recover_account_status"),
+        DasAction::ForceRecoverAccountStatus
+    );
+    assert_eq!(
+        DasAction::from("recycle_expired_account"),
+        DasAction::RecycleExpiredAccount
+    );
+    assert_eq!(DasAction::from("edit_records"), DasAction::EditRecords);
+    assert_eq!(
+        DasAction::from("create_sub_account"),
+        DasAction::CreateSubAccount
+    );
+    assert_eq!(
+        DasAction::from("update_sub_account"),
+        DasAction::UpdateSubAccount
+    );
+    assert_eq!(
+        DasAction::from("config_sub_account"),
+        DasAction::ConfigSubAccount
+    );
+    assert_eq!(
+        DasAction::from("config_sub_account_custom_script"),
+        DasAction::ConfigSubAccountCustomScript
+    );
+    assert_eq!(DasAction::from("buy_account"), DasAction::BuyAccount);
+    assert_eq!(
+        DasAction::from("enable_sub_account"),
+        DasAction::EnableSubAccount
+    );
+    assert_eq!(
+        DasAction::from("revoke_approval"),
+        DasAction::RevokeApproval
+    );
+    assert_eq!(
+        DasAction::from("fulfill_approval"),
+        DasAction::FulfillApproval
+    );
+    assert_eq!(DasAction::from("othersasdf"), DasAction::Others);
 }
