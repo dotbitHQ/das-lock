@@ -2,35 +2,57 @@
 
 A dispatch contract and some dynamic libraries.
 
-## Usage
+## Overview
+This project is a Rust and C hybrid project that targets the `riscv64-unknown-linux-gnu` platform. It uses Rust for the contract entry (`dispatch`) and C for dynamic libraries (`ckb_sign`, `tron_sign`, etc). The Makefile handles the build process, enabling development through both native and Docker environments. The project also depends on the Nervos Network CKB blockchain protocol and several cryptography libraries.
 
-### Compile
-
-The compilation of the current code repository requires the riscv toolchain, so docker needs to be pre-installed.
-There are currently two ways to compile:
-#### A. Through the buildscript in the root directory of the warehouse
-1. Start the corresponding docker image
-```shell
-bash buildscript start -b 
-```
-2. Compile the source code
-```shell
-bash buildscript build
-```
-If you want to compile the release version, please add `--release`
-```shell
-bash buildscript build --release
-```
-#### B. Manually compile through makefile
-1. Check git warehouse dependencies
-```shell
-git submodule init update
-```
-2. Execute make
-```shell
-make debug-test
-```
-## Option
+## Dependencies
+* Docker: [dotbitteam/ckb-dev-all-in-one](https://hub.docker.com/r/dotbitteam/ckb-dev-all-in-one)
+* Rust Toolchain: Targeting riscv64imac-unknown-none-elf
+* C Toolchain: Targeting riscv64-unknown-linux-gnu
+* ckb-binary-patcher: [ckb/ckb-binary-patcher](https://github.com/nervosnetwork/ckb-binary-patcher)
+* libecc: [dotbitteam/libecc](https://github.com/dotbitHQ/libecc-riscv-optimized)
+* secp256k1
 
 
-## Issues
+## Features
+* Build for multiple net types (default is `testnet2`)
+* Optimize and strip binaries
+* Debug and Release build types
+* Control build flags via environment variables
+* Docker environment for isolated building
+* Compile contracts and dynamic libraries with security features
+
+
+## Build Instructions
+1. Clone the repository:
+    ```shell
+    git clone https://github.com/dotbitHQ/das-lock
+   ```
+2. Initialize environment and submodules:
+    ```shell
+    make init-build-env
+    ```
+3. Pull the Docker image:
+    ```shell
+    make pull-docker-image
+    ```
+4. Build all contracts and libraries:
+    ```shell
+    make debug-all-via-docker # or make all-via-docker
+    ```
+5. Copy the generated binaries to the other directory:
+    ```shell
+    cp -r build/debugs/* /path/to/other/directory
+    ```
+
+## Configuration
+The `Makefile` supports the following environment variables:
+
+* `NET_TYPE`: The type of blockchain network, default is `testnet2`.
+    ```shell
+    make debug-all-via-docker NET_TYPE=mainnet
+    ```
+* `CFLAGS`: Flags for the C compiler.
+
+## License
+[License](LICENSE)

@@ -3,7 +3,7 @@ use crate::utils::new_blake2b;
 use blake2b_rs::Blake2b;
 use ckb_std::ckb_constants::{InputField, Source};
 use ckb_std::high_level::load_tx_hash;
-use ckb_std::syscalls::{load_cell, load_input_by_field, load_witness, SysError};
+use ckb_std::syscalls::{load_input_by_field, load_witness, SysError};
 
 pub const MAX_WITNESS_SIZE: usize = 32768;
 pub const ONE_BATCH_SIZE: usize = 32768;
@@ -107,23 +107,9 @@ pub fn calculate_inputs_len() -> Result<usize, Error> {
     let mut temp = [0u8; 8];
     let mut i = 0;
     loop {
+        //note: maybe there is a risk of overflow
         let ret = load_input_by_field(&mut temp, 0, i, Source::Input, InputField::Since);
         match ret {
-            Err(SysError::IndexOutOfBound) => break,
-            Err(x) => return Err(x.into()),
-            Ok(_) => i += 1,
-        }
-    }
-    Ok(i)
-}
-
-#[allow(dead_code)]
-fn calculate_outputs_len() -> Result<usize, Error> {
-    let mut temp = [0u8; 8];
-    let mut i = 0;
-    loop {
-        let sysret = load_cell(&mut temp, 0, i, Source::Output);
-        match sysret {
             Err(SysError::IndexOutOfBound) => break,
             Err(SysError::LengthNotEnough(_)) => i += 1,
             Err(x) => return Err(x.into()),
@@ -132,3 +118,19 @@ fn calculate_outputs_len() -> Result<usize, Error> {
     }
     Ok(i)
 }
+
+// #[allow(dead_code)]
+// fn calculate_outputs_len() -> Result<usize, Error> {
+//     let mut temp = [0u8; 8];
+//     let mut i = 0;
+//     loop {
+//         let ret = load_cell(&mut temp, 0, i, Source::Output);
+//         match ret {
+//             Err(SysError::IndexOutOfBound) => break,
+//             Err(SysError::LengthNotEnough(_)) => i += 1,
+//             Err(x) => return Err(x.into()),
+//             Ok(_) => i += 1,
+//         }
+//     }
+//     Ok(i)
+// }

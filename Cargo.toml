@@ -1,9 +1,13 @@
-[package]
-name = "das-lock"
-version = "1.1.0"
-edition = "2021"
-license = "MIT"
+[workspace]
+members = [
+    "das-lock-lib",
+    "dispatch",
+]
+exclude = ["tests", "tools"]
 
-[build-dependencies]
-blake2b-rs = "0.1.5"
-cargo-emit = "0.2"
+[profile.release]
+overflow-checks = true
+opt-level = 2
+lto = true
+codegen-units = 1
+panic = 'abort'

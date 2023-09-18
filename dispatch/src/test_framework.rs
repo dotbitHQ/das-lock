@@ -89,7 +89,7 @@ fn it_works_level_3() {
 // ```
 
 
-// //Todo: Catching panics is not currently supported, and the test will break if it occurs.
+// //Todo2: Catching panics is not currently supported, and the test will break if it occurs.
 // #[test_level(0)]
 // fn test_panic() {
 //     panic!("test panic");

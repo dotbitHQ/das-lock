@@ -69,6 +69,7 @@ int get_tx_digest_from_json(uint8_t *tx_digest, uint8_t *json_data, size_t json_
         str2bin(tx_digest + COMMON_PREFIX_LENGTH, (unsigned char *) (tx_digest_str + COMMON_PREFIX_LENGTH),
                 challenge_len - COMMON_PREFIX_LENGTH);
     } else {
+        debug_print("tx_digest_str is not start with From .bit");
         //str2bin(tx_digest, (unsigned char *) (tx_digest_str), challenge_len);
         return -1; //
 

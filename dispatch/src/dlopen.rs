@@ -178,7 +178,10 @@ impl CKBDLLoader {
             let lib = self
                 .context
                 .load_with_offset(code_hash, hash_type, self.context_used, size)
-                .map_err(|_| CkbAuthError::LoadDLError)?;
+                .map_err(|_| {
+                    debug_log!("load library error");
+                    CkbAuthError::LoadDLError
+                })?;
             self.context_used += lib.consumed_size();
             self.loaded_lib.insert(lib_key.clone(), lib);
         };
@@ -191,12 +194,17 @@ impl CKBDLLoader {
         hash_type: ScriptHashType,
         func_name: &str,
     ) -> Result<Symbol<T>, CkbAuthError> {
+        debug_log!("Prepare to load function {} from dynamic linking.", func_name);
+
         let lib = self.get_lib(code_hash, hash_type)?;
+        debug_log!("Load function {} from dynamic linking success.", func_name);
 
         let func: Option<Symbol<T>> = unsafe { lib.get(func_name.as_bytes()) };
         if func.is_none() {
+            debug_log!("Load function {} from dynamic linking failed.", func_name);
             return Err(CkbAuthError::LoadDLFuncError);
         }
+
         Ok(func.unwrap())
     }
 }
@@ -250,6 +258,8 @@ pub fn ckb_auth_dl(
         entry.hash_type,
         EXPORTED_FUNC_NAME,
     )?;
+    debug_log!("load function success.");
+
 
     // for i in 0..18 {
     //     let a = lock_args[i];
@@ -261,6 +271,7 @@ pub fn ckb_auth_dl(
         if alg_id == AlgId::Eip712 {
             1
         } else if alg_id == AlgId::WebAuthn {
+            //todo2 not good design
             role as i32
         } else {
             0

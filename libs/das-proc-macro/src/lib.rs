@@ -23,11 +23,15 @@ pub fn test_level(attr: TokenStream, item: TokenStream) -> TokenStream {
     let feature_value = value.base10_parse::<u8>().unwrap_or(0);
 
     let input_fn = parse_macro_input!(item as ItemFn);
-    //let fn_name = &input_fn.sig.ident;
-    //let fn_name_str = fn_name.to_string();
+
+    //get threshold
     let threshold;
     let bound: [u8;4] = [0, 1, 2, 3];
-    //test level single, dev, partial, all
+    //test level
+    // single, 3, only test single case
+    // partial, 2, some case that need transaction use this,
+    // dev, 1, most case should use this
+    // all, 0
     if cfg!(feature = "test-single") {
         threshold = bound[3];
     }else if cfg!(feature = "test-partial") {
@@ -35,9 +39,9 @@ pub fn test_level(attr: TokenStream, item: TokenStream) -> TokenStream {
     }else if cfg!(feature = "test-dev") {
         threshold = bound[1];
     }else if cfg!(feature = "test-all") {
-        //default is test_all
         threshold = bound[0];
     }else {
+        //default is test none
         threshold = 99;
     }
     println!("f: {}, t: {}", feature_value, threshold);
@@ -47,6 +51,7 @@ pub fn test_level(attr: TokenStream, item: TokenStream) -> TokenStream {
             #input_fn
         }
     } else {
+      //warning: don't remove the code below, it's used to comment the function
       quote! {
             // #input_fn
       }

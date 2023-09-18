@@ -59,12 +59,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         .run();
 
     Command::new("sh")
-        .current_dir("deps/secp256k1")
+        .current_dir("../deps/secp256k1")
         .arg("autogen.sh")
         .run();
 
     Command::new("./configure")
-        .current_dir("deps/secp256k1")
+        .current_dir("../deps/secp256k1")
         .args([
             "--with-bignum=no",
             "--with-asm=no",
@@ -74,7 +74,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         ])
         .run();
 
-    Command::new("make").current_dir("deps/secp256k1").run();
+    Command::new("make").current_dir("../deps/secp256k1").run();
 
     //build libecc
     Command::new("make").arg("libecc").run();
@@ -98,7 +98,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let is_release = profile.as_str() == "release";
 
     let mut build_command = Command::new("make");
-    build_command.current_dir(".");
+    build_command.current_dir("..");
 
     match is_release {
         true => build_command.arg("all"),
@@ -106,8 +106,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     // Overwrite CFLAGS for makefile because newer gcc will introduce warnings in no-array-bounds, no-dangling-pointer, no-stringop-overflow
-    build_command.arg("CFLAGS=-Os -fPIC -nostdinc -nostdlib -nostartfiles -fvisibility=hidden -I . -I deps/ckb-c-stdlib -I deps/ckb-c-stdlib/libc -I deps/ckb-c-stdlib/molecule -I deps/secp256k1/src -I deps/secp256k1  -Wall -Werror -Wno-nonnull -Wno-nonnull-compare -Wno-unused-function");
-    //build_command.arg("CFLAGS=-Os -fPIC -nostdinc -nostdlib -nostartfiles -fvisibility=hidden -I . -I deps/ckb-c-stdlib -I deps/ckb-c-stdlib/libc -I deps/ckb-c-stdlib/molecule -I deps/secp256k1/src -I deps/secp256k1  -Wall -Werror -Wno-nonnull -Wno-nonnull-compare -Wno-unused-function -Wno-array-bounds -Wno-dangling-pointer -Wno-stringop-overflow");
+    build_command.arg("CFLAGS=-Os -fPIC -nostdinc -nostdlib -nostartfiles -fvisibility=hidden -I . -I deps/ckb-c-stdlib -I deps/ckb-c-stdlib/libc -I deps/ckb-c-stdlib/molecule -I deps/secp256k1/src -I deps/secp256k1  -Wall -Werror -Wno-nonnull -Wno-nonnull-compare -Wno-unused-function");    //build_command.arg("CFLAGS=-Os -fPIC -nostdinc -nostdlib -nostartfiles -fvisibility=hidden -I . -I deps/ckb-c-stdlib -I deps/ckb-c-stdlib/libc -I deps/ckb-c-stdlib/molecule -I deps/secp256k1/src -I deps/secp256k1  -Wall -Werror -Wno-nonnull -Wno-nonnull-compare -Wno-unused-function -Wno-array-bounds -Wno-dangling-pointer -Wno-stringop-overflow");
 
     build_command.run();
 
@@ -154,11 +153,11 @@ pub mod {} {{
 
     // Tell cargo when to rebuild
     cargo_emit::rerun_if_changed!(
-        "c",
+        "../c",
         "src",
         "build.rs",
-        "deps/ckb-c-std",
-        "deps/libecc-riscv-optimised",
+        "../deps/ckb-c-std",
+        "../deps/libecc-riscv-optimised",
     );
     Ok(())
 }

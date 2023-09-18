@@ -3,26 +3,24 @@ name = "dispatch"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 ckb-std = { version = "0.13.0" }
-
-#log = { version = "0.4.17", default-features = false }
 hex = { version = "0.4.3", default-features = false, features = ["alloc"]}
 blake2b-rs = {version = "0.2.0", default-features = false}
-#das-core = {path = "./libs/das-core", version = "1.4.0"}
+strum = { default-features = false, features = ["derive"], version = "0.25" }
+strum_macros = "0.25"
+num_enum = { version = "0.6.1", default-features = false }
+das-types = { git = "https://github.com/dotbitHQ/das-types-private.git", default-features = false, rev = "17e1a0e" }
+das-core = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false }
+das-dynamic-libs = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false }
+das-proc-macro = { path = "../libs/das-proc-macro" }
 #serde = { version = "1.0", default-features = false, features = ["alloc"] }
 #serde-json-core = "0.5"
 #sha2 = {version = "0.10", default-features = false}
 #base64-url = {version = "2.0", default-features = false}
 #base64 = {version = "0.21", default-features = false, features = ["alloc"]}
-#strum = { version = "0.25" }
-#strum_macros = "0.25"
-das-types = { git = "https://github.com/dotbitHQ/das-types-private.git", default-features = false, rev = "17e1a0e" }
-das-core = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false }
 
-das-proc-macro = { path = "../../das-proc-macro"}
 [features]
 default = []
 mainnet = ["das-core/mainnet", "das-types/no_std"]
@@ -38,10 +36,16 @@ test-all = ["das-proc-macro/test-all"]
 #test-success-exit-code = -1
 
 
+[profile.dev]
+overflow-checks = true
+opt-level = 's'
+lto = true
+codegen-units = 1
+panic = 'abort'
 
 [profile.release]
 overflow-checks = true
 opt-level = 's'
-lto = false
+lto = true
 codegen-units = 1
 panic = 'abort'

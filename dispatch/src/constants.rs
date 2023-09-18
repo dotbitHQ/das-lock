@@ -5,7 +5,14 @@ use das_proc_macro::{test_level};
 
 #[cfg(test)]
 use crate::test_framework::Testable;
+//use crate::witness_parser::WitParser;
 
+/*
+There are two ways to get the type ID,
+one is through features conditional compilation,
+and the other is through witness_parser parsing config cell main.
+Note: that the latter is not compatible with historical transaction.
+ */
 #[cfg(all(feature = "mainnet", feature = "testnet2"))]
 core::compile_error!("features `mainnet` and `testnet2` cannot be enabled simultaneously");
 
@@ -26,7 +33,7 @@ const TYPE_ID_TABLE: [&str; 9] = [
     "6bbd5ca9bbdbe9a03f51329b2c6d06017ee2ae20546f724f70f79b8922a7d5b1", //eth eip712
     "3000f8c98b8b020b8a0785320d24f73b3ba37fc1d4697c1a00fc8dda0bbc1cc7", // ed25519
     "1d13b5f6956c55dc13e8fb58b8aa7be2db429078d131fc140ccf94132a302a57", //doge
-    "1d13b5f6956c55dc13e8fb58b8aa7be2db429078d131fc140ccf94132a302a57", //webauthn
+    "23bb512344f12fac23353466d436d0021a0df82114bcbcf23b733e447bcde404", //webauthn
 ];
 
 #[allow(dead_code)]
@@ -98,7 +105,7 @@ const BALANCE_TYPE_ID: &str = "4ff58f2c76b4ac26fdf675aa82541e02e4cf896279c6d6982
 #[cfg(feature = "testnet3")]
 const BALANCE_TYPE_ID: &str = "4ff58f2c76b4ac26fdf675aa82541e02e4cf896279c6d6982d17b959788b2f0c";
 
-//convert the hex string into [u8] then return all
+#[allow(dead_code)]
 pub fn get_type_id(alg_id: AlgId) -> Result<Vec<u8>, Error> {
     let len = TYPE_ID_TABLE.len();
     if alg_id as usize >= len {
@@ -116,6 +123,15 @@ pub fn get_type_id(alg_id: AlgId) -> Result<Vec<u8>, Error> {
     //Ok(hex::decode(type_id).map_err(|_| Error::InvalidAlgId)?)
 }
 
+/*
+note: using this method is not very forward compatible.
+Because of the config cell main.
+ */
+// pub fn get_type_id2(alg_id: AlgId) -> Result<Vec<u8>, Error> {
+//     let parser = WitParser::get();
+//     parser.get_type_id_by_alg(alg_id)
+//
+// }
 fn decode_hex(title: &str, hex_str: &str) -> Vec<u8> {
     match hex::decode(hex_str) {
         Ok(v) => v,
@@ -130,9 +146,36 @@ fn decode_hex(title: &str, hex_str: &str) -> Vec<u8> {
 pub fn get_balance_type_id() -> Vec<u8> {
     decode_hex("balance type id", BALANCE_TYPE_ID)
 }
+// #[allow(dead_code)]
+// pub fn get_balance_type_id2() -> Vec<u8> {
+//     let parser = WitParser::get();
+//     match parser.get_balance_type_id() {
+//         Ok(v) => {
+//             debug_log!("get balance type id: {:02x?}", v);
+//             v
+//         },
+//         Err(e) => {
+//             panic!("get balance type id error: {:?}", e);
+//         }
+//     }
+// }
+
 pub fn get_sub_account_type_id() -> Vec<u8> {
     decode_hex("sub account type id", SUB_ACCOUNT_TYPE_ID)
 }
+// #[allow(dead_code)]
+// pub fn get_sub_account_type_id2() -> Vec<u8> {
+//     let parser = WitParser::get();
+//     match parser.get_sub_account_type_id() {
+//         Ok(v) => {
+//             debug_log!("get sub account type id: {:02x?}", v);
+//             v
+//         },
+//         Err(e) => {
+//             panic!("get sub account type id error: {:?}", e);
+//         }
+//     }
+// }
 #[allow(dead_code)]
 fn checksum(s: &str) -> u32 {
     s.as_bytes().iter().map(|&b| b as u32).sum()
@@ -150,7 +193,7 @@ pub const RIPEMD160_HASH_SIZE: usize = 20;
 pub const HASH_SIZE: usize = 32;
 pub const WEBAUTHN_PAYLOAD_LEN: usize = 20;
 
-pub const SIGNATURE_SIZE: usize = 64;
+pub const SIGNATURE_SIZE: usize = 65;
 pub const CHAIN_ID_LEN: usize = 8;
 pub const WITNESS_ARGS_LOCK_LEN: usize = SIGNATURE_SIZE + HASH_SIZE + CHAIN_ID_LEN;
 pub const WITNESS_ARGS_HEADER_LEN: usize = 16;
@@ -159,7 +202,7 @@ pub const WEBAUTHN_SIZE: usize = 1 + WEBAUTHN_PAYLOAD_LEN;
 
 pub const FLAGS_SIZE: usize = 4;
 
-//todo fn get_devicekey_list_type_id
+//todo2 fn get_devicekey_list_type_id
 
 // fn main() {
 //     println!("Hello, world!");

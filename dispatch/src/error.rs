@@ -12,31 +12,35 @@ pub enum Error {
     Encoding,
 
     // Add customized errors here...
-    ArgsError,
+    ArgsError = 5,
     WitnessError,
     GeneratedMsgError,
     LoadDLError,
     RunAuthError,
-    InvalidDasWitness,
+    InvalidDasWitness = 10,
 
     NumOutOfBound,
     InvalidRole,
     ManagerNotAllowed,
     InvalidAlgId,
-    SelfNotFound,
+    SelfNotFound = 15,
+
     InvalidWitnessArgsLock,
     ValidationFailure,
     InvalidAction,
     InvalidString,
-    CheckFailSubAccFirstInputCell,
+    CheckFailSubAccFirstInputCell = 20,
+
     InvalidPubkeyIndex,
     InvalidMolecule,
     UnknownAlgorithmID,
     WitnessNotFound,
-    LoadWitnessError,
+    LoadWitnessError = 25,
+
     WitnessTooLarge,
     WitnessStructureError,
     InvalidWitness,
+    ConfigMainNotFound,
 }
 
 impl From<SysError> for Error {

@@ -7,5 +7,7 @@ build/*
 .idea/*
 *.sh
 target
-src/contracts/*
+das-lock-lib/src/contracts/*
 cmake-build-debug/
+Cargo.lock
+**/*.rs.bak

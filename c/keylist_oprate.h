@@ -401,6 +401,7 @@ int get_data_hash_inner(uint8_t* output, size_t* output_len, uint8_t* temp, size
 #endif
     uint8_t expected_type_id[HASH_SIZE];
     hex2str(device_key_list_type_id, expected_type_id);
+    debug_print_data("expected type id = ", expected_type_id, HASH_SIZE);
 
     //get cell_deps len
     int cells_number;
@@ -412,12 +413,12 @@ int get_data_hash_inner(uint8_t* output, size_t* output_len, uint8_t* temp, size
     if(cells_number < 1){ //no cell_deps found, maybe the logic of calculate_cell_deps_len is wrong
         cells_number = 255;
     }
-    debug_print_int("cells_number ", cells_number);
+    debug_print_int("cells_numbers ", cells_number);
 
     //Iterate over all cell_deps
     //when the type id is DeviceKeyListCell and lock_args is the incoming lock_args, save data.hash
     for(int i = 0; i < cells_number; i++){
-
+        debug_print_int("cell idx", i);
         //step1: load type script to temp and get code hash
         temp_len = TEMP_SIZE;
         ret = ckb_load_cell_by_field(temp, &temp_len, 0, i, field, CKB_CELL_FIELD_TYPE);
@@ -541,6 +542,8 @@ int get_payload_from_cell(uint8_t *lock_args, uint8_t *temp, uint8_t pk_idx, uin
     //get data.hash from cell_deps
     ret = get_data_hash(data_hashs, &data_hashs_len, temp, lock_args, args_index == 0 ? true : false, &device_key_list_cell_in_inputs);
     SIMPLE_ASSERT(0);
+
+    debug_print_int("device_key_list_cell_in_inputs = ", device_key_list_cell_in_inputs);
 
     //Caution: if the repo das-type update, this value should update too
     const uint8_t data_type_1[4] = {0x0d, 0x00, 0x00, 0x00}; //DeviceKeyListEntityData
