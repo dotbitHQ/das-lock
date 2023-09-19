@@ -1,59 +1,58 @@
 # DAS LOCK
 
-A dispatch contract and serveral dynamic libs.
+A dispatch contract and some dynamic libraries.
 
-## Usage
+## Overview
+This project is a Rust and C hybrid project that targets the `riscv64-unknown-linux-gnu` platform. It uses Rust for the contract entry (`dispatch`) and C for dynamic libraries (`ckb_sign`, `tron_sign`, etc). The Makefile handles the build process, enabling development through both native and Docker environments. The project also depends on the Nervos Network CKB blockchain protocol and several cryptography libraries.
 
-### Compile
-
-
-First, do some warm up
-``` sh
-git submodule update --init --recursive
-cd deps/secp256k1
-./autogen.sh
-# module-recovery for pre_g
-# endomorphism for pre_g_128
-# ecmult-static-precomputation for ecmult_static_pre_context.h
-# with-bignum 
-./configure --with-bignum=no --with-asm=no --enable-module-recovery --enable-endomorphism --enable-ecmult-static-precomputation
-make
-```
-
-Then, compile
-``` sh
-mkdir -p build/debug && mkdir -p build/release
-# debug
-make debug-all-via-docker
-```
+## Dependencies
+* Docker: [dotbitteam/ckb-dev-all-in-one](https://hub.docker.com/r/dotbitteam/ckb-dev-all-in-one)
+* Rust Toolchain: Targeting riscv64imac-unknown-none-elf
+* C Toolchain: Targeting riscv64-unknown-linux-gnu
+* ckb-binary-patcher: [ckb/ckb-binary-patcher](https://github.com/nervosnetwork/ckb-binary-patcher)
+* libecc: [dotbitteam/libecc](https://github.com/dotbitHQ/libecc-riscv-optimized)
+* secp256k1
 
 
-## Option
+## Features
+* Build for multiple net types (default is `testnet2`)
+* Optimize and strip binaries
+* Debug and Release build types
+* Control build flags via environment variables
+* Docker environment for isolated building
+* Compile contracts and dynamic libraries with security features
 
 
-## Issues
-### 1. When `configure` in deps/secp256k1
-``` sh
-# cat config.log
-clang: error: argument to '-V' is missing (expected 1 value)
-or
-clang: error: linker command failed with exit code 1 (use -v to see invocation)
-```
-Try below before `configure`
-``` sh
-export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
-```
+## Build Instructions
+1. Clone the repository:
+    ```shell
+    git clone https://github.com/dotbitHQ/das-lock
+   ```
+2. Initialize environment and submodules:
+    ```shell
+    make init-build-env
+    ```
+3. Pull the Docker image:
+    ```shell
+    make pull-docker-image
+    ```
+4. Build all contracts and libraries:
+    ```shell
+    make debug-all-via-docker # or make all-via-docker
+    ```
+5. Copy the generated binaries to the other directory:
+    ```shell
+    cp -r build/debugs/* /path/to/other/directory
+    ```
 
-### 2. When `make debug-all-via-docker`
-In some machine environments, the following error may be reported.
-```shell
-./tool/ckb-binary-patcher: 1: Syntax error: "(" unexpected
-```
-You need to recompile `ckb-binary-patcher` , refer to the following command.
-```shell
-cd build/
-git clone https://github.com/nervosnetwork/ckb-binary-patcher
-cd ckb-binary-patcher
-cargo build --release 
-cp ./target/release/ckb-binary-patcher ../../tool
-```
+## Configuration
+The `Makefile` supports the following environment variables:
+
+* `NET_TYPE`: The type of blockchain network, default is `testnet2`.
+    ```shell
+    make debug-all-via-docker NET_TYPE=mainnet
+    ```
+* `CFLAGS`: Flags for the C compiler.
+
+## License
+[License](LICENSE)

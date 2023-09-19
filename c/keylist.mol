@@ -1,0 +1,45 @@
+
+import blockchain;
+
+
+array Uint8 [byte; 1];
+array Byte10 [byte; 10];
+
+struct DeviceKey {
+    main_alg_id: Uint8,
+    sub_alg_id: Uint8,
+    cid: Byte10,
+    pubkey: Byte10,
+}
+
+vector DeviceKeyList <DeviceKey>;
+
+
+
+table DeviceKeyListCellData {
+    // Device keys.
+    keys: DeviceKeyList,
+    // On destroy-device-key-list, send the remaining capacity of the refund_lock.
+    refund_lock: Script,
+}
+
+table DataEntity {
+    // Indicates the cell in cell_deps/inputs/outputs to which this entity data belongs.
+    index: Uint32,
+    // Indicates the version of the entity data structure.
+    version: Uint32,
+    // Indicates the data of the entity.
+    entity: Bytes,
+}
+
+table Data {
+    // when cell is in cell_deps its data will be stored at here
+    dep: DataEntityOpt,
+    // when cell is in inputs its data will be stored at here
+    old: DataEntityOpt,
+    // when cell is in outputs its data will be stored at here
+    new: DataEntityOpt,
+}
+
+option DataEntityOpt (DataEntity);
+

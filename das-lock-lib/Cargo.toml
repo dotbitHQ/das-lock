@@ -1,0 +1,9 @@
+[package]
+name = "das-lock-lib"
+version = "1.1.0"
+edition = "2021"
+license = "MIT"
+
+[build-dependencies]
+blake2b-rs = "0.1.5"
+cargo-emit = "0.2"

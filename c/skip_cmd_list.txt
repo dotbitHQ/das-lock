@@ -1,0 +1,8 @@
+"confirm_proposal",
+"renew_account",
+"accept_offer",
+"unlock_account_for_cross_chain",
+"force_recover_account_status",
+"recycle_expired_account",
+"revoke_approval",
+"fulfill_approval"
