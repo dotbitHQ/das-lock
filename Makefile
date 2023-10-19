@@ -39,10 +39,10 @@ webauthn_lib_files = $(foreach file, $(webauthn_lib), build/release/$(file).so b
 DOCKER_RUN := docker run --rm \
 	-v `pwd`:/code \
 	-v ~/.gitconfig:/root/.gitconfig:ro \
-	-v ~/.cargo:/root/.cargo \
 	-e NET_TYPE=${NET_TYPE} \
 	${BUILDER_DOCKER} bash -c \
 	"cd /code && make all CFLAGS='$(CFLAGS)'"
+	#-v ~/.cargo:/root/.cargo \
 
 all-via-docker: ${PROTOCOL_HEADER} install-ckb-binary-patcher
 	@mkdir -p build/release
@@ -146,14 +146,15 @@ install-ckb-binary-patcher:
 		git submodule update --init; > /dev/null 2>&1; \
 	fi
 	# Check if have cargo installed
-	@if [ -z "$(shell which cargo 2>/dev/null)"]; then \
+	@if [ -z "$(shell which cargo 2>/dev/null)" ]; then \
 		echo "cargo could not be found. Please install Rust and Cargo."; \
 		exit 1; \
 	fi
-	@# Complile and install ckb-binary-patcher
+	# Complile and install ckb-binary-patcher
 	@cd tools/ckb-binary-patcher && \
 	cargo build --release >/dev/null 2>&1 && \
 	cp target/release/ckb-binary-patcher ~/.cargo/bin/
+	# Install ckb-binary-patcher to ~/.cargo/bin
 
 init-submodule:
 	@echo "init submodule"

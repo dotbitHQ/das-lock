@@ -176,11 +176,7 @@ void sha256x2(uchar* dst, uchar* src, uint src_len) {
     }
 
 }
-<<<<<<< HEAD:deps/cryptos/sha256.h
-=======
 
-
->>>>>>> origin/feat/refactor:c/sha256.h
 void sha256_many_round(uchar* dst, uchar* src, uint src_len, uint round) {
     //Caution: round must be less than 256
     if(round > 255) {
