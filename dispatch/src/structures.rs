@@ -97,6 +97,8 @@ pub enum DasAction {
     RevokeApproval,
     #[strum(serialize = "fulfill_approval")]
     FulfillApproval,
+    #[strum(serialize = "bid_expired_account_auction")]
+    BidExpiredAccountAuction,
 
     Others,
 }
@@ -109,7 +111,7 @@ impl DasAction {
             Err(e) => {
                 debug_log!("DasAction::from_string warning: {:?}", e);
                 DasAction::Others
-            },
+            }
         }
 
     }
@@ -186,8 +188,7 @@ fn test_alg_id() {
         //TryFromPrimitiveError
         Err(e) => {
             debug_log!("AlgId::try_from error: {:?}", e);
-
-        },
+        }
         _ => panic!("should not be here"),
     }
     //from AlgId to u8
@@ -244,10 +245,7 @@ assert_eq!(
         DasAction::new("enable_sub_account"),
         DasAction::EnableSubAccount
     );
-    assert_eq!(
-        DasAction::new("revoke_approval"),
-        DasAction::RevokeApproval
-    );
+    assert_eq!(DasAction::new("revoke_approval"), DasAction::RevokeApproval);
     assert_eq!(
         DasAction::new("fulfill_approval"),
         DasAction::FulfillApproval

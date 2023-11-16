@@ -41,6 +41,8 @@ pub enum Error {
     WitnessStructureError,
     InvalidWitness,
     ConfigMainNotFound,
+    LoadCellTypeHashError, //30
+    DpCellNotFound,
 }
 
 impl From<SysError> for Error {

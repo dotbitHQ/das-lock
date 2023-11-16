@@ -9,6 +9,4 @@
 	url = https://github.com/dotbitHQ/libecc-riscv-optimized.git
 [submodule "tools/ckb-binary-patcher"]
 	path = tools/ckb-binary-patcher
-	url = https://github.com/nervosnetwork/ckb-binary-patcher.git
-
-
+	url = https://github.com/nervosnetwork/ckb-binary-patcher

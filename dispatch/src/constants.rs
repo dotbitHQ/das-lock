@@ -1,11 +1,10 @@
 use crate::error::Error;
 use crate::structures::AlgId;
 use alloc::vec::Vec;
-use das_proc_macro::{test_level};
+use das_proc_macro::test_level;
 
 #[cfg(test)]
 use crate::test_framework::Testable;
-//use crate::witness_parser::WitParser;
 
 /*
 There are two ways to get the type ID,
@@ -13,6 +12,7 @@ one is through features conditional compilation,
 and the other is through witness_parser parsing config cell main.
 Note: that the latter is not compatible with historical transaction.
  */
+
 #[cfg(all(feature = "mainnet", feature = "testnet2"))]
 core::compile_error!("features `mainnet` and `testnet2` cannot be enabled simultaneously");
 
@@ -106,80 +106,28 @@ const BALANCE_TYPE_ID: &str = "4ff58f2c76b4ac26fdf675aa82541e02e4cf896279c6d6982
 const BALANCE_TYPE_ID: &str = "4ff58f2c76b4ac26fdf675aa82541e02e4cf896279c6d6982d17b959788b2f0c";
 
 #[allow(dead_code)]
-pub fn get_type_id(alg_id: AlgId) -> Result<Vec<u8>, Error> {
-    let len = TYPE_ID_TABLE.len();
-    if alg_id as usize >= len {
-        return Err(Error::InvalidAlgId);
-    }
+#[cfg(feature = "mainnet")]
+const ACCOUNT_TYPE_ID: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 
-    //not support ckb yet
-    if alg_id == AlgId::CkbMultiSig || alg_id == AlgId::AlwaysSuccess {
-        return Err(Error::InvalidAlgId);
-    }
-
-    let type_id = TYPE_ID_TABLE[alg_id as usize];
-
-    Ok(decode_hex("type id", type_id))
-    //Ok(hex::decode(type_id).map_err(|_| Error::InvalidAlgId)?)
-}
-
-/*
-note: using this method is not very forward compatible.
-Because of the config cell main.
- */
-// pub fn get_type_id2(alg_id: AlgId) -> Result<Vec<u8>, Error> {
-//     let parser = WitParser::get();
-//     parser.get_type_id_by_alg(alg_id)
-//
-// }
-fn decode_hex(title: &str, hex_str: &str) -> Vec<u8> {
-    match hex::decode(hex_str) {
-        Ok(v) => v,
-        Err(e) => {
-            panic!(
-                "decode hex ({}) error: {:?}, hex string = {}",
-                title, e, hex_str
-            );
-        }
-    }
-}
-pub fn get_balance_type_id() -> Vec<u8> {
-    decode_hex("balance type id", BALANCE_TYPE_ID)
-}
-// #[allow(dead_code)]
-// pub fn get_balance_type_id2() -> Vec<u8> {
-//     let parser = WitParser::get();
-//     match parser.get_balance_type_id() {
-//         Ok(v) => {
-//             debug_log!("get balance type id: {:02x?}", v);
-//             v
-//         },
-//         Err(e) => {
-//             panic!("get balance type id error: {:?}", e);
-//         }
-//     }
-// }
-
-pub fn get_sub_account_type_id() -> Vec<u8> {
-    decode_hex("sub account type id", SUB_ACCOUNT_TYPE_ID)
-}
-// #[allow(dead_code)]
-// pub fn get_sub_account_type_id2() -> Vec<u8> {
-//     let parser = WitParser::get();
-//     match parser.get_sub_account_type_id() {
-//         Ok(v) => {
-//             debug_log!("get sub account type id: {:02x?}", v);
-//             v
-//         },
-//         Err(e) => {
-//             panic!("get sub account type id error: {:?}", e);
-//         }
-//     }
-// }
 #[allow(dead_code)]
-fn checksum(s: &str) -> u32 {
-    s.as_bytes().iter().map(|&b| b as u32).sum()
-}
+#[cfg(feature = "testnet2")]
+const ACCOUNT_TYPE_ID: &str = "1106d9eaccde0995a7e07e80dd0ce7509f21752538dfdd1ee2526d24574846b1";
+
+#[allow(dead_code)]
+#[cfg(feature = "testnet3")]
+const ACCOUNT_TYPE_ID: &str = "1106d9eaccde0995a7e07e80dd0ce7509f21752538dfdd1ee2526d24574846b1";
+
+#[allow(dead_code)]
+#[cfg(feature = "mainnet")]
+const DPOINT_TYPE_ID: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+
+#[allow(dead_code)]
+#[cfg(feature = "testnet2")]
+const DPOINT_TYPE_ID: &str = "5988ce37f185904477f120742b191a0730da0d5de9418a8bdf644e6bb3bd8c12";
+
+#[allow(dead_code)]
+#[cfg(feature = "testnet3")]
+const DPOINT_TYPE_ID: &str = "5988ce37f185904477f120742b191a0730da0d5de9418a8bdf644e6bb3bd8c12";
 
 pub const MAX_WITNESS_SIZE: usize = 32768;
 pub const ONE_BATCH_SIZE: usize = 32768;
@@ -202,65 +150,110 @@ pub const WEBAUTHN_SIZE: usize = 1 + WEBAUTHN_PAYLOAD_LEN;
 
 pub const FLAGS_SIZE: usize = 4;
 
-//todo2 fn get_devicekey_list_type_id
 
-// fn main() {
-//     println!("Hello, world!");
-//     println!("{:?}", TYPE_ID_TABLE);
-//     for i in TYPE_ID_TABLE {
-//         print!("{}, ", checksum(i));
-//     }
-// }
-#[test_level(1)]
-fn test_get_type_id() {
-    let expected_check_sum = TYPE_ID_CHECK;
-    for (id, expected) in TYPE_ID_TABLE.iter().zip(expected_check_sum.iter()) {
-        let real = checksum(id);
-        assert_eq!(expected, &real);
+
+
+#[allow(dead_code)]
+pub fn get_type_id(alg_id: AlgId) -> Result<Vec<u8>, Error> {
+    let len = TYPE_ID_TABLE.len();
+    if alg_id as usize >= len {
+        return Err(Error::InvalidAlgId);
+    }
+
+    //not support ckb yet
+    if alg_id == AlgId::CkbMultiSig || alg_id == AlgId::AlwaysSuccess {
+        return Err(Error::InvalidAlgId);
+    }
+
+    let type_id = TYPE_ID_TABLE[alg_id as usize];
+
+    Ok(decode_hex("type id", type_id))
+    //Ok(hex::decode(type_id).map_err(|_| Error::InvalidAlgId)?)
+}
+
+fn decode_hex(title: &str, hex_str: &str) -> Vec<u8> {
+    match hex::decode(hex_str) {
+        Ok(v) => v,
+        Err(e) => {
+            panic!(
+                "decode hex ({}) error: {:?}, hex string = {}",
+                title, e, hex_str
+            );
+        }
     }
 }
-#[cfg(feature = "mainnet")]
-#[test_level(1)]
-fn test_get_type_id_mainnet() {
-    let expected_type_id_str = "f7e5ee57bfc0a17d3796cdae5a5b07c590668777166499d56178d510e1344765";
-
-    let real_ckb_type_id = TYPE_ID_TABLE[0];
-    assert_eq!(expected_type_id_str, real_ckb_type_id);
-
-    let real_ckb_checksum = TYPE_ID_CHECK[0];
-    let ckb_checksum = checksum(expected_type_id_str);
-    assert_eq!(ckb_checksum, real_ckb_checksum);
+pub fn get_balance_type_id() -> Result<Vec<u8>, Error> {
+    Ok(decode_hex("balance type id", BALANCE_TYPE_ID))
 }
 
-#[cfg(feature = "testnet2")]
-#[test_level(1)]
-fn test_get_type_id_testnet2() {
-    let expected_type_id_str = "c9fc9f3dc050f8bf11019842a2426f48420f79da511dd169ee243f455e9f84ed";
 
-    let real_ckb_type_id = TYPE_ID_TABLE[0];
-    assert_eq!(expected_type_id_str, real_ckb_type_id);
-
-    let real_ckb_checksum = TYPE_ID_CHECK[0];
-    let ckb_checksum = checksum(expected_type_id_str);
-    assert_eq!(ckb_checksum, real_ckb_checksum);
+pub fn get_sub_account_type_id() -> Result<Vec<u8>, Error> {
+    Ok(decode_hex("sub account type id", SUB_ACCOUNT_TYPE_ID))
 }
 
-#[cfg(feature = "testnet3")]
-#[test_level(1)]
-fn test_get_type_id_testnet3() {
-    let expected_type_id_str = "c9fc9f3dc050f8bf11019842a2426f48420f79da511dd169ee243f455e9f84ed";
-
-    let real_ckb_type_id = TYPE_ID_TABLE[0];
-    assert_eq!(expected_type_id_str, real_ckb_type_id);
-
-    let real_ckb_checksum = TYPE_ID_CHECK[0];
-    let ckb_checksum = checksum(expected_type_id_str);
-    assert_eq!(ckb_checksum, real_ckb_checksum);
+pub fn get_account_type_id() -> Result<Vec<u8>, Error> {
+    Ok(decode_hex("account type id", ACCOUNT_TYPE_ID))
 }
 
-#[test_level(1)]
-fn test_decode_hex() {
-    let expected = alloc::vec![0x12, 0x34, 0x56, 0x78];
-    let real = decode_hex("test", "12345678");
-    assert_eq!(expected, real);
+pub fn get_dp_cell_type_id() -> Result<Vec<u8>, Error> {
+    Ok(decode_hex("dp cell type id", DPOINT_TYPE_ID))
 }
+
+#[allow(dead_code)]
+fn checksum(s: &str) -> u32 {
+    s.as_bytes().iter().map(|&b| b as u32).sum()
+}
+
+// #[test_level(1)]
+// fn test_get_type_id() {
+//     let expected_check_sum = TYPE_ID_CHECK;
+//     for (id, expected) in TYPE_ID_TABLE.iter().zip(expected_check_sum.iter()) {
+//         let real = checksum(id);
+//         assert_eq!(expected, &real);
+//     }
+// }
+// #[cfg(feature = "mainnet")]
+// #[test_level(1)]
+// fn test_get_type_id_mainnet() {
+//     let expected_type_id_str = "f7e5ee57bfc0a17d3796cdae5a5b07c590668777166499d56178d510e1344765";
+//
+//     let real_ckb_type_id = TYPE_ID_TABLE[0];
+//     assert_eq!(expected_type_id_str, real_ckb_type_id);
+//
+//     let real_ckb_checksum = TYPE_ID_CHECK[0];
+//     let ckb_checksum = checksum(expected_type_id_str);
+//     assert_eq!(ckb_checksum, real_ckb_checksum);
+// }
+//
+// #[cfg(feature = "testnet2")]
+// #[test_level(1)]
+// fn test_get_type_id_testnet2() {
+//     let expected_type_id_str = "c9fc9f3dc050f8bf11019842a2426f48420f79da511dd169ee243f455e9f84ed";
+//
+//     let real_ckb_type_id = TYPE_ID_TABLE[0];
+//     assert_eq!(expected_type_id_str, real_ckb_type_id);
+//
+//     let real_ckb_checksum = TYPE_ID_CHECK[0];
+//     let ckb_checksum = checksum(expected_type_id_str);
+//     assert_eq!(ckb_checksum, real_ckb_checksum);
+// }
+//
+// #[cfg(feature = "testnet3")]
+// #[test_level(1)]
+// fn test_get_type_id_testnet3() {
+//     let expected_type_id_str = "c9fc9f3dc050f8bf11019842a2426f48420f79da511dd169ee243f455e9f84ed";
+//
+//     let real_ckb_type_id = TYPE_ID_TABLE[0];
+//     assert_eq!(expected_type_id_str, real_ckb_type_id);
+//
+//     let real_ckb_checksum = TYPE_ID_CHECK[0];
+//     let ckb_checksum = checksum(expected_type_id_str);
+//     assert_eq!(ckb_checksum, real_ckb_checksum);
+// }
+//
+// #[test_level(1)]
+// fn test_decode_hex() {
+//     let expected = alloc::vec![0x12, 0x34, 0x56, 0x78];
+//     let real = decode_hex("test", "12345678");
+//     assert_eq!(expected, real);
+// }

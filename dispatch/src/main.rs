@@ -47,5 +47,5 @@ fn program_entry() -> i8 {
     #[cfg(test)]
     test_main();
     #[cfg(test)] // this is needed to avoid compilation error,
-    return -1; //use -1 to avoid use test version in real program
+    return -110; //use -110 to avoid use test version in real program
 }

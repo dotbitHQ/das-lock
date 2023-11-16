@@ -1,5 +1,5 @@
-use alloc::format;
 use crate::debug_log;
+use alloc::format;
 
 use das_proc_macro::test_level;
 
@@ -10,7 +10,8 @@ pub trait Testable {
 
 #[cfg(test)]
 impl<T> Testable for T
-    where T: Fn()
+where
+    T: Fn(),
 {
     fn run(&self) {
         //It is a static str, generated at compile time, so cannot move to my_runner.

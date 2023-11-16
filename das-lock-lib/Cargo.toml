@@ -7,3 +7,5 @@ license = "MIT"
 [build-dependencies]
 blake2b-rs = "0.1.5"
 cargo-emit = "0.2"
+hex = "0.4"
+

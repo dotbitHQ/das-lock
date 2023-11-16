@@ -3,6 +3,7 @@ extern crate alloc;
 use crate::error::Error;
 use alloc::string::String;
 use alloc::vec::Vec;
+use ckb_std::high_level::{load_cell_type, load_cell_type_hash, load_witness_args};
 use ckb_std::{
     ckb_constants::{CellField, Source},
     ckb_types::{
@@ -15,9 +16,13 @@ use ckb_std::{
 };
 use core::convert::TryFrom;
 use core::result::Result;
-use ckb_std::high_level::load_witness_args;
+use das_core::util::hex_string;
 
-use crate::constants::{get_balance_type_id, get_sub_account_type_id, BLAKE160_SIZE, FLAGS_SIZE, HASH_SIZE, MAX_WITNESS_SIZE, ONE_BATCH_SIZE, RIPEMD160_HASH_SIZE, SCRIPT_SIZE, SIGNATURE_SIZE, SIZE_UINT64, WEBAUTHN_SIZE, WITNESS_ARGS_HEADER_LEN, WITNESS_ARGS_LOCK_LEN, get_type_id};
+use crate::constants::{
+    BLAKE160_SIZE, FLAGS_SIZE, HASH_SIZE, MAX_WITNESS_SIZE, ONE_BATCH_SIZE, RIPEMD160_HASH_SIZE,
+    SCRIPT_SIZE, SIGNATURE_SIZE, SIZE_UINT64, WEBAUTHN_SIZE, WITNESS_ARGS_HEADER_LEN,
+    WITNESS_ARGS_LOCK_LEN,
+};
 use crate::debug_log;
 use crate::dlopen::ckb_auth_dl;
 use crate::structures::CmdMatchStatus::{DasNotPureLockCell, DasPureLockCell};
@@ -27,6 +32,10 @@ use crate::structures::{
 };
 use crate::utils::generate_sighash_all::{calculate_inputs_len, load_and_hash_witness};
 use crate::utils::{bytes_to_u32_le, check_num_boundary, new_blake2b};
+use crate::constants::{
+    get_account_type_id, get_balance_type_id, get_dp_cell_type_id, get_sub_account_type_id,
+    get_type_id,
+};
 use das_types::constants::LockRole as Role;
 use das_proc_macro::{test_level};
 
@@ -56,7 +65,11 @@ fn check_witness_das_header(data: &[u8]) -> Result<(), Error> {
     //it should be equal to witness.len() - 7
     let witness_len = data.len();
     if !bytes_to_u32_le(&data[7..11]).is_some_and(|x| x as usize + 7 == witness_len) {
-        debug_log!("witness_len = {:?}, data[7..11] = {:02x?}", witness_len, &data[7..11]);
+        debug_log!(
+            "witness_len = {:?}, data[7..11] = {:02x?}",
+            witness_len,
+            &data[7..11]
+        );
         return Err(Error::InvalidDasWitness);
     }
 
@@ -89,7 +102,6 @@ fn get_witness_action(temp: &[u8]) -> Result<(DasAction, Role), Error> {
     let action_string = String::from_utf8(temp[action_start..action_end].to_vec())
         .map_err(|_| Error::InvalidString)?;
     debug_log!("action_string = {:?}", action_string);
-
 
     let action = DasAction::new(action_string.as_str());
     debug_log!("action = {:?}", action);
@@ -162,7 +174,10 @@ fn get_lock_args(action: &DasAction, role: Role) -> Result<LockArgs, Error> {
     };
     let payload = args_slice[payload_start_idx..payload_end_index].to_vec();
 
-    let alg = check_and_downgrade_alg_id(action, AlgId::try_from(alg_id).map_err(|_| Error::InvalidAlgId)?);
+    let alg = check_and_downgrade_alg_id(
+        action,
+        AlgId::try_from(alg_id).map_err(|_| Error::InvalidAlgId)?,
+    );
 
     let ret = LockArgs::new(alg, payload);
     Ok(ret)
@@ -170,20 +185,23 @@ fn get_lock_args(action: &DasAction, role: Role) -> Result<LockArgs, Error> {
 
 
 // #[allow(unused_assignments)]
+// warning: if there are some cells with same lock script?
 fn get_self_index_in_inputs() -> Result<usize, Error> {
     let script_hash = load_script_hash()?;
-    debug_log!("script_hash = {:02x?}", script_hash);
+    debug_log!("self script_hash = {:02x?}", script_hash);
 
     let mut i = 0;
     #[allow(unused_assignments)]
-    let mut match_result = false;
+    let mut match_result;
     loop {
         let lock_hash = load_cell_lock_hash(i, Source::Input)?;
-        debug_log!("lock_hash = {:02x?}", lock_hash);
+        debug_log!("loaded {} : lock_hash = {:02x?}", i, lock_hash);
         //if script_hash == lock_hash {
         if script_hash == lock_hash {
             match_result = true;
             break;
+        } else {
+            match_result = false;
         }
         i += 1;
     }
@@ -193,6 +211,35 @@ fn get_self_index_in_inputs() -> Result<usize, Error> {
     }
     debug_log!("self index = {:?}", i);
     Ok(i)
+}
+
+fn get_first_dp_cell_lock_hash() -> Result<Vec<u8>, Error> {
+    let dp_cell_type_id = get_dp_cell_type_id()?;
+    debug_log!("dp_cell_type_id = {:02x?}", dp_cell_type_id);
+
+    for i in 0..100 {
+        match load_cell_type(i, Source::Input) {
+            Ok(type_script) => {
+
+                if type_script.is_some()  {
+                    let type_args = type_script.unwrap().code_hash().raw_data().to_vec();
+                    debug_log!("{} type_args = {:02x?}", i, type_args);
+                    if type_args == dp_cell_type_id {
+                        return Ok(load_cell_lock_hash(i, Source::Input)?.to_vec());
+                    }
+                }
+            }
+            Err(SysError::IndexOutOfBound) => {
+                debug_log!("load_cell_type_hash error: {:?}", SysError::IndexOutOfBound);
+                break;
+            }
+            Err(e) => {
+                debug_log!("load_cell_type_hash error: {:?}", e);
+                return Err(Error::LoadCellTypeHashError);
+            }
+        }
+    }
+    Err(Error::DpCellNotFound)
 }
 
 fn check_skip_sign_for_buy_account(
@@ -217,12 +264,50 @@ fn check_skip_sign_for_buy_account(
 
     Ok(SkipSignOrNot::NotSkip)
 }
+fn check_skip_sign_for_bid_expired_auction(action: &DasAction) -> Result<SkipSignOrNot, Error> {
+    debug_log!("Enter check_skip_sign_for_bid_expired_auction");
+    if *action != DasAction::BidExpiredAccountAuction {
+        return Ok(SkipSignOrNot::NotSkip);
+    }
+
+    //AccountCell is always inputs[0], guarantee it through the account-cell-type.
+    let script_index = get_self_index_in_inputs()?;
+    debug_log!("get_self_index_in_inputs self index = {:?}", script_index);
+
+    let current_type_script = load_cell_type(script_index, Source::Input)?
+        .expect("type script should exist");
+    let current_type_script_args = current_type_script.code_hash().raw_data().to_vec();
+    //debug_log!("current_type_script_args = {}", hex_string(current_type_script_args.as_slice()));
+
+    let account_cell_type_id = get_account_type_id()?;
+    let current_lock_script_hash = load_cell_lock_hash(script_index, Source::Input)?.to_vec();
+    //debug_log!("current_lock_script_hash = {}", hex_string(current_lock_script_hash.as_slice()));
+
+    //dp-cell-type ensures that the locks of all dp cells in inputs are the same.
+    let dp_cell_lock_hash = get_first_dp_cell_lock_hash()?; //
+    //debug_log!("dp_cell_lock_hash = {}", hex_string(dp_cell_lock_hash.as_slice()));
+
+    debug_log!("current_lock_script_hash = {}", hex_string(current_lock_script_hash.as_slice()));
+    debug_log!("dp_cell_lock_hash = {}", hex_string(dp_cell_lock_hash.as_slice()));
+    debug_log!("current_type_script_args = {}", hex_string(current_type_script_args.as_slice()));
+    debug_log!("account_cell_type_id = {}", hex_string(account_cell_type_id.as_slice()));
+
+    //Signature verification can be skipped only if the following two conditions are met.
+    //1. The current lock is not equal to the lock of dp cell
+    //2. The current type is account-cell-type
+    if current_lock_script_hash != dp_cell_lock_hash &&  current_type_script_args == account_cell_type_id {
+        debug_log!("jump over the signature verification of the Dutch auction");
+        return Ok(SkipSignOrNot::Skip);
+    }
+
+    Ok(SkipSignOrNot::NotSkip)
+}
 
 fn check_the_first_input_cell_must_be_sub_account_type_script() -> Result<MatchStatus, Error> {
     //debug_log!("Enter check_the_first_input_cell_must_be_sub_account_type_script");
 
     //get sub account type id
-    let sub_account_type_id = get_sub_account_type_id();
+    let sub_account_type_id = get_sub_account_type_id()?;
 
     let mut temp = [0u8; SCRIPT_SIZE];
     let read_len = load_cell_by_field(&mut temp, 0, 0, Source::Input, CellField::Type)?;
@@ -258,14 +343,14 @@ fn check_skip_sign_for_update_sub_account(action: &DasAction) -> Result<SkipSign
 }
 #[allow(dead_code)]
 fn get_witness_args_lock() -> Result<Vec<u8>, Error> {
-    let witness_args = match
-        load_witness_args(0, Source::GroupInput).map_err(|_| Error::WitnessError) {
-        Ok(v) => {v}
-        Err(e) => {
-            debug_log!("load_witness_args error: {:?}", e);
-            return Err(Error::WitnessError)
-        }
-    };
+    let witness_args =
+        match load_witness_args(0, Source::GroupInput).map_err(|_| Error::WitnessError) {
+            Ok(v) => v,
+            Err(e) => {
+                debug_log!("load_witness_args error: {:?}", e);
+                return Err(Error::WitnessError);
+            }
+        };
     Ok(witness_args.as_slice()[20..].to_vec())
 }
 fn get_plain_and_cipher(alg_id: AlgId) -> Result<SignInfo, Error> {
@@ -293,13 +378,21 @@ fn get_plain_and_cipher(alg_id: AlgId) -> Result<SignInfo, Error> {
 
     //u32::from_le_bytes(temp[16..20].try_into().unwrap()) as usize;
     if read_len < lock_field_end_index {
-        debug_log!("err read_len = {:?}, lock_field_end_index = {:?}", read_len, lock_field_end_index);
+        debug_log!(
+            "err read_len = {:?}, lock_field_end_index = {:?}",
+            read_len,
+            lock_field_end_index
+        );
         return Err(Error::Encoding);
     }
 
     if alg_id == AlgId::Eip712 {
         if lock_length != WITNESS_ARGS_LOCK_LEN {
-            debug_log!("Eip712's signature in witness has wrong length = {:?} != {}", lock_length, WITNESS_ARGS_LOCK_LEN);
+            debug_log!(
+                "Eip712's signature in witness has wrong length = {:?} != {}",
+                lock_length,
+                WITNESS_ARGS_LOCK_LEN
+            );
             return Err(Error::InvalidWitnessArgsLock);
         }
 
@@ -400,20 +493,18 @@ fn get_plain_and_cipher(alg_id: AlgId) -> Result<SignInfo, Error> {
 // }
 
 fn check_has_pure_type_script() -> CmdMatchStatus {
-    let balance_type_id = get_balance_type_id();
+    let balance_type_id = get_balance_type_id().unwrap();
     let mut buf = [0u8; 100];
     for i in 0.. {
-        let _len =
-            match load_cell_by_field(&mut buf, 0, i, Source::GroupInput, CellField::Type)
-            {
-                Ok(len) => len,
-                Err(SysError::IndexOutOfBound) => break,
-                Err(SysError::ItemMissing) => continue,
-                Err(err) => {
-                    debug_log!("load_cell_by_field error: {:?}", err);
-                    return DasNotPureLockCell;
-                }
-            };
+        let _len = match load_cell_by_field(&mut buf, 0, i, Source::GroupInput, CellField::Type) {
+            Ok(len) => len,
+            Err(SysError::IndexOutOfBound) => break,
+            Err(SysError::ItemMissing) => continue,
+            Err(err) => {
+                debug_log!("load_cell_by_field error: {:?}", err);
+                return DasNotPureLockCell;
+            }
+        };
         //debug_assert_eq!(len, buf.len());
         if balance_type_id == &buf[16..] {
             continue;
@@ -449,7 +540,7 @@ fn check_manager_has_permission(action: &DasAction, role: Role) -> bool {
 }
 
 pub fn main() -> Result<(), Error> {
-    debug_log!("Enter das-lock-lib main.");
+    debug_log!("Enter das-lock main.");
 
     //get witness action
     let action_witness_index = calculate_inputs_len()?;
@@ -460,7 +551,11 @@ pub fn main() -> Result<(), Error> {
 
     //action should not bigger than MaxWitnessSize
     if read_len > MAX_WITNESS_SIZE {
-        debug_log!("Action witness's length is overflow! read len = {:?}, MAX_WITNESS_SIZE = {:?}", read_len, MAX_WITNESS_SIZE);
+        debug_log!(
+            "Action witness's length is overflow! read len = {:?}, MAX_WITNESS_SIZE = {:?}",
+            read_len,
+            MAX_WITNESS_SIZE
+        );
         return Err(Error::LengthNotEnough);
     }
 
@@ -497,6 +592,11 @@ pub fn main() -> Result<(), Error> {
         return Ok(());
     }
 
+    //add for dutch auction
+    if SkipSignOrNot::Skip == check_skip_sign_for_bid_expired_auction(&das_action)? {
+        debug_log!("Skip this action, {:?}", das_action);
+        return Ok(());
+    }
     //get sign info
     let sign_info = get_plain_and_cipher(lock_args.alg_id)?;
     debug_log!("Got signature and message : {}", sign_info);
@@ -512,7 +612,11 @@ pub fn main() -> Result<(), Error> {
 
     //get type id
     let code_hash = get_type_id(lock_args.alg_id)?;
-    debug_log!("alg{} code hash = {}", lock_args.alg_id as u8, hex::encode(&code_hash));
+    debug_log!(
+        "alg{} code hash = {}",
+        lock_args.alg_id as u8,
+        hex::encode(&code_hash)
+    );
 
     //call dynamic linking and run auth
     let ret = match ckb_auth_dl(

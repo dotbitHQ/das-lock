@@ -1,3 +1,4 @@
+# Compiler & tools settings
 TARGET := riscv64-unknown-linux-gnu
 CC := $(TARGET)-gcc
 LD := $(TARGET)-gcc
@@ -9,18 +10,34 @@ LDFLAGS := -Wl,-static -fdata-sections -ffunction-sections -Wl,--gc-sections
 RUST_FLAGS = -Z pre-link-arg=-zseparate-code -Z pre-link-arg=-zseparate-loadable-segments
 RUST_TARGET = riscv64imac-unknown-none-elf
 
+# Libraries and their path
 LIBECC_PATH := deps/libecc-riscv-optimized
 SECP256R1_DEP := ${LIBECC_PATH}/build/libarith.a ${LIBECC_PATH}/build/libec.a ${LIBECC_PATH}/build/libsign.a
 CFLAGS_LIBECC := -fPIC -O3 -fno-builtin -DUSER_NN_BIT_LEN=256 -DWORDSIZE=64 -DWITH_STDLIB -DWITH_BLANK_EXTERNAL_DEPENDENCIES -DCKB_DECLARATION_ONLY -DWITH_LL_U256_MONT
 CFLAGS_LINK_TO_LIBECC := -fno-builtin -DWORDSIZE=64 -DWITH_STDLIB -DWITH_BLANK_EXTERNAL_DEPENDENCIES -fno-builtin-printf -I ${LIBECC_PATH}/src -I ${LIBECC_PATH}/src/external_deps
 
+# Docker settings
 BUILDER_DOCKER := dotbitteam/ckb-dev-all-in-one:0.0.1
+CODE_DIR_DOCKER := /code
+
+# Define a function for Docker run
+define DOCKER_RUN_CMD
+	docker run --rm \
+	-v `pwd`:/code \
+	-v ~/.gitconfig:/root/.gitconfig:ro \
+	-v ~/.cargo:/root/.cargo \
+	-e NET_TYPE=${NET_TYPE} \
+	${BUILDER_DOCKER} bash -c
+endef
 
 PROTOCOL_HEADER := c/protocol.h
 PROTOCOL_SCHEMA := c/blockchain.mol
 PROTOCOL_VERSION := d75e4c56ffa40e17fd2fe477da3f98c5578edcd1
 PROTOCOL_URL := https://raw.githubusercontent.com/nervosnetwork/ckb/${PROTOCOL_VERSION}/util/types/schemas/blockchain.mol
+#note: compile ckb-binary-patcher in docker container
+CKB_BINARY_PATCHER_PATH = ./tools/ckb-binary-patcher/target/release/ckb-binary-patcher
 
+# Target aliases
 contract_entry := dispatch
 dyn_libs := ckb_sign tron_sign eth_sign ed25519_sign ckb_multi_sign doge_sign
 webauthn_lib := webauthn_sign
@@ -36,28 +53,22 @@ dyn_lib_files = $(foreach file, $(dyn_libs), build/release/$(file).so build/debu
 webauthn_lib_targets = $(foreach file, $(webauthn_lib), release_$(file) debug_$(file))
 webauthn_lib_files = $(foreach file, $(webauthn_lib), build/release/$(file).so build/debug/$(file).so)
 
-DOCKER_RUN := docker run --rm \
-	-v `pwd`:/code \
-	-v ~/.gitconfig:/root/.gitconfig:ro \
-	-e NET_TYPE=${NET_TYPE} \
-	${BUILDER_DOCKER} bash -c \
-	"cd /code && make all CFLAGS='$(CFLAGS)'"
-	#-v ~/.cargo:/root/.cargo \
-
-all-via-docker: ${PROTOCOL_HEADER} install-ckb-binary-patcher
-	@mkdir -p build/release
-	${DOCKER_RUN} "cd /code && make all CFLAGS='$(CFLAGS)'"
 
 debug-all-via-docker: ${PROTOCOL_HEADER} install-ckb-binary-patcher
 	@mkdir -p build/debug
-	${DOCKER_RUN} "cd /code && make debug-all CFLAGS='$(CFLAGS)'"
+	#make debug-all
+	${DOCKER_RUN_CMD} "cd ${CODE_DIR_DOCKER} && make debug-all CFLAGS='$(CFLAGS)'"
 
-
-all: release-all
-release-all: $(filter release_%, $(contract_entry_targets)) $(filter release_%, $(dyn_lib_targets)) $(filter release_%, $(webauthn_lib_targets))
+all-via-docker: ${PROTOCOL_HEADER} install-ckb-binary-patcher
+	@mkdir -p build/release
+	#make all
+	@${DOCKER_RUN_CMD} "cd ${CODE_DIR_DOCKER} && make all CFLAGS='$(CFLAGS)'"
 
 debug-all: DEBUG_FLAGS = -DCKB_C_STDLIB_PRINTF
 debug-all: $(filter debug_%, $(contract_entry_targets)) $(filter debug_%, $(dyn_lib_targets)) $(filter debug_%, $(webauthn_lib_targets))
+
+all: release-all
+release-all: $(filter release_%, $(contract_entry_targets)) $(filter release_%, $(dyn_lib_targets)) $(filter release_%, $(webauthn_lib_targets))
 
 # Add DEBUG flags, if target is release, the DEBUG_FLAGS is empty
 debug_%: DEBUG_FLAGS = -DCKB_C_STDLIB_PRINTF
@@ -74,12 +85,14 @@ $(filter release_%, $(contract_entry_targets)): release_%: build/release/%
 # Specify output file dependencies
 $(filter build/debug/%, $(contract_entry_files)): build/debug/%:
 	@#note: If cflags is not commented out, an error will be reported when compiling smt.
+	@echo "make $@"
 	cd dispatch && CFLAGS="" RUSTFLAGS="$(RUST_FLAGS)" cargo build --features "$(NET_TYPE)" --target $(RUST_TARGET)
-	cp target/$(RUST_TARGET)/debug/dispatch build/debug/dispatch
+	cp target/$(RUST_TARGET)/debug/dispatch $@
 
 $(filter build/release/%, $(contract_entry_files)): build/release/%:
-	cd dispatch && CFLAGS="" RUSTFLAGS="$(RUST_FLAGS)" cargo build --features "$(NET_TYPE)" --target $(RUST_TARGET) --release
-	cp target/$(RUST_TARGET)/release/dispatch build/release/dispatch
+	@echo "make $@"
+	cd dispatch && CFLAGS="" RUSTFLAGS="$(RUST_FLAGS)" COMPILING_RELEASE_FLAGS="-C link-arg=-s" cargo build --features "$(NET_TYPE)" --target $(RUST_TARGET) --release
+	cp target/$(RUST_TARGET)/release/dispatch $@
 
 
 # Compile the dynamic libraries
@@ -89,12 +102,14 @@ $(filter release_%, $(dyn_lib_targets)): release_%: build/release/%.so
 
 # Specify output file dependencies
 $(filter build/debug/%, $(dyn_lib_files)): build/debug/%.so: c/%.c
+	@echo "make $@"
 	$(CC) $(CFLAGS) $(LDFLAGS) $(DEBUG_FLAGS) -shared -o $@ $<
 	@#note: ckb-binary-patcher will read the file into memory, modify it and then overwrite it, so don't worry.
-	ckb-binary-patcher -i $@ -o $@
+	${CKB_BINARY_PATCHER_PATH} -i $@ -o $@
 $(filter build/release/%, $(dyn_lib_files)): build/release/%.so: c/%.c
+	@echo "make $@"
 	$(CC) $(CFLAGS) $(LDFLAGS) $(DEBUG_FLAGS) -shared -o $@ $<
-	ckb-binary-patcher -i $@ -o $@
+	${CKB_BINARY_PATCHER_PATH} -i $@ -o $@
 
 #$(filter build/debug/%, $(dyn_lib_files)): patch-debug/*.so: build/debug/%.so
 #	@ckb-binary-patcher -i $< -o $<
@@ -104,31 +119,19 @@ $(filter debug_%, $(webauthn_lib_targets)) : debug_%: build/debug/%.so
 $(filter release_%, $(webauthn_lib_targets)) : release_%: build/release/%.so
 
 $(filter build/debug/%, $(webauthn_lib_files)) : build/debug/%.so: c/%.c libecc c/webauthn.syms
+	@echo "make $@"
 	$(CC) $(CFLAGS) $(CFLAGS_LINK_TO_LIBECC) $(LDFLAGS) $(DEBUG_FLAGS) -o $@ -D__SHARED_LIBRARY__ -pie -Wl,--dynamic-list c/webauthn.syms $< $(SECP256R1_DEP) $(LIBECC_PATH)/src/external_deps/rand.c $(LIBECC_PATH)/src/external_deps/print.c
 	$(OBJCOPY) --strip-all $@
 
 $(filter build/release/%, $(webauthn_lib_files)) : build/release/%.so: c/%.c libecc  c/webauthn.syms
+	@echo "make $@"
 	$(CC) $(CFLAGS) $(CFLAGS_LINK_TO_LIBECC) $(LDFLAGS) -o $@ -D__SHARED_LIBRARY__ -pie -Wl,--dynamic-list c/webauthn.syms $< $(SECP256R1_DEP) $(LIBECC_PATH)/src/external_deps/rand.c $(LIBECC_PATH)/src/external_deps/print.c
 	$(OBJCOPY) --strip-all $@
 
 libecc :
+	#make libecc
+	@#note: If you run this command alone, you need to install riscv-toolchain
 	make -C ${LIBECC_PATH} LIBECC_WITH_LL_U256_MONT=1 CC=${CC} LD=${LD} CFLAGS="$(CFLAGS_LIBECC)"
-
-webauthn_sign.so.debug: webauthn_sign.c $(SECP256R1_DEP)
-	$(CC) $(CFLAGS) $(CFLAGS_LINK_TO_LIBECC) $(LDFLAGS) $(DEBUG_FLAGS) -o $@ -D__SHARED_LIBRARY__ -pie -Wl,--dynamic-list webauthn.syms $< $(SECP256R1_DEP) deps/libecc/src/external_deps/rand.c deps/libecc/src/external_deps/print.c
-	#$(CC) $(CFLAGS_OPTIMIZED) $(CFLAGS_LINK_TO_LIBECC_OPTIMIZED) $(DEBUG_FLAGS) $(LDFLAGS_OPTIMIZED)  $< $(SECP256R1_DEP) deps/libecc/src/external_deps/rand.c deps/libecc/src/external_deps/print.c -o $@
-	#$(OBJCOPY) --only-keep-debug $@ $@.debug
-	$(OBJCOPY) --strip-all $@
-
-webauthn_sign.so.release: webauthn_sign.c $(SECP256R1_DEP)
-	$(CC) $(CFLAGS) $(CFLAGS_LINK_TO_LIBECC) $(LDFLAGS) -o $@ -D__SHARED_LIBRARY__ -pie -Wl,--dynamic-list webauthn.syms $< $(SECP256R1_DEP) deps/libecc/src/external_deps/rand.c deps/libecc/src/external_deps/print.c
-	#$(OBJCOPY) --only-keep-debug $@ $@.debug
-	$(OBJCOPY) --strip-all $@
-
-$(SECP256R1_DEP):
-	make -C ${LIBECC_PATH} LIBECC_WITH_LL_U256_MONT=1 CC=${CC} LD=${LD} CFLAGS="$(CFLAGS_LIBECC)"
-	#cd deps/libecc && \
-	#CC=$(CC) LD=$(LD) CFLAGS="${PASSED_R1_CFLAGS}" BLINDING=0 COMPLETE=0 make 64
 
 
 ${PROTOCOL_HEADER}: ${PROTOCOL_SCHEMA}
@@ -137,7 +140,7 @@ ${PROTOCOL_HEADER}: ${PROTOCOL_SCHEMA}
 ${PROTOCOL_SCHEMA}:
 	curl -L -o $@ ${PROTOCOL_URL}
 
-CKB_BINARY_PATCHER_PATH = ckb-binary-patcher
+CKB_BINARY_PATCHER_PATH = ${CODE_DIR_DOCKER}/tools/ckb-binary-patcher/target/release/ckb-binary-patcher
 
 install-ckb-binary-patcher:
 	# Check if tools/ckb-binary-patcher exists
@@ -150,11 +153,11 @@ install-ckb-binary-patcher:
 		echo "cargo could not be found. Please install Rust and Cargo."; \
 		exit 1; \
 	fi
-	# Complile and install ckb-binary-patcher
-	@cd tools/ckb-binary-patcher && \
-	cargo build --release >/dev/null 2>&1 && \
-	cp target/release/ckb-binary-patcher ~/.cargo/bin/
-	# Install ckb-binary-patcher to ~/.cargo/bin
+
+	#Compile ckb-binary-patcher
+	@${DOCKER_RUN_CMD} "cd ${CODE_DIR_DOCKER}/tools/ckb-binary-patcher && \
+		cargo build --release 2>&1 >/dev/null"
+	#Compile success
 
 init-submodule:
 	@echo "init submodule"
@@ -170,9 +173,14 @@ build-secp256r1:
 	--with-bignum=no \
 	--with-asm=no \
 	--enable-endomorphism \
-	--enable-ecmult-static-precomputation
+	--enable-ecmult-static-precomputation && \
+	make -j4
 
-init-build-env: init-submodule build-secp256r1 libecc
+build-libecc:
+	@echo "build libecc"
+	${DOCKER_RUN_CMD} "cd ${CODE_DIR_DOCKER} && make libecc"
+
+init-build-env: init-submodule build-secp256r1 build-libecc
 	@echo "init build env"
 
 pull-docker-image:
@@ -180,8 +188,9 @@ pull-docker-image:
 
 clean:
 	cd dispatch && cargo clean
-	cd dep/libecc-riscv-optimized && make clean
+	cd das-lock-lib && cargo clean
+	#cd deps/libecc-riscv-optimized && make clean
 	rm -rf build/release/*
 	rm -rf build/debug/*
-
-.PHONY: clean debug-all-via-docker all-via-docker init-build-env pull-docker-image
+	cargo clean
+.PHONY: clean debug-all-via-docker all-via-docker debug-all release-all init-build-env pull-docker-image

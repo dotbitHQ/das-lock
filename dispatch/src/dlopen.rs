@@ -194,7 +194,10 @@ impl CKBDLLoader {
         hash_type: ScriptHashType,
         func_name: &str,
     ) -> Result<Symbol<T>, CkbAuthError> {
-        debug_log!("Prepare to load function {} from dynamic linking.", func_name);
+        debug_log!(
+            "Prepare to load function {} from dynamic linking.",
+            func_name
+        );
 
         let lib = self.get_lib(code_hash, hash_type)?;
         debug_log!("Load function {} from dynamic linking success.", func_name);

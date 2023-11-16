@@ -77,7 +77,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     Command::new("make").current_dir("../deps/secp256k1").run();
 
     //build libecc
-    Command::new("make").arg("libecc").run();
+    Command::new("make").current_dir("..").arg("libecc").run();
 
     //build dispatch
 
@@ -101,8 +101,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     build_command.current_dir("..");
 
     match is_release {
-        true => build_command.arg("all"),
-        false => build_command.arg("debug-all"),
+        true => build_command.arg("all-via-docker"),
+        false => build_command.arg("debug-all-via-docker"),
     };
 
     // Overwrite CFLAGS for makefile because newer gcc will introduce warnings in no-array-bounds, no-dangling-pointer, no-stringop-overflow
@@ -116,6 +116,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .args(["-p", &format!("{}/contracts", &out_dir)])
         .run();
     let contracts_path = format!("{}/contracts/mod.rs", &out_dir);
+    println!("contracts_path: {}", contracts_path);
     let contracts_file = File::create(contracts_path).expect("create contracts file failed");
     let mut contracts_buf_writer = BufWriter::new(contracts_file);
     writeln!(
@@ -124,7 +125,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     )
     .unwrap();
     for f in files {
-        let input_path = format!("build/{}/{}", &profile, f);
+        let input_path = format!("../build/{}/{}", &profile, f);
+        println!("input_path = {}", input_path);
 
         // Copy built files to rust target dir
         Command::new("cp")
@@ -134,7 +136,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             let mut file = File::open(&input_path).unwrap();
             black2b_hash(&mut file)
         };
-
+        println!("hash = {:?}", hash);
+        let hex_hash = hex::encode(hash);
         // Include the binary and hash to rust statically
         write!(
             contracts_buf_writer,
@@ -142,11 +145,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 pub mod {} {{
     pub const HASH: [u8; 32] = {:?};
     pub const BINARY: &[u8] = core::include_bytes!("{}");
+    pub const CODE_HASH_HEX: &str = {:?};
 }}
 "#,
             f.replace(".so", ""),
             hash,
-            f
+            f,
+            hex_hash,
         )
         .unwrap();
     }
