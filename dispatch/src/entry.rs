@@ -266,10 +266,10 @@ fn check_skip_sign_for_buy_account(
 }
 fn check_skip_sign_for_bid_expired_auction(action: &DasAction) -> Result<SkipSignOrNot, Error> {
     debug_log!("Enter check_skip_sign_for_bid_expired_auction");
-    if *action != DasAction::BidExpiredAccountAuction {
+    if *action != DasAction::BidExpiredAccountDutchAuction {
         return Ok(SkipSignOrNot::NotSkip);
     }
-
+    //todo maybe have risks when skip by cell out of the group
     //AccountCell is always inputs[0], guarantee it through the account-cell-type.
     let script_index = get_self_index_in_inputs()?;
     debug_log!("get_self_index_in_inputs self index = {:?}", script_index);
@@ -277,15 +277,11 @@ fn check_skip_sign_for_bid_expired_auction(action: &DasAction) -> Result<SkipSig
     let current_type_script = load_cell_type(script_index, Source::Input)?
         .expect("type script should exist");
     let current_type_script_args = current_type_script.code_hash().raw_data().to_vec();
-    //debug_log!("current_type_script_args = {}", hex_string(current_type_script_args.as_slice()));
-
-    let account_cell_type_id = get_account_type_id()?;
     let current_lock_script_hash = load_cell_lock_hash(script_index, Source::Input)?.to_vec();
-    //debug_log!("current_lock_script_hash = {}", hex_string(current_lock_script_hash.as_slice()));
 
     //dp-cell-type ensures that the locks of all dp cells in inputs are the same.
+    let account_cell_type_id = get_account_type_id()?;
     let dp_cell_lock_hash = get_first_dp_cell_lock_hash()?; //
-    //debug_log!("dp_cell_lock_hash = {}", hex_string(dp_cell_lock_hash.as_slice()));
 
     debug_log!("current_lock_script_hash = {}", hex_string(current_lock_script_hash.as_slice()));
     debug_log!("dp_cell_lock_hash = {}", hex_string(dp_cell_lock_hash.as_slice()));

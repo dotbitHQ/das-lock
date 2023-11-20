@@ -97,8 +97,8 @@ pub enum DasAction {
     RevokeApproval,
     #[strum(serialize = "fulfill_approval")]
     FulfillApproval,
-    #[strum(serialize = "bid_expired_account_auction")]
-    BidExpiredAccountAuction,
+    #[strum(serialize = "bid_expired_account_dutch_auction")]
+    BidExpiredAccountDutchAuction,
 
     Others,
 }
