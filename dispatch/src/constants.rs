@@ -107,7 +107,7 @@ const BALANCE_TYPE_ID: &str = "4ff58f2c76b4ac26fdf675aa82541e02e4cf896279c6d6982
 
 #[allow(dead_code)]
 #[cfg(feature = "mainnet")]
-const ACCOUNT_TYPE_ID: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+const ACCOUNT_TYPE_ID: &str = "4f170a048198408f4f4d36bdbcddcebe7a0ae85244d3ab08fd40a80cbfc70918";
 
 #[allow(dead_code)]
 #[cfg(feature = "testnet2")]
@@ -119,7 +119,7 @@ const ACCOUNT_TYPE_ID: &str = "1106d9eaccde0995a7e07e80dd0ce7509f21752538dfdd1ee
 
 #[allow(dead_code)]
 #[cfg(feature = "mainnet")]
-const DPOINT_TYPE_ID: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+const DPOINT_TYPE_ID: &str = "be1a129bb8092ea53a748fab00d2c12223533619458e01fd8eebb329b7f914d6";
 
 #[allow(dead_code)]
 #[cfg(feature = "testnet2")]
