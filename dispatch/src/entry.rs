@@ -23,7 +23,7 @@ use crate::constants::{
     SCRIPT_SIZE, SIGNATURE_SIZE, SIZE_UINT64, WEBAUTHN_SIZE, WITNESS_ARGS_HEADER_LEN,
     WITNESS_ARGS_LOCK_LEN,
 };
-use crate::debug_log;
+use crate::{debug_log, witness_parser};
 use crate::dlopen::ckb_auth_dl;
 use crate::structures::CmdMatchStatus::{DasNotPureLockCell, DasPureLockCell};
 use crate::structures::MatchStatus::{Match, NotMatch};
@@ -489,7 +489,8 @@ fn get_plain_and_cipher(alg_id: AlgId) -> Result<SignInfo, Error> {
 // }
 
 fn check_has_pure_type_script() -> CmdMatchStatus {
-    let balance_type_id = get_balance_type_id().unwrap();
+    //let balance_type_id = get_balance_type_id().unwrap();
+    let balance_type_id = witness_parser::get_balance_type_id().unwrap();
     let mut buf = [0u8; 100];
     for i in 0.. {
         let _len = match load_cell_by_field(&mut buf, 0, i, Source::GroupInput, CellField::Type) {

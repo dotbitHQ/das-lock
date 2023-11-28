@@ -1,183 +1,159 @@
+use crate::constants::MAX_WITNESS_SIZE;
+use crate::debug_log;
+use crate::error::Error;
+use crate::structures::AlgId;
+use alloc::vec::Vec;
+use das_core::constants::get_config_cell_main;
+//use das_core::constants::get_config_cell_main;
+use das_core::util::{hex_string, load_witnesses};
+use das_core::witness_parser::general_witness_parser::get_witness_parser;
+use das_core::witness_parser::WitnessesParser;
+use das_dynamic_libs::constants::DynLibName;
+use das_types::constants::DataType;
+use das_types::packed::{ConfigCellMain, Data, DataEntity, DeviceKeyListCellData};
+use das_types::prelude::Entity;
+
+pub(crate) fn get_type_id(alg_id: AlgId) -> Result<Vec<u8>, Error> {
+
+    debug_log!("get_type_id of alg {:?}", alg_id);
+    let config = get_witness_parser()
+        .find_unique::<ConfigCellMain>()
+        .unwrap()
+        .result;
+
+    let dynamic_name: DynLibName = alg_id.into();
+    let das_lock_type_id_table = config.das_lock_type_id_table();
+    let reader = das_lock_type_id_table.as_reader();
+    Ok(dynamic_name.get_code_hash(reader).to_vec())
+}
 //
-//
-// use alloc::vec::Vec;
-// use das_core::util::load_witnesses;
-// use das_core::witness_parser::WitnessesParser;
-// use das_dynamic_libs::constants::DynLibName;
-// use das_types::constants::DataType;
-// use crate::constants::MAX_WITNESS_SIZE;
-// use crate::debug_log;
-// use crate::error::Error;
-// use das_types::packed::{Data, DataEntity, DeviceKeyListCellData};
-// use das_types::prelude::Entity;
-// use crate::structures::AlgId;
-//
-//
-// // #[allow(dead_code)]
-// // #[derive(Debug, Clone, Copy)]
-// // struct DataIndex {
-// //     start: usize,
-// //     end: usize,
-// // }
-// /*
-//     inner: use WitnessesParser to parse all witnesses then get the map
-//     inner_vec: all witnesses loaded data
-//     inner_used: inner_vec used size
-//     loaded_witness: map from DataType to DataIndex, maybe struct is better
-//  */
-// #[allow(dead_code)]
-// pub struct WitParser {
-//     inner: WitnessesParser,
-//     inner_vec: Vec<u8>,
-//     inner_used: usize,
-//     loaded_witness: Vec<(DataType, DataIndex)>,
-// }
-// static mut G_WIT_PARSER: Option<WitParser> = None;
-// #[allow(dead_code)]
-// impl WitParser {
-//     pub fn get() -> &'static mut Self {
-//         unsafe {
-//             match G_WIT_PARSER.as_mut() {
-//                 Some(v) => v,
-//                 None => {
-//                     G_WIT_PARSER = Some(Self::new());
-//                     G_WIT_PARSER.as_mut().unwrap()
-//                 }
-//             }
-//         }
-//     }
-//     fn new() -> Self {
-//         let wp = match WitnessesParser::new(){
-//             Ok(v) => v,
-//             Err(e) => panic!("WitnessesParser::new() error: {:?}", e),
-//         };
-//
-//
-//         Self {
-//             inner: wp,
-//             inner_vec: Vec::with_capacity(MAX_WITNESS_SIZE), //maybe smaller than needed
-//             inner_used: 0,
-//             loaded_witness: Vec::new(),
-//         }
-//
-//     }
-//
-//     // fn get_loaded_witness_index(
-//     //     &self,
-//     //     data_type: &DataType,
-//     // )-> Option<DataIndex> {
-//     //     self.loaded_witness.iter().find(|(d, _)| d == data_type).map(|(_, i)| *i)
-//     // }
-//     // #[allow(dead_code)]
-//     // fn get_witness(
-//     //     &mut self,
-//     //     data_type: &DataType,
-//     // )-> Result<&[u8], Error>{
-//     //     let index = match self.get_loaded_witness_index(&data_type){
-//     //         Some(v) => v,
-//     //         None => {
-//     //             self.load_witness(&data_type)?
-//     //         }
-//     //     };
-//     //
-//     //     Ok(&self.inner_vec[index.start..index.end])
-//     // }
-//
-//     // fn load_witness(
-//     //     &mut self,
-//     //     data_type: &DataType,
-//     // )-> Result<DataIndex, Error>{
-//     //     let index = self.get_witness_index_by_data_type(data_type)?;
-//     //     let witness =  match load_witnesses(index) {
-//     //         Ok(v) => v,
-//     //         Err(e) => {
-//     //             debug_log!("load_witnesses error: {:?}", e);
-//     //             return Err(Error::LoadWitnessError);
-//     //         },
-//     //     };
-//     //
-//     //     let start = self.inner_used;
-//     //     let end = self.inner_used + witness.len();
-//     //     if end > MAX_WITNESS_SIZE {
-//     //         return Err(Error::WitnessTooLarge);
-//     //     }
-//     //     //note: maybe zero copy is better
-//     //     self.inner_vec.extend_from_slice(&witness);
-//     //     self.loaded_witness.push((*data_type, DataIndex {
-//     //         start,
-//     //         end,
-//     //     }));
-//     //     self.inner_used += witness.len();
-//     //
-//     //     Ok(DataIndex{
-//     //         start,
-//     //         end,
-//     //     })
-//     // }
-//     // fn get_witness_index_by_data_type(
-//     //     &self,
-//     //     data_type: &DataType,
-//     // )-> Result<usize, Error> {
-//     //     let index = match self.inner.witnesses.iter().find(|(_, d)| d == data_type).map(|(i, _)| i){
-//     //         Some(v) => v,
-//     //         None => return Err(Error::WitnessNotFound),
-//     //     };
-//     //     Ok(*index)
-//     // }
-//     pub(crate) fn get_type_id_by_alg(
-//         &self, alg_id: AlgId,
-//     ) -> Result<Vec<u8>, Error> {
-//         let config_main = match self.inner.configs.main(){
-//             Ok(v) => v,
-//             Err(e) => {
-//                 debug_log!("WitnessesParser::configs.main() error: {:?}", e);
-//                 return Err(Error::ConfigMainNotFound)
-//             },
-//         };
-//         let dynamic_name: DynLibName = alg_id.into();
-//         let das_lock_type_id_table = config_main.das_lock_type_id_table();
-//         Ok(dynamic_name.get_code_hash(das_lock_type_id_table).to_vec())
-//     }
-//
-//     //todo: abstract to get_type_id_by_type
-//     // pub fn get_type_id_by_type(&self, type_: ) -> Result<Vec<u8>, Error> {}
-//     // }
-//
-//
-//     pub fn get_balance_type_id(&self) -> Result<Vec<u8>, Error> {
-//         let config_main = match self.inner.configs.main(){
-//             Ok(v) => v,
-//             Err(e) => {
-//                 debug_log!("WitnessesParser::configs.main() error: {:?}", e);
-//                 return Err(Error::ConfigMainNotFound)
-//             },
-//         };
-//         let type_id_table = config_main.type_id_table();
-//         let balance = type_id_table.balance_cell().raw_data().to_vec();
-//         Ok(balance)
-//
-//     }
-//     pub fn get_sub_account_type_id(&self) -> Result<Vec<u8>, Error> {
-//         let config_main = match self.inner.configs.main(){
-//             Ok(v) => v,
-//             Err(e) => {
-//                 debug_log!("WitnessesParser::configs.main() error: {:?}", e);
-//                 return Err(Error::ConfigMainNotFound)
-//             },
-//         };
-//         let type_id_table = config_main.type_id_table();
-//         let sub_account = type_id_table.sub_account_cell().raw_data().to_vec();
-//         Ok(sub_account)
-//
-//     }
-// }
-//
-//
-// pub fn get_witness(
-//     data_type: &DataType,
-// )-> Result<&[u8], Error>{
-//     WitParser::get().get_witness(data_type)
-// }
+pub fn get_balance_type_id() -> Result<Vec<u8>, Error> {
+    debug_log!("get_balance_type_id");
+
+    let a = get_witness_parser();
+    debug_log!("file-{} line-{}", file!(), line!());
+    let b = a.find_unique::<ConfigCellMain>();
+    debug_log!("file-{} line-{}", file!(), line!());
+
+    debug_log!("b");
+
+    let c = match b {
+        Err(e) => {
+            debug_log!(
+                "get_balance_type_id find_unique::<ConfigCellMain> None {:?}",
+                e
+            );
+            return Err(Error::InvalidWitness);
+        }
+        Ok(v) => {
+            debug_log!("get_balance_type_id find_unique::<ConfigCellMain> Some");
+            let config_main = v.result;
+            debug_log!("get_balance_type_id find_unique::<ConfigCellMain> Some config_main");
+            let type_id_table = config_main.type_id_table();
+            debug_log!("get_balance_type_id find_unique::<ConfigCellMain> Some type_id_table");
+            let balance = type_id_table.balance_cell().raw_data().to_vec();
+            debug_log!("get_balance_type_id find_unique::<ConfigCellMain> Some balance");
+            balance
+        }
+    };
+
+    debug_log!("get_balance_type_id result {}", hex_string(c.as_slice()));
+
+    let a = get_config_cell_main();
+    debug_log!("file-{} line-{}", file!(), line!());
+
+    debug_log!("a");
+    let b = a.type_id_table();
+    debug_log!("file-{} line-{}", file!(), line!());
+
+    debug_log!("b");
+
+    let c = b.as_reader();
+    debug_log!("file-{} line-{}", file!(), line!());
+
+    debug_log!("c");
+
+    let d = c.balance_cell().raw_data().to_vec();
+    debug_log!("file-{} line-{}", file!(), line!());
+
+    debug_log!("d");
+
+    let e = hex_string(d.as_slice());
+    debug_log!("file-{} line-{}", file!(), line!());
+
+    debug_log!("e");
+
+    // let c = match b {
+    //     Err(e) => {
+    //         debug_log!(
+    //             "get_balance_type_id find_unique::<ConfigCellMain> None {:?}",
+    //             e
+    //         );
+    //         return Err(Error::InvalidWitness);
+    //     }
+    //     Ok(v) => {
+    //         debug_log!("get_balance_type_id find_unique::<ConfigCellMain> Some");
+    //         let config_main = v.result;
+    //         debug_log!("get_balance_type_id find_unique::<ConfigCellMain> Some config_main");
+    //         let type_id_table = config_main.type_id_table();
+    //         debug_log!("get_balance_type_id find_unique::<ConfigCellMain> Some type_id_table");
+    //         let balance = type_id_table.balance_cell().raw_data().to_vec();
+    //         debug_log!("get_balance_type_id find_unique::<ConfigCellMain> Some balance");
+    //         balance
+    //     }
+    // };
+    //
+    // debug_log!("get_balance_type_id result {:?}", c);
+    //
+    // let config_main = get_witness_parser()
+    //     .find_unique::<ConfigCellMain>()
+    //     .unwrap()
+    //     .result;
+    //
+    // let type_id_table = config_main.type_id_table();
+    // let balance = type_id_table.balance_cell().raw_data().to_vec();
+    Ok(d)
+}
+pub fn get_sub_account_type_id() -> Result<Vec<u8>, Error> {
+    debug_log!("get_sub_account_type_id");
+    let config_main = get_witness_parser()
+        .find_unique::<ConfigCellMain>()
+        .unwrap()
+        .result;
+
+    let type_id_table = config_main.type_id_table();
+    let sub_account = type_id_table.sub_account_cell().raw_data().to_vec();
+    Ok(sub_account)
+}
+
+pub fn get_account_type_id() -> Result<Vec<u8>, Error> {
+    //todo replace get_type_id
+    debug_log!("get_account_type_id");
+    let config_main = get_witness_parser()
+        .find_unique::<ConfigCellMain>()
+        .unwrap()
+        .result;
+
+    let type_id_table = config_main.type_id_table();
+    let account = type_id_table.account_cell().raw_data().to_vec();
+    Ok(account)
+}
+
+pub fn get_dp_cell_type_id() -> Result<Vec<u8>, Error> {
+    debug_log!("get_dp_cell_type_id");
+    let config_main = get_witness_parser()
+        .find_unique::<ConfigCellMain>()
+        .unwrap()
+        .result;
+
+    let type_id_table = config_main.type_id_table();
+    //need
+    //let account = type_id_table.dp_cell().raw_data().to_vec();
+    let account = type_id_table.account_cell().raw_data().to_vec();
+
+    Ok(account)
+}
+
 //
 // #[allow(dead_code)]
 // pub fn get_pk_by_id_in_key_list(data: &[u8], pk_idx: usize) -> Result<Vec<u8>, Error> {
@@ -258,6 +234,5 @@
 //     // }
 //     // Ok(payload)
 // }
-//
-//
-// //todo2 add subaccount support
+
+//todo2 add subaccount support

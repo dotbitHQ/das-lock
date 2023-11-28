@@ -11,9 +11,15 @@ blake2b-rs = {version = "0.2.0", default-features = false}
 strum = { default-features = false, features = ["derive"], version = "0.25" }
 strum_macros = "0.25"
 num_enum = { version = "0.6.1", default-features = false }
-das-types = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, rev = "5f7e29f" }
-das-core = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, rev = "5f7e29f" }
-das-dynamic-libs = { git = "https://github.com/dotbitHQ/das-contracts-private.git",  default-features = false, rev = "5f7e29f" }
+das-types = { path = "/root/.cargo/git/checkouts/das-contracts-private-a03e1218b864e9c0/5f7e29f/libs/das-types", default-features = false }
+das-core = { path = "/root/.cargo/git/checkouts/das-contracts-private-a03e1218b864e9c0/5f7e29f/libs/das-core", default-features = false }
+das-dynamic-libs = { path = "/root/.cargo/git/checkouts/das-contracts-private-a03e1218b864e9c0/5f7e29f/libs/das-dynamic-libs", default-features = false }
+#das-core = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, rev = "5f7e29f" }
+
+#das-types = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, branch = "testnet2" }
+#das-core = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, branch = "testnet2" }
+#das-dynamic-libs = { git = "https://github.com/dotbitHQ/das-contracts-private.git",  default-features = false, branch = "testnet2" }
+
 das-proc-macro = { path = "../libs/das-proc-macro" }
 #serde = { version = "1.0", default-features = false, features = ["alloc"] }
 #serde-json-core = "0.5"
