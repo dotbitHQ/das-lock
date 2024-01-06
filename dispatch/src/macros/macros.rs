@@ -17,7 +17,6 @@ macro_rules! debug_log {
     ($msg:expr, $($arg:tt)*) => {};
 }
 
-
 #[macro_export]
 macro_rules! impl_unwrap {
     ($variant:ident, $method_name:ident, $type:ty) => {

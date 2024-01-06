@@ -9,29 +9,21 @@
 #![feature(lang_items)]
 #![feature(alloc_error_handler)]
 #![feature(panic_info_message)]
-//define modules
-mod constants;
 
-mod dlopen;
+// define modules
+mod eip712;
 mod entry;
-mod error;
-mod macros;
-mod structures;
-mod sub_account;
-mod tx_parser;
-mod utils;
-mod validators;
 
 use ckb_std::default_alloc;
 
 ckb_std::entry!(program_entry);
 default_alloc!();
 
+/// program entry
 fn program_entry() -> i8 {
-    //Call main function and return error code
-    #[cfg(not(test))]
+    // Call main function and return error code
     match entry::main() {
         Ok(_) => 0,
-        Err(err) => err as i8,
+        Err(err) => err.as_i8(),
     }
 }

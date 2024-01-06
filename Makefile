@@ -39,12 +39,16 @@ CKB_BINARY_PATCHER_PATH = ./tools/ckb-binary-patcher/target/release/ckb-binary-p
 
 # Target aliases
 contract_entry := dispatch
+rust_libs := eip712-lib
 dyn_libs := ckb_sign tron_sign eth_sign ed25519_sign ckb_multi_sign doge_sign
 webauthn_lib := webauthn_sign
 NET_TYPE ?= testnet2 #note: use testnet2 by default
 
 contract_entry_targets = $(foreach file, $(contract_entry), release_$(file) debug_$(file))
 contract_entry_files = $(foreach file, $(contract_entry), build/release/$(file) build/debug/$(file))
+
+rust_libs_targets = $(foreach file, $(rust_libs), release_$(file) debug_$(file))
+rust_libs_files = $(foreach file, $(rust_libs), build/release/$(file) build/debug/$(file))
 
 all_libs := $(dyn_libs) $(webauthn_lib)
 dyn_lib_targets = $(foreach file, $(dyn_libs), release_$(file) debug_$(file))
@@ -65,10 +69,10 @@ all-via-docker: ${PROTOCOL_HEADER} install-ckb-binary-patcher
 	@${DOCKER_RUN_CMD} "cd ${CODE_DIR_DOCKER} && make all CFLAGS='$(CFLAGS)'"
 
 debug-all: DEBUG_FLAGS = -DCKB_C_STDLIB_PRINTF
-debug-all: $(filter debug_%, $(contract_entry_targets)) $(filter debug_%, $(dyn_lib_targets)) $(filter debug_%, $(webauthn_lib_targets))
+debug-all: $(filter debug_%, $(contract_entry_targets)) $(filter debug_%, $(rust_libs_targets)) $(filter debug_%, $(dyn_lib_targets)) $(filter debug_%, $(webauthn_lib_targets))
 
 all: release-all
-release-all: $(filter release_%, $(contract_entry_targets)) $(filter release_%, $(dyn_lib_targets)) $(filter release_%, $(webauthn_lib_targets))
+release-all: $(filter release_%, $(contract_entry_targets)) $(filter release_%, $(rust_libs_targets)) $(filter release_%, $(dyn_lib_targets)) $(filter release_%, $(webauthn_lib_targets))
 
 # Add DEBUG flags, if target is release, the DEBUG_FLAGS is empty
 debug_%: DEBUG_FLAGS = -DCKB_C_STDLIB_PRINTF
@@ -93,6 +97,24 @@ $(filter build/release/%, $(contract_entry_files)): build/release/%:
 	@echo "make $@"
 	cd dispatch && CFLAGS="" RUSTFLAGS="$(RUST_FLAGS)" COMPILING_RELEASE_FLAGS="-C link-arg=-s" cargo build --features "$(NET_TYPE)" --target $(RUST_TARGET) --release
 	cp target/$(RUST_TARGET)/release/dispatch $@
+
+
+# Target to actual output file
+$(filter debug_%, $(rust_libs_targets)): debug_%: build/debug/%
+$(filter release_%, $(rust_libs_targets)): release_%: build/release/%
+
+# Compile the eip712-stand-alone
+# Specify output file dependencies
+$(filter build/debug/%, $(rust_libs_files)): build/debug/%:
+	@#note: If cflags is not commented out, an error will be reported when compiling smt.
+	@echo "make $@"
+	cd eip712-lib && CFLAGS="" RUSTFLAGS="$(RUST_FLAGS)" cargo build --features "testnet" --target $(RUST_TARGET)
+	cp target/$(RUST_TARGET)/debug/eip712-lib $@
+
+$(filter build/release/%, $(rust_libs_files)): build/release/%:
+	@echo "make $@"
+	cd eip712-lib && CFLAGS="" RUSTFLAGS="$(RUST_FLAGS)" cargo build --features "mainnet" --target $(RUST_TARGET) --release
+	cp target/$(RUST_TARGET)/release/eip712-lib $@
 
 
 # Compile the dynamic libraries
@@ -174,7 +196,7 @@ build-secp256r1:
 	--with-asm=no \
 	--enable-endomorphism \
 	--enable-ecmult-static-precomputation && \
-	make -j4
+	make -j
 
 build-libecc:
 	@echo "build libecc"

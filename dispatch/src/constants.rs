@@ -1,30 +1,57 @@
+use crate::debug_log;
+use crate::dlopen::{DynLibDesc};
 use crate::error::Error;
 use crate::structures::AlgId;
 use alloc::vec::Vec;
-use das_proc_macro::test_level;
+use ckb_std::ckb_types::core::ScriptHashType;
+
+use das_types::constants::DataType;
+use das_types::packed::ConfigCellMain;
+use witness_parser::traits::WitnessQueryable;
+use witness_parser::WitnessesParserV1;
 
 #[cfg(test)]
 use crate::test_framework::Testable;
+#[cfg(test)]
+use das_proc_macro::test_level;
 
-/*
-There are two ways to get the type ID,
-one is through features conditional compilation,
-and the other is through witness_parser parsing config cell main.
-Note: that the latter is not compatible with historical transaction.
- */
+//multiple features cannot be specified at the same time
+#[cfg(any(
+    all(feature = "mainnet", feature = "testnet2"),
+    all(feature = "mainnet", feature = "testnet3"),
+    all(feature = "testnet2", feature = "testnet3")
+))]
+core::compile_error!(
+    "Conflicting features: `mainnet`, `testnet2`, and `testnet3` cannot be enabled simultaneously"
+);
 
-#[cfg(all(feature = "mainnet", feature = "testnet2"))]
-core::compile_error!("features `mainnet` and `testnet2` cannot be enabled simultaneously");
+const DYNAMIC_LIB_NUMS: usize = 9;
+const ENTRY_CATEGORY_TYPE_TABLE: [u8; DYNAMIC_LIB_NUMS] = [
+    1, //ckb
+    1, //ckb-multi
+    1, //anyone can pay
+    1, //eth
+    1, //tron
+    0, //eip712 //0 is exec
+    1, //ed25519
+    1, //doge
+    1, //webauthn
+];
 
-#[cfg(all(feature = "mainnet", feature = "testnet3"))]
-core::compile_error!("features `mainnet` and `testnet3` cannot be enabled simultaneously");
-
-#[cfg(all(feature = "testnet2", feature = "testnet3"))]
-core::compile_error!("features `testnet2` and `testnet3` cannot be enabled simultaneously");
-
+const EXPORTED_FUNC_NAME_STR_TABLE: [[&str; 3]; DYNAMIC_LIB_NUMS] = [
+    ["validate", "validate_str", ""],
+    ["validate", "validate_str", ""],
+    ["validate", "validate_str", ""],
+    ["validate", "validate_str", ""],
+    ["validate", "validate_str", ""],
+    ["validate", "validate_str", ""],
+    ["validate", "validate_str", ""],
+    ["validate", "validate_str", ""],
+    ["validate", "validate_str", "validate_device"],
+];
 #[allow(dead_code)]
 #[cfg(feature = "mainnet")]
-const TYPE_ID_TABLE: [&str; 9] = [
+const TYPE_ID_TABLE: [&str; DYNAMIC_LIB_NUMS] = [
     "f7e5ee57bfc0a17d3796cdae5a5b07c590668777166499d56178d510e1344765", //ckb
     "144f1ba88ec1fd316a37b5498552efce3447be8b74300fb6b92ad0efcbe964bb", //ckb-multi
     "",                                                                 //anyone can pay
@@ -38,7 +65,7 @@ const TYPE_ID_TABLE: [&str; 9] = [
 
 #[allow(dead_code)]
 #[cfg(feature = "testnet2")]
-const TYPE_ID_TABLE: [&str; 9] = [
+const TYPE_ID_TABLE: [&str; DYNAMIC_LIB_NUMS] = [
     "c9fc9f3dc050f8bf11019842a2426f48420f79da511dd169ee243f455e9f84ed", //ckb
     "991bcf61b6d7a26e6c27bda87d5468313d99ef0cd37113eee9e16c2680fa4532", //ckb-multi
     "",                                                                 //anyone can pay
@@ -52,7 +79,7 @@ const TYPE_ID_TABLE: [&str; 9] = [
 
 #[allow(dead_code)]
 #[cfg(feature = "testnet3")]
-const TYPE_ID_TABLE: [&str; 9] = [
+const TYPE_ID_TABLE: [&str; DYNAMIC_LIB_NUMS] = [
     "c9fc9f3dc050f8bf11019842a2426f48420f79da511dd169ee243f455e9f84ed", //ckb
     "991bcf61b6d7a26e6c27bda87d5468313d99ef0cd37113eee9e16c2680fa4532", //ckb-multi
     "",                                                                 //anyone can pay
@@ -68,66 +95,16 @@ const TYPE_ID_TABLE: [&str; 9] = [
 
 #[allow(dead_code)]
 #[cfg(feature = "mainnet")]
-const TYPE_ID_CHECK: [u32; 9] = [4280, 4675, 0, 4569, 4397, 4569, 4543, 4467, 4467];
+const TYPE_ID_CHECK: [u32; DYNAMIC_LIB_NUMS] = [4280, 4675, 0, 4569, 4397, 4569, 4543, 4467, 4467];
 
 #[allow(dead_code)]
 #[cfg(feature = "testnet2")]
-const TYPE_ID_CHECK: [u32; 9] = [4452, 4499, 0, 4154, 4472, 4154, 4508, 4485, 4223];
+const TYPE_ID_CHECK: [u32; DYNAMIC_LIB_NUMS] = [4452, 4499, 0, 4154, 4472, 4154, 4508, 4485, 4223];
 
 #[allow(dead_code)]
 #[cfg(feature = "testnet3")]
-const TYPE_ID_CHECK: [u32; 9] = [4452, 4499, 0, 4154, 4472, 4154, 4508, 4485, 4223];
+const TYPE_ID_CHECK: [u32; DYNAMIC_LIB_NUMS] = [4452, 4499, 0, 4154, 4472, 4154, 4508, 4485, 4223];
 
-#[allow(dead_code)]
-#[cfg(feature = "mainnet")]
-const SUB_ACCOUNT_TYPE_ID: &str =
-    "63516de8bb518ed1225e3b63f138ccbe18e417932d240f1327c8e86ba327f4b4";
-
-#[allow(dead_code)]
-#[cfg(feature = "testnet2")]
-const SUB_ACCOUNT_TYPE_ID: &str =
-    "8bb0413701cdd2e3a661cc8914e6790e16d619ce674930671e695807274bd14c";
-
-#[allow(dead_code)]
-#[cfg(feature = "testnet3")]
-const SUB_ACCOUNT_TYPE_ID: &str =
-    "8bb0413701cdd2e3a661cc8914e6790e16d619ce674930671e695807274bd14c";
-
-#[allow(dead_code)]
-#[cfg(feature = "mainnet")]
-const BALANCE_TYPE_ID: &str = "ebafc1ebe95b88cac426f984ed5fce998089ecad0cd2f8b17755c9de4cb02162";
-
-#[allow(dead_code)]
-#[cfg(feature = "testnet2")]
-const BALANCE_TYPE_ID: &str = "4ff58f2c76b4ac26fdf675aa82541e02e4cf896279c6d6982d17b959788b2f0c";
-
-#[allow(dead_code)]
-#[cfg(feature = "testnet3")]
-const BALANCE_TYPE_ID: &str = "4ff58f2c76b4ac26fdf675aa82541e02e4cf896279c6d6982d17b959788b2f0c";
-
-#[allow(dead_code)]
-#[cfg(feature = "mainnet")]
-const ACCOUNT_TYPE_ID: &str = "4f170a048198408f4f4d36bdbcddcebe7a0ae85244d3ab08fd40a80cbfc70918";
-
-#[allow(dead_code)]
-#[cfg(feature = "testnet2")]
-const ACCOUNT_TYPE_ID: &str = "1106d9eaccde0995a7e07e80dd0ce7509f21752538dfdd1ee2526d24574846b1";
-
-#[allow(dead_code)]
-#[cfg(feature = "testnet3")]
-const ACCOUNT_TYPE_ID: &str = "1106d9eaccde0995a7e07e80dd0ce7509f21752538dfdd1ee2526d24574846b1";
-
-#[allow(dead_code)]
-#[cfg(feature = "mainnet")]
-const DPOINT_TYPE_ID: &str = "be1a129bb8092ea53a748fab00d2c12223533619458e01fd8eebb329b7f914d6";
-
-#[allow(dead_code)]
-#[cfg(feature = "testnet2")]
-const DPOINT_TYPE_ID: &str = "5988ce37f185904477f120742b191a0730da0d5de9418a8bdf644e6bb3bd8c12";
-
-#[allow(dead_code)]
-#[cfg(feature = "testnet3")]
-const DPOINT_TYPE_ID: &str = "5988ce37f185904477f120742b191a0730da0d5de9418a8bdf644e6bb3bd8c12";
 
 pub const MAX_WITNESS_SIZE: usize = 32768;
 pub const ONE_BATCH_SIZE: usize = 32768;
@@ -150,25 +127,31 @@ pub const WEBAUTHN_SIZE: usize = 1 + WEBAUTHN_PAYLOAD_LEN;
 
 pub const FLAGS_SIZE: usize = 4;
 
-
-
-
-#[allow(dead_code)]
-pub fn get_type_id(alg_id: AlgId) -> Result<Vec<u8>, Error> {
+pub fn get_dyn_lib_desc_info(alg_id: AlgId) -> Result<DynLibDesc, Error> {
     let len = TYPE_ID_TABLE.len();
     if alg_id as usize >= len {
         return Err(Error::InvalidAlgId);
     }
 
-    //not support ckb yet
-    if alg_id == AlgId::CkbMultiSig || alg_id == AlgId::AlwaysSuccess {
-        return Err(Error::InvalidAlgId);
-    }
-
     let type_id = TYPE_ID_TABLE[alg_id as usize];
-
-    Ok(decode_hex("type id", type_id))
-    //Ok(hex::decode(type_id).map_err(|_| Error::InvalidAlgId)?)
+    let type_id_checksum = TYPE_ID_CHECK[alg_id as usize];
+    if checksum(type_id) != type_id_checksum {
+        return Err(Error::InvalidTypeId);
+    }
+    let entry_category = ENTRY_CATEGORY_TYPE_TABLE[alg_id as usize].into();
+    let mut entry_name = Vec::new();
+    for i in 0..EXPORTED_FUNC_NAME_STR_TABLE[alg_id as usize].len() {
+        if EXPORTED_FUNC_NAME_STR_TABLE[alg_id as usize][i] != "" {
+            entry_name.push(EXPORTED_FUNC_NAME_STR_TABLE[alg_id as usize][i].into());
+        }
+    }
+    Ok(DynLibDesc {
+        dyn_lib_name: alg_id.into(),
+        code_hash: <[u8; 32]>::try_from(decode_hex("type id", type_id)).unwrap(),
+        hash_type: ScriptHashType::Type,
+        entry_category,
+        entry_name,
+    })
 }
 
 fn decode_hex(title: &str, hex_str: &str) -> Vec<u8> {
@@ -182,78 +165,18 @@ fn decode_hex(title: &str, hex_str: &str) -> Vec<u8> {
         }
     }
 }
-pub fn get_balance_type_id() -> Result<Vec<u8>, Error> {
-    Ok(decode_hex("balance type id", BALANCE_TYPE_ID))
+
+pub fn get_config_cell_main() -> Result<ConfigCellMain, Error> {
+    let witness_parser = WitnessesParserV1::get_instance();
+    match witness_parser.get_entity_by_data_type::<ConfigCellMain>(DataType::ConfigCellMain) {
+        Ok(config) => Ok(config),
+        Err(e) => {
+            debug_log!("get_config_cell_main error: {:?}", e);
+            Err(Error::LoadWitnessError)
+        }
+    }
 }
-
-
-pub fn get_sub_account_type_id() -> Result<Vec<u8>, Error> {
-    Ok(decode_hex("sub account type id", SUB_ACCOUNT_TYPE_ID))
-}
-
-pub fn get_account_type_id() -> Result<Vec<u8>, Error> {
-    Ok(decode_hex("account type id", ACCOUNT_TYPE_ID))
-}
-
-pub fn get_dp_cell_type_id() -> Result<Vec<u8>, Error> {
-    Ok(decode_hex("dp cell type id", DPOINT_TYPE_ID))
-}
-
 #[allow(dead_code)]
 fn checksum(s: &str) -> u32 {
     s.as_bytes().iter().map(|&b| b as u32).sum()
 }
-
-// #[test_level(1)]
-// fn test_get_type_id() {
-//     let expected_check_sum = TYPE_ID_CHECK;
-//     for (id, expected) in TYPE_ID_TABLE.iter().zip(expected_check_sum.iter()) {
-//         let real = checksum(id);
-//         assert_eq!(expected, &real);
-//     }
-// }
-// #[cfg(feature = "mainnet")]
-// #[test_level(1)]
-// fn test_get_type_id_mainnet() {
-//     let expected_type_id_str = "f7e5ee57bfc0a17d3796cdae5a5b07c590668777166499d56178d510e1344765";
-//
-//     let real_ckb_type_id = TYPE_ID_TABLE[0];
-//     assert_eq!(expected_type_id_str, real_ckb_type_id);
-//
-//     let real_ckb_checksum = TYPE_ID_CHECK[0];
-//     let ckb_checksum = checksum(expected_type_id_str);
-//     assert_eq!(ckb_checksum, real_ckb_checksum);
-// }
-//
-// #[cfg(feature = "testnet2")]
-// #[test_level(1)]
-// fn test_get_type_id_testnet2() {
-//     let expected_type_id_str = "c9fc9f3dc050f8bf11019842a2426f48420f79da511dd169ee243f455e9f84ed";
-//
-//     let real_ckb_type_id = TYPE_ID_TABLE[0];
-//     assert_eq!(expected_type_id_str, real_ckb_type_id);
-//
-//     let real_ckb_checksum = TYPE_ID_CHECK[0];
-//     let ckb_checksum = checksum(expected_type_id_str);
-//     assert_eq!(ckb_checksum, real_ckb_checksum);
-// }
-//
-// #[cfg(feature = "testnet3")]
-// #[test_level(1)]
-// fn test_get_type_id_testnet3() {
-//     let expected_type_id_str = "c9fc9f3dc050f8bf11019842a2426f48420f79da511dd169ee243f455e9f84ed";
-//
-//     let real_ckb_type_id = TYPE_ID_TABLE[0];
-//     assert_eq!(expected_type_id_str, real_ckb_type_id);
-//
-//     let real_ckb_checksum = TYPE_ID_CHECK[0];
-//     let ckb_checksum = checksum(expected_type_id_str);
-//     assert_eq!(ckb_checksum, real_ckb_checksum);
-// }
-//
-// #[test_level(1)]
-// fn test_decode_hex() {
-//     let expected = alloc::vec![0x12, 0x34, 0x56, 0x78];
-//     let real = decode_hex("test", "12345678");
-//     assert_eq!(expected, real);
-// }

@@ -2,7 +2,7 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, parse::Parse, parse::ParseStream, ItemFn, LitInt, Result};
+use syn::{parse::Parse, parse::ParseStream, parse_macro_input, ItemFn, LitInt, Result};
 
 struct MacroInput {
     value: LitInt,
@@ -26,7 +26,7 @@ pub fn test_level(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     //get threshold
     let threshold;
-    let bound: [u8;4] = [0, 1, 2, 3];
+    let bound: [u8; 4] = [0, 1, 2, 3];
     //test level
     // single, 3, only test single case
     // partial, 2, some case that need transaction use this,
@@ -34,27 +34,27 @@ pub fn test_level(attr: TokenStream, item: TokenStream) -> TokenStream {
     // all, 0
     if cfg!(feature = "test-single") {
         threshold = bound[3];
-    }else if cfg!(feature = "test-partial") {
+    } else if cfg!(feature = "test-partial") {
         threshold = bound[2];
-    }else if cfg!(feature = "test-dev") {
+    } else if cfg!(feature = "test-dev") {
         threshold = bound[1];
-    }else if cfg!(feature = "test-all") {
+    } else if cfg!(feature = "test-all") {
         threshold = bound[0];
-    }else {
+    } else {
         //default is test none
         threshold = 99;
     }
     println!("f: {}, t: {}", feature_value, threshold);
-  let expanded = if feature_value >= threshold  {
-      quote! {
+    let expanded = if feature_value >= threshold {
+        quote! {
             #[test_case]
             #input_fn
         }
     } else {
-      //warning: don't remove the code below, it's used to comment the function
-      quote! {
-            // #input_fn
-      }
+        //warning: don't remove the code below, it's used to comment the function
+        quote! {
+              // #input_fn
+        }
     };
 
     // return the code as TokenStream

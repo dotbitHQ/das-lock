@@ -2,8 +2,22 @@
 members = [
     "das-lock-lib",
     "dispatch",
+    "eip712-lib",
 ]
 exclude = ["tests", "tools"]
+
+[workspace.dependencies]
+das-types = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, branch = "testnet2" }
+#das-map = { path = "libs/das-map", default-features = false }
+das-map = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, branch = "testnet2" }
+
+das-core = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, branch = "testnet2" }
+#das-sorted-list = { path = "libs/das-sorted-list", default-features = false }
+ckb-std = "0.13.0"
+ckb-types = { version = "=0.108.0" }
+molecule = { version = "0.7", default-features = false }
+hex = { default-features = false, version = "0.4.2" }
+
 
 [profile.release]
 overflow-checks = true

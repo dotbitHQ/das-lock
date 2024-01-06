@@ -1,9 +1,8 @@
 extern crate alloc;
-
 use crate::error::Error;
 use alloc::string::String;
 use alloc::vec::Vec;
-use ckb_std::high_level::{load_cell_type, load_cell_type_hash, load_witness_args};
+use ckb_std::high_level::load_cell_type;
 use ckb_std::{
     ckb_constants::{CellField, Source},
     ckb_types::{
@@ -23,39 +22,42 @@ use crate::constants::{
     SCRIPT_SIZE, SIGNATURE_SIZE, SIZE_UINT64, WEBAUTHN_SIZE, WITNESS_ARGS_HEADER_LEN,
     WITNESS_ARGS_LOCK_LEN,
 };
-use crate::{debug_log, witness_parser};
-use crate::dlopen::ckb_auth_dl;
+use crate::debug_log;
+use crate::dlopen::{
+    dispatch_do_dyn_lib_and_then_exec_eip712_lib, dispatch_to_dyn_lib,
+};
 use crate::structures::CmdMatchStatus::{DasNotPureLockCell, DasPureLockCell};
 use crate::structures::MatchStatus::{Match, NotMatch};
-use crate::structures::{
-    AlgId, CmdMatchStatus, DasAction, LockArgs, MatchStatus, SignInfo, SkipSignOrNot,
-};
+use crate::structures::{AlgId, CmdMatchStatus, LockArgs, MatchStatus, SignInfo, SkipSignOrNot};
 use crate::utils::generate_sighash_all::{calculate_inputs_len, load_and_hash_witness};
 use crate::utils::{bytes_to_u32_le, check_num_boundary, new_blake2b};
-use crate::constants::{
-    get_account_type_id, get_balance_type_id, get_dp_cell_type_id, get_sub_account_type_id,
-    get_type_id,
-};
-use das_types::constants::LockRole as Role;
-use das_proc_macro::{test_level};
+use das_types::constants::{Action as DasAction, LockRole as Role};
+//use das_types::packed::Reader;
 
 #[cfg(test)]
 use crate::test_framework::Testable;
+use crate::tx_parser::{
+    get_account_cell_type_id, get_balance_cell_type_id, get_dpoint_cell_type_id,
+    get_sub_account_cell_type_id,
+};
+use crate::validators::{
+    validate_for_fulfill_approval, validate_for_revoke_approval,
+    validate_for_unlock_account_for_cross_chain, validate_for_update_reverse_record_root,
+    validate_for_update_sub_account,
+};
 
-fn check_cmd_match(action: &DasAction) -> MatchStatus {
-    match action {
-        DasAction::ConfirmProposal
-        | DasAction::RenewAccount
-        | DasAction::AcceptOffer
-        | DasAction::UnlockAccountForCrossChain
-        | DasAction::ForceRecoverAccountStatus
-        | DasAction::RecycleExpiredAccount
-        | DasAction::RevokeApproval
-        | DasAction::FulfillApproval => MatchStatus::Match,
-        _ => MatchStatus::NotMatch,
-    }
-}
-
+// fn check_cmd_match(action: &DasAction) -> MatchStatus {
+//     match action {
+//         DasAction::ConfirmProposal
+//         | DasAction::RenewAccount
+//         | DasAction::UnlockAccountForCrossChain
+//         | DasAction::ForceRecoverAccountStatus
+//         | DasAction::RecycleExpiredAccount
+//         | DasAction::RevokeApproval
+//         | DasAction::FulfillApproval => MatchStatus::Match,
+//         _ => MatchStatus::NotMatch,
+//     }
+// }
 
 fn check_witness_das_header(data: &[u8]) -> Result<(), Error> {
     if !data.starts_with(b"das") {
@@ -138,17 +140,14 @@ fn check_and_downgrade_alg_id(action: &DasAction, alg_id: AlgId) -> AlgId {
     }
     //if match the downgrade list, then downgrade to Eth
     match action {
-        DasAction::EnableSubAccount
-        | DasAction::CreateSubAccount
-        | DasAction::ConfigSubAccount
-        | DasAction::ConfigSubAccountCustomScript => AlgId::Eth, //3
+        DasAction::EnableSubAccount | DasAction::ConfigSubAccount => AlgId::Eth, //3
         _ => AlgId::Eip712,
     }
 }
 fn get_lock_args(action: &DasAction, role: Role) -> Result<LockArgs, Error> {
     let script = load_script()?;
     let args: Bytes = script.args().unpack();
-    //let args_len = args.len();
+
     let args_slice = args.as_ref();
     let alg_id_owner = args_slice[0];
 
@@ -183,7 +182,6 @@ fn get_lock_args(action: &DasAction, role: Role) -> Result<LockArgs, Error> {
     Ok(ret)
 }
 
-
 // #[allow(unused_assignments)]
 // warning: if there are some cells with same lock script?
 fn get_self_index_in_inputs() -> Result<usize, Error> {
@@ -192,7 +190,7 @@ fn get_self_index_in_inputs() -> Result<usize, Error> {
 
     let mut i = 0;
     #[allow(unused_assignments)]
-    let mut match_result;
+    let mut match_result = false;
     loop {
         let lock_hash = load_cell_lock_hash(i, Source::Input)?;
         debug_log!("loaded {} : lock_hash = {:02x?}", i, lock_hash);
@@ -200,8 +198,6 @@ fn get_self_index_in_inputs() -> Result<usize, Error> {
         if script_hash == lock_hash {
             match_result = true;
             break;
-        } else {
-            match_result = false;
         }
         i += 1;
     }
@@ -214,14 +210,13 @@ fn get_self_index_in_inputs() -> Result<usize, Error> {
 }
 
 fn get_first_dp_cell_lock_hash() -> Result<Vec<u8>, Error> {
-    let dp_cell_type_id = get_dp_cell_type_id()?;
+    let dp_cell_type_id = get_dpoint_cell_type_id()?;
     debug_log!("dp_cell_type_id = {:02x?}", dp_cell_type_id);
 
     for i in 0..100 {
         match load_cell_type(i, Source::Input) {
             Ok(type_script) => {
-
-                if type_script.is_some()  {
+                if type_script.is_some() {
                     let type_args = type_script.unwrap().code_hash().raw_data().to_vec();
                     debug_log!("{} type_args = {:02x?}", i, type_args);
                     if type_args == dp_cell_type_id {
@@ -242,56 +237,45 @@ fn get_first_dp_cell_lock_hash() -> Result<Vec<u8>, Error> {
     Err(Error::DpCellNotFound)
 }
 
-fn check_skip_sign_for_buy_account(
-    action: &DasAction,
-    alg_id: AlgId,
+fn check_skip_dynamic_library_signature_verification_for_bid_expired_auction(
 ) -> Result<SkipSignOrNot, Error> {
-    debug_log!("Enter check_skip_sign_for_buy_account");
-    if alg_id != AlgId::Eip712 {
-        return Ok(SkipSignOrNot::NotSkip);
-    }
-    //get self index in inputs
-    let script_index = get_self_index_in_inputs()?;
-
-    //if is 0 or 1, then skip
-    if script_index != 0 && script_index != 1 {
-        return Ok(SkipSignOrNot::NotSkip);
-    }
-    //if is buy_account, then skip
-    if *action == DasAction::BuyAccount {
-        return Ok(SkipSignOrNot::Skip);
-    }
-
-    Ok(SkipSignOrNot::NotSkip)
-}
-fn check_skip_sign_for_bid_expired_auction(action: &DasAction) -> Result<SkipSignOrNot, Error> {
-    debug_log!("Enter check_skip_sign_for_bid_expired_auction");
-    if *action != DasAction::BidExpiredAccountDutchAuction {
-        return Ok(SkipSignOrNot::NotSkip);
-    }
     //todo maybe have risks when skip by cell out of the group
-    //AccountCell is always inputs[0], guarantee it through the account-cell-type.
+    //Warning: AccountCell is always inputs[0], guarantee it through the account-cell-type.
     let script_index = get_self_index_in_inputs()?;
     debug_log!("get_self_index_in_inputs self index = {:?}", script_index);
 
-    let current_type_script = load_cell_type(script_index, Source::Input)?
-        .expect("type script should exist");
+    let current_type_script =
+        load_cell_type(script_index, Source::Input)?.expect("type script should exist");
     let current_type_script_args = current_type_script.code_hash().raw_data().to_vec();
     let current_lock_script_hash = load_cell_lock_hash(script_index, Source::Input)?.to_vec();
 
     //dp-cell-type ensures that the locks of all dp cells in inputs are the same.
-    let account_cell_type_id = get_account_type_id()?;
+    let account_cell_type_id = get_account_cell_type_id()?;
     let dp_cell_lock_hash = get_first_dp_cell_lock_hash()?; //
 
-    debug_log!("current_lock_script_hash = {}", hex_string(current_lock_script_hash.as_slice()));
-    debug_log!("dp_cell_lock_hash = {}", hex_string(dp_cell_lock_hash.as_slice()));
-    debug_log!("current_type_script_args = {}", hex_string(current_type_script_args.as_slice()));
-    debug_log!("account_cell_type_id = {}", hex_string(account_cell_type_id.as_slice()));
+    debug_log!(
+        "current_lock_script_hash = {}",
+        hex_string(current_lock_script_hash.as_slice())
+    );
+    debug_log!(
+        "dp_cell_lock_hash = {}",
+        hex_string(dp_cell_lock_hash.as_slice())
+    );
+    debug_log!(
+        "current_type_script_args = {}",
+        hex_string(current_type_script_args.as_slice())
+    );
+    debug_log!(
+        "account_cell_type_id = {}",
+        hex_string(account_cell_type_id.as_slice())
+    );
 
     //Signature verification can be skipped only if the following two conditions are met.
     //1. The current lock is not equal to the lock of dp cell
     //2. The current type is account-cell-type
-    if current_lock_script_hash != dp_cell_lock_hash &&  current_type_script_args == account_cell_type_id {
+    if current_lock_script_hash != dp_cell_lock_hash
+        && current_type_script_args == account_cell_type_id
+    {
         debug_log!("jump over the signature verification of the Dutch auction");
         return Ok(SkipSignOrNot::Skip);
     }
@@ -303,7 +287,7 @@ fn check_the_first_input_cell_must_be_sub_account_type_script() -> Result<MatchS
     //debug_log!("Enter check_the_first_input_cell_must_be_sub_account_type_script");
 
     //get sub account type id
-    let sub_account_type_id = get_sub_account_type_id()?;
+    let sub_account_type_id = get_sub_account_cell_type_id()?;
 
     let mut temp = [0u8; SCRIPT_SIZE];
     let read_len = load_cell_by_field(&mut temp, 0, 0, Source::Input, CellField::Type)?;
@@ -325,11 +309,9 @@ fn check_the_first_input_cell_must_be_sub_account_type_script() -> Result<MatchS
     Ok(NotMatch)
 }
 
-fn check_skip_sign_for_update_sub_account(action: &DasAction) -> Result<SkipSignOrNot, Error> {
+fn check_skip_dynamic_library_signature_verification_for_update_sub_account(
+) -> Result<SkipSignOrNot, Error> {
     debug_log!("Enter check_skip_sign_for_update_sub_account");
-    if *action != DasAction::UpdateSubAccount {
-        return Ok(SkipSignOrNot::NotSkip);
-    }
 
     match check_the_first_input_cell_must_be_sub_account_type_script() {
         Ok(Match) => Ok(SkipSignOrNot::Skip),
@@ -337,19 +319,8 @@ fn check_skip_sign_for_update_sub_account(action: &DasAction) -> Result<SkipSign
         Err(e) => Err(e),
     }
 }
-#[allow(dead_code)]
-fn get_witness_args_lock() -> Result<Vec<u8>, Error> {
-    let witness_args =
-        match load_witness_args(0, Source::GroupInput).map_err(|_| Error::WitnessError) {
-            Ok(v) => v,
-            Err(e) => {
-                debug_log!("load_witness_args error: {:?}", e);
-                return Err(Error::WitnessError);
-            }
-        };
-    Ok(witness_args.as_slice()[20..].to_vec())
-}
-fn get_plain_and_cipher(alg_id: AlgId) -> Result<SignInfo, Error> {
+
+pub(crate) fn get_plain_and_cipher(alg_id: AlgId) -> Result<SignInfo, Error> {
     debug_log!("Enter get_plain_and_cipher");
     let mut temp = [0u8; MAX_WITNESS_SIZE];
 
@@ -471,26 +442,9 @@ fn get_plain_and_cipher(alg_id: AlgId) -> Result<SignInfo, Error> {
     Ok(SignInfo { signature, message })
 }
 
-// pub fn find_cell_by_type_id(type_id: &[u8], source: Source) -> Result<Option<usize>, SysError> {
-//     let mut buf = [0u8; 100];
-//     for i in 0.. {
-//         let _len = match syscalls::load_cell_by_field(&mut buf, 0, i, source, CellField::Type) {
-//             Ok(len) => len,
-//             Err(SysError::IndexOutOfBound) => break,
-//             Err(err) => return Err(err),
-//         };
-//
-//         //debug_assert_eq!(len, buf.len());
-//         if type_id == &buf[16..] {
-//             return Ok(Some(i));
-//         }
-//     }
-//     Ok(None)
-// }
-
 fn check_has_pure_type_script() -> CmdMatchStatus {
-    //let balance_type_id = get_balance_type_id().unwrap();
-    let balance_type_id = witness_parser::get_balance_type_id().unwrap();
+    //todo: replace with find_one
+    let balance_type_id = get_balance_cell_type_id().unwrap();
     let mut buf = [0u8; 100];
     for i in 0.. {
         let _len = match load_cell_by_field(&mut buf, 0, i, Source::GroupInput, CellField::Type) {
@@ -511,42 +465,39 @@ fn check_has_pure_type_script() -> CmdMatchStatus {
     }
     DasPureLockCell
 }
+
 fn check_skip_sign(action: &DasAction) -> SkipSignOrNot {
     if DasPureLockCell == check_has_pure_type_script() {
         return SkipSignOrNot::NotSkip;
     }
-
-    match check_cmd_match(action) {
-        Match => SkipSignOrNot::Skip,
-        NotMatch => SkipSignOrNot::NotSkip,
+    match action {
+        DasAction::ConfirmProposal
+        | DasAction::RenewAccount
+        | DasAction::ForceRecoverAccountStatus
+        | DasAction::RecycleExpiredAccount => SkipSignOrNot::Skip,
+        _ => SkipSignOrNot::NotSkip,
     }
 }
-//return true if has permission
+
+//return true if manager has permission
 fn check_manager_has_permission(action: &DasAction, role: Role) -> bool {
     if role != Role::Manager {
         return true;
     }
     match action {
         DasAction::EditRecords
-        | DasAction::CreateSubAccount
+        // | DasAction::CreateSubAccount //note: this action is abandoned before, just das-lock does not remove it.
         | DasAction::UpdateSubAccount
-        | DasAction::ConfigSubAccount
-        | DasAction::ConfigSubAccountCustomScript => true,
+        | DasAction::ConfigSubAccount => true,
         _ => false,
     }
 }
-
-pub fn main() -> Result<(), Error> {
-    debug_log!("Enter das-lock main.");
-
-    //get witness action
+fn get_action_and_role() -> Result<(DasAction, Role), Error> {
+    //get the number of cells in inputs
     let action_witness_index = calculate_inputs_len()?;
 
-    let mut temp = [0u8; ONE_BATCH_SIZE];
-    debug_log!("Loading witness[{}] to get action", action_witness_index);
+    let mut temp = [0u8; ONE_BATCH_SIZE]; //note: allocating memory does not take cycles
     let read_len = load_witness(&mut temp, 0, action_witness_index, Source::Input)?;
-
-    //action should not bigger than MaxWitnessSize
     if read_len > MAX_WITNESS_SIZE {
         debug_log!(
             "Action witness's length is overflow! read len = {:?}, MAX_WITNESS_SIZE = {:?}",
@@ -555,147 +506,93 @@ pub fn main() -> Result<(), Error> {
         );
         return Err(Error::LengthNotEnough);
     }
-
-    //get action from witness
     let (das_action, role) = get_witness_action(&temp[..read_len])?;
+    Ok((das_action, role))
+}
+
+pub fn main() -> Result<(), Error> {
+    debug_log!("Enter das lock main.");
+
+    //Get action from witness.
+    let (das_action, role) = get_action_and_role()?;
     debug_log!("Action = {:?}, role = {:?}", das_action, role);
 
-    //check action to decide continue or not
+    //Decide whether to skip signature verification based on action.
     if SkipSignOrNot::Skip == check_skip_sign(&das_action) {
         debug_log!("Skip this action, {:?}", das_action);
         return Ok(());
     }
 
-    //check if manager has permission to do this action
+    //Check whether the manager has permission to execute the corresponding action.
     if !check_manager_has_permission(&das_action, role) {
         debug_log!("Manager does not have permission to execute this action.");
         return Err(Error::ManagerNotAllowed);
     }
 
-    //get lock args
+    //Get lock args.
     let lock_args = get_lock_args(&das_action, role)?;
     debug_log!("Lock args = {}", lock_args);
 
-    //check skip sign for buy account
-    let ret = check_skip_sign_for_buy_account(&das_action, lock_args.alg_id)?;
-    if ret == SkipSignOrNot::Skip {
-        debug_log!("Skip check sign for buy account.");
-        return Ok(());
-    }
-
-    let ret = check_skip_sign_for_update_sub_account(&das_action)?;
-    if ret == SkipSignOrNot::Skip {
-        debug_log!("Skip check sign for update sub account.");
-        return Ok(());
-    }
-
-    //add for dutch auction
-    if SkipSignOrNot::Skip == check_skip_sign_for_bid_expired_auction(&das_action)? {
-        debug_log!("Skip this action, {:?}", das_action);
-        return Ok(());
-    }
-    //get sign info
-    let sign_info = get_plain_and_cipher(lock_args.alg_id)?;
-    debug_log!("Got signature and message : {}", sign_info);
-
-    if lock_args.alg_id == AlgId::WebAuthn {
-        let pk_idx = sign_info.signature[1];
-
-        if pk_idx != 255 && pk_idx > 9 {
-            debug_log!("Invalid pk_idx = {}", pk_idx);
-            return Err(Error::InvalidPubkeyIndex);
+    let ret = match das_action {
+        DasAction::BidExpiredAccountDutchAuction => {
+            match check_skip_dynamic_library_signature_verification_for_bid_expired_auction()? {
+                SkipSignOrNot::Skip => {
+                    debug_log!("Skip check sign for bid expired account dutch auction.");
+                    return Ok(());
+                }
+                SkipSignOrNot::NotSkip => {
+                    dispatch_do_dyn_lib_and_then_exec_eip712_lib(role, &lock_args)
+                }
+            }
         }
-    }
 
-    //get type id
-    let code_hash = get_type_id(lock_args.alg_id)?;
-    debug_log!(
-        "alg{} code hash = {}",
-        lock_args.alg_id as u8,
-        hex::encode(&code_hash)
-    );
+        DasAction::FulfillApproval => validate_for_fulfill_approval(),
+        DasAction::RevokeApproval => validate_for_revoke_approval(),
+        DasAction::UnlockAccountForCrossChain => validate_for_unlock_account_for_cross_chain(),
+        DasAction::UpdateReverseRecordRoot => validate_for_update_reverse_record_root(),
 
-    //call dynamic linking and run auth
-    let ret = match ckb_auth_dl(
-        role as u8,
-        lock_args.alg_id,
-        <&[u8; 32]>::try_from(code_hash.as_slice()).unwrap(),
-        <&[u8; 32]>::try_from(sign_info.message.as_slice()).unwrap(),
-        sign_info.signature.as_slice(),
-        lock_args.payload.as_slice(),
-    ) {
-        Ok(x) => x,
-        Err(e) => {
-            debug_log!("auth dl error : {:?}", e);
-            return Err(Error::ValidationFailure);
+        DasAction::UpdateSubAccount => {
+            match check_skip_dynamic_library_signature_verification_for_update_sub_account()? {
+                SkipSignOrNot::Skip => {
+                    debug_log!("Skip check sign for update sub account.");
+                    validate_for_update_sub_account()
+                }
+                SkipSignOrNot::NotSkip => {
+                    dispatch_to_dyn_lib(role, &lock_args) //maybe redundant
+                }
+            }
+        }
+
+        DasAction::TransferAccount
+        | DasAction::EditManager
+        | DasAction::EditRecords
+        | DasAction::CreateApproval
+        | DasAction::DelayApproval
+        | DasAction::CancelAccountSale
+        | DasAction::BurnDP
+        | DasAction::TransferDP
+        | DasAction::CancelOffer
+        | DasAction::EnableSubAccount => {
+            dispatch_do_dyn_lib_and_then_exec_eip712_lib(role, &lock_args)
+        }
+        _ => {
+            //func normal validation
+            dispatch_to_dyn_lib(role, &lock_args)
         }
     };
-    if ret != 0 {
-        debug_log!("Auth failed, ret = {}", ret);
-        return Err(Error::ValidationFailure);
-    }
-
-    Ok(())
-}
-
-//unit tests
-
-#[test_level(1)]
-fn test_get_payload_len() {
-    let expected_payload_len = [
-        20, //0, ckb
-        28, //1, ckb multi
-        20, //2, always success
-        20, //3, eth
-        20, //4, tron
-        20, //5, eip712
-        32, //6, ed25519
-        20, //7, doge
-        21, //8, webauthn
-    ];
-    for i in 0..expected_payload_len.len() {
-        let alg_id = i as u8;
-        let ret = get_payload_len(alg_id);
-        match ret {
-            Ok(x) => {
-                assert_eq!(x, expected_payload_len[i]);
-            }
-            Err(e) => {
-                panic!("get_payload_len error: {:?}", e);
-            }
-        }
-    }
-}
-
-#[test_level(1)]
-fn test_check_and_downgrade_alg_id() {
-    //alg != eip712
-    let action = DasAction::EnableSubAccount;
-    let alg_id = AlgId::Ckb;
-    let ret = check_and_downgrade_alg_id(&action, alg_id);
-    assert_eq!(ret, AlgId::Ckb);
-
-    //action match downgrade list
-    let action = DasAction::EnableSubAccount;
-    let alg_id = AlgId::Eip712;
-    let ret = check_and_downgrade_alg_id(&action, alg_id);
-    assert_eq!(ret, AlgId::Eth);
-}
-
-//test get_lock_args
-#[test_level(2)]
-fn test_get_lock_args() {
-    //note here, the payload is not the real payload, just for test
-    //how to run all test case in on tx? sandbox only
-    let ret = load_script();
     match ret {
-        Ok(s) => {
-            debug_log!("load_script success: {:?}", s);
+        Ok(x) => {
+            return if x != 0 {
+                debug_log!("general_verification error, return {}", x);
+                Err(Error::ValidationFailure)
+            } else {
+                Ok(())
+            }
         }
         Err(e) => {
-            panic!("load_script error: {:?}", e);
+            debug_log!("general_verification error: {:?}", e);
+            Err(e)
         }
     }
 }
 
-//tx should map with test case

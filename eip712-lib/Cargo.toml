@@ -1,0 +1,17 @@
+[package]
+name = "eip712-lib"
+version = "1.1.0"
+edition = "2021"
+
+[features]
+dev = ["das-core/dev", "eip712/dev"]
+local = ["das-core/local", "eip712/local"]
+testnet = ["das-core/testnet", "eip712/testnet"]
+mainnet = ["das-core/mainnet", "eip712/mainnet"]
+
+[dependencies]
+ckb-std = { workspace = true }
+das-core = { workspace = true, default-features = false }
+das-types = { workspace = true, default-features = false, features = ["no_std"] }
+das-map = { workspace = true, default-features = false }
+eip712 = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, branch = "testnet2" }
