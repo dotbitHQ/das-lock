@@ -4,30 +4,31 @@ use alloc::vec::Vec;
 use ckb_std::ckb_constants::Source;
 use witness_parser::WitnessesParserV1;
 
-use das_core::constants::{ScriptType};
+use das_core::constants::ScriptType;
 use das_core::util::{find_only_cell_by_type_id, hex_string};
 use das_types::constants::DataType;
 use das_types::constants::TypeScript;
 use das_types::packed;
-use das_types::packed::{
-    AccountApprovalTransfer, Hash,
-};
+use das_types::packed::{AccountApprovalTransfer, Hash};
 use das_types::prelude::Entity;
 use witness_parser::traits::WitnessQueryable;
 
 pub fn get_type_id_by_type_script(type_script: TypeScript) -> Result<Vec<u8>, Error> {
     debug_log!("get type id of {:?}", &type_script);
     let parser = WitnessesParserV1::get_instance();
+    if !parser.is_inited() {
+        parser
+            .init()
+            .map_err(|err| {
+                debug_log!("Error: witness parser init failed, {:?}", err);
+                das_core::error::ErrorCode::WitnessDataDecodingError
+            })
+            .unwrap();
+        debug_log!("WitnessesParserV1::init() success");
+    }else {
+        debug_log!("WitnessesParserV1::init() already inited");
+    }
     debug_log!("WitnessesParserV1::get_instance() success");
-
-    parser
-        .init()
-        .map_err(|err| {
-            debug_log!("Error: witness parser init failed, {:?}", err);
-            das_core::error::ErrorCode::WitnessDataDecodingError
-        })
-        .unwrap();
-    debug_log!("WitnessesParserV1::init() success");
 
     let type_id = parser
         .get_type_id(type_script.clone())
@@ -42,6 +43,19 @@ pub fn get_type_id_by_type_script(type_script: TypeScript) -> Result<Vec<u8>, Er
         .unwrap();
 
     debug_log!("{:?} type id is {:?}", &type_script, hex_string(&type_id));
+
+    // let idx = match type_script {
+    //     TypeScript::AccountCellType => {0}
+    //     TypeScript::SubAccountCellType => {1}
+    //     TypeScript::DPointCellType => {2}
+    //     TypeScript::EIP712Lib => {3}
+    //     TypeScript::BalanceCellType => {4}
+    //     _ => {
+    //         unreachable!();
+    //     }
+    // };
+    // let type_id = crate::constants::decode_hex("type id", TYPE_ID_TABLE_TYPE[idx]);
+    //
     let type_id_vec = type_id.to_vec();
     Ok(type_id_vec)
 }

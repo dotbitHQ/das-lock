@@ -7,69 +7,111 @@ use ckb_std::error::SysError;
 use ckb_std::high_level;
 use das_core::constants::*;
 use das_core::error::*;
-use das_core::witness_parser::WitnessesParser;
+use witness_parser::WitnessesParserV1 as WitnessesParserDIY;
+
 use das_core::{assert, code_to_error, data_parser, debug, util, warn};
 use das_map::map::Map;
 use das_map::util as map_util;
-use das_types::constants::{DataType, LockRole};
+use das_types::constants::{Action, LockRole, TypeScript};
 use das_types::mixer::AccountCellDataMixer;
 use das_types::packed::*;
 use das_types::prelude::*;
 use eip712::util::{to_semantic_capacity, to_semantic_currency};
+use witness_parser::parsers::v1::witness_parser::WitnessesParser;
+use witness_parser::traits::WitnessQueryable;
+use witness_parser::types::CellMeta;
 
-use super::eip712::{to_semantic_address, verify_eip712_hashes_if_has_das_lock};
+use super::eip712::{get_type_id, to_semantic_address, verify_eip712_hashes_if_has_das_lock};
 
 pub fn main() -> Result<(), Box<dyn ScriptError>> {
     debug!("====== EIP712 Lib ======");
 
-    let mut parser = WitnessesParser::new()?;
-    let action_cp = match parser.parse_action_with_params()? {
-        Some((action, _)) => action.to_vec(),
-        None => return Err(code_to_error!(ErrorCode::ActionNotSupported)),
-    };
-    let action = action_cp.as_slice();
+    let mut parser = WitnessesParserDIY::get_instance();
+    debug!("WitnessesParser::get_instance() success");
 
-    parser.parse_cell()?;
+    parser
+        .init()
+        .map_err(|err| {
+            debug!("Error: witness parser init failed, {:?}", err);
+            das_core::error::ErrorCode::WitnessDataDecodingError
+        })
+        .unwrap();
 
-    debug!(
-        "The action of the transaction is: {:?}",
-        String::from_utf8(action.to_vec())
-    );
+    let action = parser.action;
+
+    debug!("The action of the transaction is: {}", action);
 
     let func = match action {
-        b"transfer_account" => transfer_account_to_semantic,
-        b"edit_manager" => edit_manager_to_semantic,
-        b"edit_records" => edit_records_to_semantic,
-        b"bid_expired_account_dutch_auction" => bid_expired_account_dutch_auction_to_semantic,
-        b"start_account_sale" => start_account_sale_to_semantic,
-        b"cancel_account_sale" => cancel_account_sale_to_semantic,
-        b"buy_account" => buy_account_to_semantic,
-        b"edit_account_sale" => edit_account_sale_to_semantic,
-        b"make_offer" => make_offer_to_semantic,
-        b"edit_offer" => edit_offer_to_semantic,
-        b"cancel_offer" => cancel_offer_to_semantic,
-        b"accept_offer" => accept_offer_to_semantic,
-        b"retract_reverse_record" => retract_reverse_record_to_semantic,
-        b"lock_account_for_cross_chain" => lock_account_for_cross_chain_to_semantic,
-        b"create_approval" => create_approval_to_semantic,
-        b"delay_approval" => delay_approval_to_semantic,
-        b"fulfill_approval" => fulfill_approval_to_semantic,
-        b"transfer_dp" => transfer_dp_to_semantic,
-        b"burn_dp" => burn_dp_to_semantic,
+        // b"transfer_account" => transfer_account_to_semantic,
+        Action::TransferAccount => transfer_account_to_semantic,
+
+        // b"edit_manager" => edit_manager_to_semantic,
+        Action::EditManager => edit_manager_to_semantic,
+
+        // b"edit_records" => edit_records_to_semantic,
+        Action::EditRecords => edit_records_to_semantic,
+
+        // b"bid_expired_account_dutch_auction" => bid_expired_account_dutch_auction_to_semantic,
+        Action::BidExpiredAccountDutchAuction => bid_expired_account_dutch_auction_to_semantic,
+
+        // b"start_account_sale" => start_account_sale_to_semantic,
+        Action::StartAccountSale => start_account_sale_to_semantic,
+
+        // b"cancel_account_sale" => cancel_account_sale_to_semantic,
+        Action::CancelAccountSale => cancel_account_sale_to_semantic,
+
+        // b"buy_account" => buy_account_to_semantic,
+        Action::BuyAccount => buy_account_to_semantic,
+
+        // b"edit_account_sale" => edit_account_sale_to_semantic,
+        Action::EditAccountSale => edit_account_sale_to_semantic,
+
+        // b"make_offer" => make_offer_to_semantic,
+        Action::MakeOffer => make_offer_to_semantic,
+
+        // b"edit_offer" => edit_offer_to_semantic,
+        Action::EditOffer => edit_offer_to_semantic,
+
+        // b"cancel_offer" => cancel_offer_to_semantic,
+        Action::CancelOffer => cancel_offer_to_semantic,
+
+        // b"accept_offer" => accept_offer_to_semantic,
+        Action::AcceptOffer => accept_offer_to_semantic,
+
+        // b"retract_reverse_record" => retract_reverse_record_to_semantic,
+        Action::RetractReverseRecord => retract_reverse_record_to_semantic,
+
+        // b"lock_account_for_cross_chain" => lock_account_for_cross_chain_to_semantic,
+        Action::LockAccountForCrossChain => lock_account_for_cross_chain_to_semantic,
+
+        // b"create_approval" => create_approval_to_semantic,
+        Action::CreateApproval => create_approval_to_semantic,
+
+        // b"delay_approval" => delay_approval_to_semantic,
+        Action::DelayApproval => delay_approval_to_semantic,
+
+        // b"fulfill_approval" => fulfill_approval_to_semantic,
+        Action::FulfillApproval => fulfill_approval_to_semantic,
+
+        // b"transfer_dp" => transfer_dp_to_semantic,
+        Action::TransferDP => transfer_dp_to_semantic,
+
+        // b"burn_dp" => burn_dp_to_semantic,
+        Action::BurnDP => burn_dp_to_semantic,
+
         _ => transfer_to_semantic,
     };
 
-    verify_eip712_hashes_if_has_das_lock(&parser, func)?;
+    verify_eip712_hashes_if_has_das_lock(&mut parser, func)?;
 
     Ok(())
 }
 
-fn transfer_account_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
-    let type_id_table_reader = parser.configs.main()?.type_id_table();
-    let (input_cells, output_cells) = util::find_cells_by_type_id_in_inputs_and_outputs(
-        ScriptType::Type,
-        type_id_table_reader.account_cell(),
-    )?;
+fn transfer_account_to_semantic(
+    _parser: &mut WitnessesParser,
+) -> Result<String, Box<dyn ScriptError>> {
+    let (input_cells, output_cells) =
+        find_cells_by_type_id_in_inputs_and_outputs(TypeScript::AccountCellType)?;
 
     // Parse account from the data of the AccountCell in inputs.
     let data_in_bytes = util::load_cell_data(input_cells[0], Source::Input)?;
@@ -82,7 +124,7 @@ fn transfer_account_to_semantic(parser: &WitnessesParser) -> Result<String, Box<
     // let from_address = to_semantic_address(from_lock.as_reader().into(), 1..21)?;
     // Parse to address from the AccountCell's lock script in outputs.
     let to_lock = high_level::load_cell_lock(output_cells[0], Source::Output)?;
-    let to_address = to_semantic_address(parser, to_lock.as_reader().into(), LockRole::Owner)?;
+    let to_address = to_semantic_address(to_lock.as_reader().into(), LockRole::Owner)?;
 
     Ok(format!(
         "TRANSFER THE ACCOUNT {} TO {}",
@@ -90,12 +132,9 @@ fn transfer_account_to_semantic(parser: &WitnessesParser) -> Result<String, Box<
     ))
 }
 
-fn edit_manager_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
-    let type_id_table_reader = parser.configs.main()?.type_id_table();
-    let (input_cells, _output_cells) = util::find_cells_by_type_id_in_inputs_and_outputs(
-        ScriptType::Type,
-        type_id_table_reader.account_cell(),
-    )?;
+fn edit_manager_to_semantic(_parser: &mut WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
+    let (input_cells, _output_cells) =
+        find_cells_by_type_id_in_inputs_and_outputs(TypeScript::AccountCellType)?;
 
     // Parse account from the data of the AccountCell in inputs.
     let data_in_bytes = util::load_cell_data(input_cells[0], Source::Input)?;
@@ -107,12 +146,9 @@ fn edit_manager_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn 
     Ok(format!("EDIT MANAGER OF ACCOUNT {}", account))
 }
 
-fn edit_records_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
-    let type_id_table_reader = parser.configs.main()?.type_id_table();
-    let (input_cells, _output_cells) = util::find_cells_by_type_id_in_inputs_and_outputs(
-        ScriptType::Type,
-        type_id_table_reader.account_cell(),
-    )?;
+fn edit_records_to_semantic(_parser: &mut WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
+    let (input_cells, _output_cells) =
+        find_cells_by_type_id_in_inputs_and_outputs(TypeScript::AccountCellType)?;
 
     // Parse account from the data of the AccountCell in inputs.
     let data_in_bytes = util::load_cell_data(input_cells[0], Source::Input)?;
@@ -125,14 +161,10 @@ fn edit_records_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn 
 }
 
 fn bid_expired_account_dutch_auction_to_semantic(
-    parser: &WitnessesParser,
+    _parser: &mut WitnessesParser,
 ) -> Result<String, Box<dyn ScriptError>> {
-    let type_id_table_reader = parser.configs.main()?.type_id_table();
     let (input_account_cells, _output_account_cells) =
-        util::find_cells_by_type_id_in_inputs_and_outputs(
-            ScriptType::Type,
-            type_id_table_reader.account_cell(),
-        )?;
+        find_cells_by_type_id_in_inputs_and_outputs(TypeScript::AccountCellType)?;
 
     // Parse account from the data of the AccountCell in inputs.
     let data_in_bytes = util::load_cell_data(input_account_cells[0], Source::Input)?;
@@ -141,10 +173,7 @@ fn bid_expired_account_dutch_auction_to_semantic(
         .map_err(|_| ErrorCode::EIP712SerializationError)?;
 
     let (input_dpoint_cells, output_dpoint_cells) =
-        util::find_cells_by_type_id_in_inputs_and_outputs(
-            ScriptType::Type,
-            type_id_table_reader.dpoint_cell(),
-        )?;
+        find_cells_by_type_id_in_inputs_and_outputs(TypeScript::DPointCellType)?;
     let lock = Script::from(high_level::load_cell_lock(
         input_dpoint_cells[0],
         Source::Input,
@@ -170,19 +199,11 @@ fn bid_expired_account_dutch_auction_to_semantic(
 }
 
 fn start_account_sale_to_semantic(
-    parser: &WitnessesParser,
+    parser: &mut WitnessesParser,
 ) -> Result<String, Box<dyn ScriptError>> {
-    let type_id_table_reader = parser.configs.main()?.type_id_table();
-    let account_cells = util::find_cells_by_type_id(
-        ScriptType::Type,
-        type_id_table_reader.account_cell(),
-        Source::Input,
-    )?;
-    let account_sale_cells = util::find_cells_by_type_id(
-        ScriptType::Type,
-        type_id_table_reader.account_sale_cell(),
-        Source::Output,
-    )?;
+    let account_cells = find_cells_by_type_id(TypeScript::AccountCellType, Source::Input)?;
+    let account_sale_cells =
+        find_cells_by_type_id(TypeScript::AccountSaleCellType, Source::Output)?;
 
     // Parse account from the data of the AccountCell in inputs.
     let data_in_bytes = util::load_cell_data(account_cells[0], Source::Input)?;
@@ -190,11 +211,20 @@ fn start_account_sale_to_semantic(
     let account = String::from_utf8(account_in_bytes.to_vec())
         .map_err(|_| ErrorCode::EIP712SerializationError)?;
 
-    let (version, _, witness) = parser.verify_and_get(
-        DataType::AccountSaleCellData,
-        account_sale_cells[0],
-        Source::Output,
-    )?;
+    let cell_meta = CellMeta::new(account_sale_cells[0], das_types::constants::Source::Output);
+    let witness_meta = parser
+        .get_witness_meta_by_cell_meta(cell_meta)
+        .expect("get_witness_meta_by_cell_meta failed");
+    let version = witness_meta.version;
+    let witness: Bytes = parser
+        .get_entity_by_cell_meta(cell_meta)
+        .expect("get_entity_by_cell_meta failed");
+
+    // let (version, _, witness) = parser.verify_and_get(
+    //     DataType::AccountSaleCellData,
+    //     account_sale_cells[0],
+    //     Source::Output,
+    // )?;
 
     let price = if version == 1 {
         let entity =
@@ -215,19 +245,26 @@ fn start_account_sale_to_semantic(
     Ok(format!("SELL {} FOR {}", account, price))
 }
 
-fn edit_account_sale_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
-    let type_id_table_reader = parser.configs.main()?.type_id_table();
-    let account_sale_cells = util::find_cells_by_type_id(
-        ScriptType::Type,
-        type_id_table_reader.account_sale_cell(),
-        Source::Output,
-    )?;
+fn edit_account_sale_to_semantic(
+    parser: &mut WitnessesParser,
+) -> Result<String, Box<dyn ScriptError>> {
+    let account_sale_cells =
+        find_cells_by_type_id(TypeScript::AccountSaleCellType, Source::Output)?;
 
-    let (version, _, witness) = parser.verify_and_get(
-        DataType::AccountSaleCellData,
-        account_sale_cells[0],
-        Source::Output,
-    )?;
+    let cell_meta = CellMeta::new(account_sale_cells[0], das_types::constants::Source::Output);
+    let witness_meta = parser
+        .get_witness_meta_by_cell_meta(cell_meta)
+        .expect("get_witness_meta_by_cell_meta failed");
+    let version = witness_meta.version;
+    let witness: Bytes = parser
+        .get_entity_by_cell_meta(cell_meta)
+        .expect("get_entity_by_cell_meta failed");
+
+    // let (version, _, witness) = parser.verify_and_get(
+    //     DataType::AccountSaleCellData,
+    //     account_sale_cells[0],
+    //     Source::Output,
+    // )?;
 
     let price = if version == 1 {
         let entity =
@@ -249,14 +286,9 @@ fn edit_account_sale_to_semantic(parser: &WitnessesParser) -> Result<String, Box
 }
 
 fn cancel_account_sale_to_semantic(
-    parser: &WitnessesParser,
+    _parser: &mut WitnessesParser,
 ) -> Result<String, Box<dyn ScriptError>> {
-    let type_id_table_reader = parser.configs.main()?.type_id_table();
-    let account_cells = util::find_cells_by_type_id(
-        ScriptType::Type,
-        type_id_table_reader.account_cell(),
-        Source::Input,
-    )?;
+    let account_cells = find_cells_by_type_id(TypeScript::AccountCellType, Source::Input)?;
 
     // Parse account from the data of the AccountCell in inputs.
     let data_in_bytes = util::load_cell_data(account_cells[0], Source::Input)?;
@@ -267,18 +299,9 @@ fn cancel_account_sale_to_semantic(
     Ok(format!("CANCEL SALE OF {}", account))
 }
 
-fn buy_account_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
-    let type_id_table_reader = parser.configs.main()?.type_id_table();
-    let account_cells = util::find_cells_by_type_id(
-        ScriptType::Type,
-        type_id_table_reader.account_cell(),
-        Source::Input,
-    )?;
-    let account_sale_cells = util::find_cells_by_type_id(
-        ScriptType::Type,
-        type_id_table_reader.account_sale_cell(),
-        Source::Input,
-    )?;
+fn buy_account_to_semantic(parser: &mut WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
+    let account_cells = find_cells_by_type_id(TypeScript::AccountCellType, Source::Input)?;
+    let account_sale_cells = find_cells_by_type_id(TypeScript::AccountSaleCellType, Source::Input)?;
 
     // Parse account from the data of the AccountCell in inputs.
     let data_in_bytes = util::load_cell_data(account_cells[0], Source::Input)?;
@@ -286,11 +309,20 @@ fn buy_account_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn S
     let account = String::from_utf8(account_in_bytes.to_vec())
         .map_err(|_| ErrorCode::EIP712SerializationError)?;
 
-    let (version, _, witness) = parser.verify_and_get(
-        DataType::AccountSaleCellData,
-        account_sale_cells[0],
-        Source::Input,
-    )?;
+    let cell_meta = CellMeta::new(account_sale_cells[0], das_types::constants::Source::Output);
+    let witness_meta = parser
+        .get_witness_meta_by_cell_meta(cell_meta)
+        .expect("get_witness_meta_by_cell_meta failed");
+    let version = witness_meta.version;
+    let witness: Bytes = parser
+        .get_entity_by_cell_meta(cell_meta)
+        .expect("get_entity_by_cell_meta failed");
+
+    // let (version, _, witness) = parser.verify_and_get(
+    //     DataType::AccountSaleCellData,
+    //     account_sale_cells[0],
+    //     Source::Input,
+    // )?;
 
     let price = if version == 1 {
         let entity =
@@ -312,12 +344,10 @@ fn buy_account_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn S
 }
 
 fn offer_to_semantic(
-    parser: &WitnessesParser,
+    _parser: &WitnessesParser,
     source: Source,
 ) -> Result<(String, String), Box<dyn ScriptError>> {
-    let type_id_table_reader = parser.configs.main()?.type_id_table();
-    let offer_cells =
-        util::find_cells_by_type_id(ScriptType::Type, type_id_table_reader.offer_cell(), source)?;
+    let offer_cells = find_cells_by_type_id(TypeScript::OfferCellType, source)?;
 
     assert!(
         offer_cells.len() > 0,
@@ -325,7 +355,7 @@ fn offer_to_semantic(
         "There should be at least 1 OfferCell in transaction."
     );
 
-    let witness = util::parse_offer_cell_witness(parser, offer_cells[0], source)?;
+    let witness = util::parse_offer_cell_witness(offer_cells[0], source)?;
     let witness_reader = witness.as_reader();
 
     let account =
@@ -338,12 +368,12 @@ fn offer_to_semantic(
     Ok((account, amount))
 }
 
-fn make_offer_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
+fn make_offer_to_semantic(parser: &mut WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
     let (account, amount) = offer_to_semantic(parser, Source::Output)?;
     Ok(format!("MAKE AN OFFER ON {} WITH {}", account, amount))
 }
 
-fn edit_offer_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
+fn edit_offer_to_semantic(parser: &mut WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
     let (_, old_amount) = offer_to_semantic(parser, Source::Input)?;
     let (account, new_amount) = offer_to_semantic(parser, Source::Output)?;
     Ok(format!(
@@ -352,50 +382,35 @@ fn edit_offer_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn Sc
     ))
 }
 
-fn cancel_offer_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
-    let type_id_table_reader = parser.configs.main()?.type_id_table();
-    let offer_cells = util::find_cells_by_type_id(
-        ScriptType::Type,
-        type_id_table_reader.offer_cell(),
-        Source::Input,
-    )?;
+fn cancel_offer_to_semantic(_parser: &mut WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
+    let offer_cells = find_cells_by_type_id(TypeScript::OfferCellType, Source::Input)?;
 
     Ok(format!("CANCEL {} OFFER(S)", offer_cells.len()))
 }
 
-fn accept_offer_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
+fn accept_offer_to_semantic(parser: &mut WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
     let (account, amount) = offer_to_semantic(parser, Source::Input)?;
     Ok(format!("ACCEPT THE OFFER ON {} WITH {}", account, amount))
 }
 
 fn retract_reverse_record_to_semantic(
-    parser: &WitnessesParser,
+    _parser: &mut WitnessesParser,
 ) -> Result<String, Box<dyn ScriptError>> {
-    let type_id_table_reader = parser.configs.main()?.type_id_table();
     let source = Source::Input;
-    let reverse_record_cells = util::find_cells_by_type_id(
-        ScriptType::Type,
-        type_id_table_reader.reverse_record_cell(),
-        source,
-    )?;
+    let reverse_record_cells = find_cells_by_type_id(TypeScript::ReverseRecordCellType, source)?;
     let lock = Script::from(
         high_level::load_cell_lock(reverse_record_cells[0], source)
             .map_err(Error::<ErrorCode>::from)?,
     );
-    let address = to_semantic_address(parser, lock.as_reader(), LockRole::Owner)?;
+    let address = to_semantic_address(lock.as_reader(), LockRole::Owner)?;
 
     Ok(format!("RETRACT REVERSE RECORDS ON {}", address))
 }
 
 fn lock_account_for_cross_chain_to_semantic(
-    parser: &WitnessesParser,
+    _parser: &mut WitnessesParser,
 ) -> Result<String, Box<dyn ScriptError>> {
-    let type_id_table_reader = parser.configs.main()?.type_id_table();
-    let account_cells = util::find_cells_by_type_id(
-        ScriptType::Type,
-        type_id_table_reader.account_cell(),
-        Source::Input,
-    )?;
+    let account_cells = find_cells_by_type_id(TypeScript::AccountCellType, Source::Input)?;
 
     // Parse account from the data of the AccountCell in inputs.
     let data_in_bytes = util::load_cell_data(account_cells[0], Source::Input)?;
@@ -407,14 +422,11 @@ fn lock_account_for_cross_chain_to_semantic(
 }
 
 fn parse_approval_tx_info(
-    parser: &WitnessesParser,
+    _parser: &WitnessesParser,
     source: Source,
 ) -> Result<(usize, String, Box<dyn AccountCellDataMixer>), Box<dyn ScriptError>> {
-    let type_id_table_reader = parser.configs.main()?.type_id_table();
-    let (input_cells, output_cells) = util::find_cells_by_type_id_in_inputs_and_outputs(
-        ScriptType::Type,
-        type_id_table_reader.account_cell(),
-    )?;
+    let (input_cells, output_cells) =
+        find_cells_by_type_id_in_inputs_and_outputs(TypeScript::AccountCellType)?;
 
     // Parse account from the data of the AccountCell in inputs.
     let data_in_bytes = util::load_cell_data(input_cells[0], Source::Input)?;
@@ -427,12 +439,14 @@ fn parse_approval_tx_info(
     } else {
         output_cells[0]
     };
-    let witness = util::parse_account_cell_witness(parser, index, source)?;
+    let witness = util::parse_account_cell_witness(index, source)?;
 
     Ok((index, account, witness))
 }
 
-fn create_approval_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
+fn create_approval_to_semantic(
+    parser: &mut WitnessesParser,
+) -> Result<String, Box<dyn ScriptError>> {
     let (output_index, account, witness) = parse_approval_tx_info(parser, Source::Output)?;
     let witness_reader = witness.as_reader();
     let witness_reader = match witness_reader.try_into_latest() {
@@ -463,8 +477,7 @@ fn create_approval_to_semantic(parser: &WitnessesParser) -> Result<String, Box<d
                     })?;
 
             let to_lock = approval_params.to_lock();
-            let to_address =
-                to_semantic_address(parser, to_lock.as_reader().into(), LockRole::Owner)?;
+            let to_address = to_semantic_address(to_lock.as_reader().into(), LockRole::Owner)?;
             let sealed_until = u64::from(approval_params.sealed_until());
 
             Ok(format!(
@@ -486,7 +499,9 @@ fn create_approval_to_semantic(parser: &WitnessesParser) -> Result<String, Box<d
     }
 }
 
-fn delay_approval_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
+fn delay_approval_to_semantic(
+    parser: &mut WitnessesParser,
+) -> Result<String, Box<dyn ScriptError>> {
     let (output_index, account, witness) = parse_approval_tx_info(parser, Source::Output)?;
     let witness_reader = witness.as_reader();
     let witness_reader = match witness_reader.try_into_latest() {
@@ -537,7 +552,9 @@ fn delay_approval_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dy
     }
 }
 
-fn fulfill_approval_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
+fn fulfill_approval_to_semantic(
+    parser: &mut WitnessesParser,
+) -> Result<String, Box<dyn ScriptError>> {
     let (input_index, account, witness) = parse_approval_tx_info(parser, Source::Input)?;
     let witness_reader = witness.as_reader();
     let witness_reader = match witness_reader.try_into_latest() {
@@ -568,8 +585,7 @@ fn fulfill_approval_to_semantic(parser: &WitnessesParser) -> Result<String, Box<
                     })?;
 
             let to_lock = approval_params.to_lock();
-            let to_address =
-                to_semantic_address(parser, to_lock.as_reader().into(), LockRole::Owner)?;
+            let to_address = to_semantic_address(to_lock.as_reader().into(), LockRole::Owner)?;
 
             Ok(format!(
                 "FULFILL THE TRANSFER APPROVAL OF {}, TRANSFER TO {}",
@@ -590,8 +606,8 @@ fn fulfill_approval_to_semantic(parser: &WitnessesParser) -> Result<String, Box<
     }
 }
 
-fn transfer_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
-    fn sum_cells(parser: &WitnessesParser, source: Source) -> Result<String, Box<dyn ScriptError>> {
+fn transfer_to_semantic(parser: &mut WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
+    fn sum_cells(_parser: &WitnessesParser, source: Source) -> Result<String, Box<dyn ScriptError>> {
         let mut i = 0;
         let mut capacity_map = Map::new();
         loop {
@@ -602,7 +618,7 @@ fn transfer_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn Scri
                         high_level::load_cell_lock(i, source)
                             .map_err(|e| Error::<ErrorCode>::from(e))?,
                     );
-                    let address = to_semantic_address(parser, lock.as_reader(), LockRole::Owner)?;
+                    let address = to_semantic_address(lock.as_reader(), LockRole::Owner)?;
                     map_util::add(&mut capacity_map, address, capacity);
                 }
                 Err(SysError::IndexOutOfBound) => {
@@ -632,15 +648,12 @@ fn transfer_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn Scri
     Ok(format!("TRANSFER FROM {} TO {}", inputs, outputs))
 }
 
-fn transfer_dp_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
-    let type_id_table_reader = parser.configs.main()?.type_id_table();
-    let (input_cells, output_cells) = util::find_cells_by_type_id_in_inputs_and_outputs(
-        ScriptType::Type,
-        type_id_table_reader.dpoint_cell(),
-    )?;
+fn transfer_dp_to_semantic(parser: &mut WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
+    let (input_cells, output_cells) =
+        find_cells_by_type_id_in_inputs_and_outputs(TypeScript::DPointCellType)?;
 
     fn sum_cells(
-        parser: &WitnessesParser,
+        _parser: &WitnessesParser,
         cells: Vec<usize>,
         source: Source,
     ) -> Result<String, Box<dyn ScriptError>> {
@@ -654,7 +667,7 @@ fn transfer_dp_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn S
                         high_level::load_cell_lock(i, source)
                             .map_err(|e| Error::<ErrorCode>::from(e))?,
                     );
-                    let address = to_semantic_address(parser, lock.as_reader(), LockRole::Owner)?;
+                    let address = to_semantic_address(lock.as_reader(), LockRole::Owner)?;
                     map_util::add(&mut dp_map, address, value);
                 }
                 Err(SysError::IndexOutOfBound) => {
@@ -682,18 +695,15 @@ fn transfer_dp_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn S
     Ok(format!("TRANSFER FROM {} TO {}", inputs, outputs))
 }
 
-fn burn_dp_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
-    let type_id_table_reader = parser.configs.main()?.type_id_table();
-    let (input_cells, output_cells) = util::find_cells_by_type_id_in_inputs_and_outputs(
-        ScriptType::Type,
-        type_id_table_reader.dpoint_cell(),
-    )?;
+fn burn_dp_to_semantic(_parser: &mut WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
+    let (input_cells, output_cells) =
+        find_cells_by_type_id_in_inputs_and_outputs(TypeScript::DPointCellType)?;
 
     let input_dp = util::get_total_dpoint(&input_cells, Source::Input)?;
     let output_dp = util::get_total_dpoint(&output_cells, Source::Output)?;
 
     let lock = Script::from(high_level::load_cell_lock(input_cells[0], Source::Input)?);
-    let burn_address = to_semantic_address(parser, lock.as_reader(), LockRole::Owner)?;
+    let burn_address = to_semantic_address(lock.as_reader(), LockRole::Owner)?;
 
     let burn_dp = if input_dp > output_dp {
         input_dp - output_dp
@@ -706,4 +716,32 @@ fn burn_dp_to_semantic(parser: &WitnessesParser) -> Result<String, Box<dyn Scrip
         to_semantic_currency(burn_dp, "DP"),
         burn_address
     ))
+}
+
+fn find_cells_by_type_id_in_inputs_and_outputs(
+    type_script: TypeScript,
+) -> Result<(Vec<usize>, Vec<usize>), Box<dyn ScriptError>> {
+    let type_id = get_type_id(type_script);
+    let hash_reader = HashReader::from_slice(type_id.as_slice()).map_err(|_| {
+        warn!("EIP712 decoding type id failed");
+        ErrorCode::WitnessEntityDecodingError
+    })?;
+
+    let (input_cells, output_cells) =
+        util::find_cells_by_type_id_in_inputs_and_outputs(ScriptType::Type, hash_reader)?;
+    Ok((input_cells, output_cells))
+}
+
+fn find_cells_by_type_id(
+    type_script: TypeScript,
+    source: Source,
+) -> Result<Vec<usize>, Box<dyn ScriptError>> {
+    let type_id = get_type_id(type_script);
+    let hash_reader = HashReader::from_slice(type_id.as_slice()).map_err(|_| {
+        warn!("EIP712 decoding type id failed");
+        ErrorCode::WitnessEntityDecodingError
+    })?;
+
+    let cells = util::find_cells_by_type_id(ScriptType::Type, hash_reader, source)?;
+    Ok(cells)
 }

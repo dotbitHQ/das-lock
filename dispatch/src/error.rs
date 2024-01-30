@@ -52,6 +52,8 @@ pub enum Error {
     RunExecError, // 35
 
     SubAccountParseFailed,
+    CellNotFound,
+    CannotFindEip712InCellDeps,
 }
 
 impl From<SysError> for Error {

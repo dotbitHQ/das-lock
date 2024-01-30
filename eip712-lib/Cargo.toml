@@ -4,14 +4,17 @@ version = "1.1.0"
 edition = "2021"
 
 [features]
-dev = ["das-core/dev", "eip712/dev"]
-local = ["das-core/local", "eip712/local"]
-testnet = ["das-core/testnet", "eip712/testnet"]
-mainnet = ["das-core/mainnet", "eip712/mainnet"]
+dev = ["das-core/dev"]
+local = ["das-core/local"]
+testnet = ["das-core/testnet"]
+mainnet = ["das-core/mainnet"]
 
 [dependencies]
-ckb-std = { workspace = true }
-das-core = { workspace = true, default-features = false }
-das-types = { workspace = true, default-features = false, features = ["no_std"] }
-das-map = { workspace = true, default-features = false }
+ckb-std = "0.13.0"
+das-core = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, branch = "testnet2" }
+das-map = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, branch = "testnet2" }
+das-types = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, branch = "testnet2" }
 eip712 = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, branch = "testnet2" }
+witness-parser = { git = "https://github.com/dotbitHQ/das-contracts-private.git",  default-features = false,  branch = "testnet2" }
+das-dynamic-libs = { git = "https://github.com/dotbitHQ/das-contracts-private.git", branch = "testnet2" }
+hex = { version = "0.4.3", default-features = false, features = ["alloc"]}

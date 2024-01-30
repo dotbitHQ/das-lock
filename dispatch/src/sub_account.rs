@@ -13,11 +13,9 @@ use das_core::{code_to_error, das_assert, data_parser, util, verifiers, warn};
 
 use das_dynamic_libs::error::Error;
 use das_dynamic_libs::sign_lib::SignLib;
-use das_types::constants::{
-    das_lock, AccountStatus, DasLockType, SubAccountAction, };
+use das_types::constants::{das_lock, AccountStatus, DasLockType, SubAccountAction};
 use das_types::packed::{
-    AccountApproval, AccountApprovalTransferReader, Bytes, Records, SubAccount, Uint64,
-    Uint8,
+    AccountApproval, AccountApprovalTransferReader, Bytes, Records, SubAccount, Uint64, Uint8,
 };
 use das_types::prelude::Builder;
 use das_types::prettier::Prettier;

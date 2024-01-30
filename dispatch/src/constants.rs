@@ -1,5 +1,5 @@
 use crate::debug_log;
-use crate::dlopen::{DynLibDesc};
+use crate::dlopen::DynLibDesc;
 use crate::error::Error;
 use crate::structures::AlgId;
 use alloc::vec::Vec;
@@ -154,7 +154,7 @@ pub fn get_dyn_lib_desc_info(alg_id: AlgId) -> Result<DynLibDesc, Error> {
     })
 }
 
-fn decode_hex(title: &str, hex_str: &str) -> Vec<u8> {
+pub(crate) fn decode_hex(title: &str, hex_str: &str) -> Vec<u8> {
     match hex::decode(hex_str) {
         Ok(v) => v,
         Err(e) => {
@@ -168,6 +168,19 @@ fn decode_hex(title: &str, hex_str: &str) -> Vec<u8> {
 
 pub fn get_config_cell_main() -> Result<ConfigCellMain, Error> {
     let witness_parser = WitnessesParserV1::get_instance();
+    if !witness_parser.is_inited() {
+        debug_log!("WitnessesParserV1::init() start");
+        witness_parser
+            .init()
+            .map_err(|err| {
+                debug_log!("Error: witness parser init failed, {:?}", err);
+                Error::LoadWitnessError
+            })
+            .unwrap();
+        debug_log!("WitnessesParserV1::init() success");
+    } else {
+        debug_log!("WitnessesParserV1::init() already inited");
+    }
     match witness_parser.get_entity_by_data_type::<ConfigCellMain>(DataType::ConfigCellMain) {
         Ok(config) => Ok(config),
         Err(e) => {
@@ -180,3 +193,26 @@ pub fn get_config_cell_main() -> Result<ConfigCellMain, Error> {
 fn checksum(s: &str) -> u32 {
     s.as_bytes().iter().map(|&b| b as u32).sum()
 }
+
+
+//test only
+// const TYPE_ID_TABLE_TYPE_NUMS: usize = 5;
+// #[allow(dead_code)]
+// #[cfg(feature = "mainnet")]
+// pub const TYPE_ID_TABLE_TYPE: [&str; TYPE_ID_TABLE_TYPE_NUMS] = [
+//     "c9fc9f3dc050f8bf11019842a2426f48420f79da511dd169ee243f455e9f84ed", //account cell
+//     "991bcf61b6d7a26e6c27bda87d5468313d99ef0cd37113eee9e16c2680fa4532", //sub account cell
+//     "",                                                                 //dp account cell
+//     "",
+//     ""
+// ];
+// #[allow(dead_code)]
+// #[cfg(feature = "testnet2")]
+// pub const TYPE_ID_TABLE_TYPE: [&str; TYPE_ID_TABLE_TYPE_NUMS] = [
+//     "1106d9eaccde0995a7e07e80dd0ce7509f21752538dfdd1ee2526d24574846b1", //account cell
+//     "8bb0413701cdd2e3a661cc8914e6790e16d619ce674930671e695807274bd14c", //sub account cell
+//     "5988ce37f185904477f120742b191a0730da0d5de9418a8bdf644e6bb3bd8c12", //dp                                                            //dp account cell
+//     "4fd085557b4ef857b0577723bbf0a2e94081bbe3114de847cd9db01abaeb4f4e", //eip712
+//     "4ff58f2c76b4ac26fdf675aa82541e02e4cf896279c6d6982d17b959788b2f0c", //balance cell
+//
+// ];

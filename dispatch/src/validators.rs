@@ -280,7 +280,7 @@ pub fn approval_verify_sign(
         load_and_configure_lib!(sign_lib, WebAuthn, type_id_table, web_authn, load_3_methods);
 
         let (digest, witness_args_lock) = if sign_type == DasLockType::ETHTypedData {
-            let (_, digest, _, witness_args_lock) =
+            let (_, _, digest, _, witness_args_lock) =
                 sign_util::get_eip712_digest(vec![input_account_index])?;
             (digest, witness_args_lock)
         } else {
@@ -325,7 +325,13 @@ pub fn validate_for_unlock_account_for_cross_chain() -> Result<i8, Error> {
     args.extend_from_slice(&since.to_le_bytes());
 
     let mut sign_lib = SignLib::new();
-    load_and_configure_lib!(sign_lib, CKBMultisig, type_id_table, ckb_multisig, load_1_method);
+    load_and_configure_lib!(
+        sign_lib,
+        CKBMultisig,
+        type_id_table,
+        ckb_multisig,
+        load_1_method
+    );
 
     // let mut ckb_multi_context = new_context!();
     // log_loading!(DynLibName::CKBMultisig, type_id_table);
@@ -433,13 +439,11 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
 
     let mut sign_verified = false;
     if sub_account_parser.contains_creation || sub_account_parser.contains_renew {
-        let verify_and_init_some_vars = |_name: &str,
-                                         witness: &SubAccountMintSignWitness|
+        let verify_and_init_some_vars = |_name: &str, witness: &SubAccountMintSignWitness|
          -> Result<
             (
                 Option<LockRole>,
                 ckb_std::ckb_types::packed::Script,
-                Option<[u8; 32]>,
             ),
             Box<dyn ScriptError>,
         > {
@@ -461,9 +465,9 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
                 &sub_account_parser,
             )?;
 
-            let mut tmp = [0u8; 32];
-            tmp.copy_from_slice(&witness.account_list_smt_root);
-            let account_list_smt_root = Some(tmp);
+            // let mut tmp = [0u8; 32];
+            // //tmp.copy_from_slice(&witness.account_list_smt_root);
+            // let account_list_smt_root = Some(tmp);
 
             let sender_lock = if witness.sign_role == Some(LockRole::Manager) {
                 debug!("Found SubAccountWitness.sign_role is manager, use manager lock as sender_lock.");
@@ -478,8 +482,7 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
             Ok((
                 witness.sign_role.clone(),
                 sender_lock,
-                account_list_smt_root,
-            ))
+                ))
         };
         let mut mint_sign_role: Option<LockRole> = None;
 
@@ -489,7 +492,7 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
             match sub_account_parser.get_mint_sign(account_lock_args) {
                 Some(Ok(witness)) => {
                     sign_verified = true;
-                    (mint_sign_role, sender_lock, _) =
+                    (mint_sign_role, sender_lock) =
                         verify_and_init_some_vars("SubAccountMintWitness", &witness)?;
                 }
                 Some(Err(err)) => {
@@ -508,11 +511,8 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
                     let renew_sender_lock;
                     let renew_sign_role;
                     sign_verified = true;
-                    (
-                        renew_sign_role,
-                        renew_sender_lock,
-                        _,
-                    ) = verify_and_init_some_vars("SubAccountRenewWitness", &witness)?;
+                    (renew_sign_role, renew_sender_lock) =
+                        verify_and_init_some_vars("SubAccountRenewWitness", &witness)?;
 
                     if mint_sign_role.is_some() {
                         if mint_sign_role != renew_sign_role {
@@ -551,7 +551,7 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
         Source::Input,
     )?;
 
-
+    //This verification is both in type and lock
     if sign_verified {
         let config_main = get_config_cell_main()?;
         let config_main_reader = config_main.as_reader();
@@ -573,7 +573,7 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
 
         //Ensure that all cells in inputs that use das-lock use sender_lock as the lock.
         if all_inputs_with_das_lock != input_sender_cells {
-            debug_log!(
+            debug!(
                 "Some cells with das-lock have may be abused.(invalid_inputs: {:?})",
                 all_inputs_with_das_lock
                     .iter()

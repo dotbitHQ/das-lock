@@ -1,5 +1,6 @@
 extern crate alloc;
 use crate::error::Error;
+use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
 use ckb_std::high_level::load_cell_type;
@@ -23,22 +24,17 @@ use crate::constants::{
     WITNESS_ARGS_LOCK_LEN,
 };
 use crate::debug_log;
-use crate::dlopen::{
-    dispatch_do_dyn_lib_and_then_exec_eip712_lib, dispatch_to_dyn_lib,
-};
+use crate::dlopen::{dispatch};
 use crate::structures::CmdMatchStatus::{DasNotPureLockCell, DasPureLockCell};
 use crate::structures::MatchStatus::{Match, NotMatch};
 use crate::structures::{AlgId, CmdMatchStatus, LockArgs, MatchStatus, SignInfo, SkipSignOrNot};
 use crate::utils::generate_sighash_all::{calculate_inputs_len, load_and_hash_witness};
 use crate::utils::{bytes_to_u32_le, check_num_boundary, new_blake2b};
-use das_types::constants::{Action as DasAction, LockRole as Role};
-//use das_types::packed::Reader;
+use das_types::constants::{Action as DasAction, LockRole as Role, TypeScript};
 
-#[cfg(test)]
-use crate::test_framework::Testable;
 use crate::tx_parser::{
-    get_account_cell_type_id, get_balance_cell_type_id, get_dpoint_cell_type_id,
-    get_sub_account_cell_type_id,
+    get_account_cell_type_id, get_dpoint_cell_type_id, get_sub_account_cell_type_id,
+    get_type_id_by_type_script,
 };
 use crate::validators::{
     validate_for_fulfill_approval, validate_for_revoke_approval,
@@ -144,7 +140,8 @@ fn check_and_downgrade_alg_id(action: &DasAction, alg_id: AlgId) -> AlgId {
         _ => AlgId::Eip712,
     }
 }
-fn get_lock_args(action: &DasAction, role: Role) -> Result<LockArgs, Error> {
+pub(crate) fn get_lock_args(action: &DasAction, role: Role) -> Result<LockArgs, Error> {
+
     let script = load_script()?;
     let args: Bytes = script.args().unpack();
 
@@ -153,7 +150,6 @@ fn get_lock_args(action: &DasAction, role: Role) -> Result<LockArgs, Error> {
 
     let payload1_len = get_payload_len(alg_id_owner)?;
 
-    // let payload = args_slice[1..args_len].to_vec();
     let (payload_start_idx, payload_end_index, alg_id) = {
         match role {
             Role::Owner => {
@@ -182,60 +178,113 @@ fn get_lock_args(action: &DasAction, role: Role) -> Result<LockArgs, Error> {
     Ok(ret)
 }
 
-// #[allow(unused_assignments)]
-// warning: if there are some cells with same lock script?
+fn find_cell<F>(condition: F) -> Result<usize, Error>
+where
+    F: Fn(usize) -> Result<bool, Error>,
+{
+    for i in 0.. {
+        match condition(i) {
+            Ok(true) => return Ok(i),
+            Ok(false) => continue,
+            Err(e) => return Err(e),
+        }
+    }
+    Err(Error::CellNotFound)
+}
+
 fn get_self_index_in_inputs() -> Result<usize, Error> {
     let script_hash = load_script_hash()?;
     debug_log!("self script_hash = {:02x?}", script_hash);
 
-    let mut i = 0;
-    #[allow(unused_assignments)]
-    let mut match_result = false;
-    loop {
+    find_cell(|i| {
         let lock_hash = load_cell_lock_hash(i, Source::Input)?;
         debug_log!("loaded {} : lock_hash = {:02x?}", i, lock_hash);
-        //if script_hash == lock_hash {
-        if script_hash == lock_hash {
-            match_result = true;
-            break;
-        }
-        i += 1;
-    }
-    if !match_result {
+        Ok(script_hash == lock_hash)
+    })
+    .or_else(|_| {
         debug_log!("self not found in inputs");
-        return Err(Error::SelfNotFound);
-    }
-    debug_log!("self index = {:?}", i);
-    Ok(i)
+        Err(Error::SelfNotFound)
+    })
 }
-
+// #[allow(unused_assignments)]
+// warning: If there is the same lock script in the inputs, get the index of the first one.
+// fn get_self_index_in_inputs() -> Result<usize, Error> {
+//     let script_hash = load_script_hash()?;
+//     debug_log!("self script_hash = {:02x?}", script_hash);
+//
+//     let mut i = 0;
+//     #[allow(unused_assignments)]
+//         let mut match_result = false;
+//     loop {
+//         let lock_hash = load_cell_lock_hash(i, Source::Input)?;
+//         debug_log!("loaded {} : lock_hash = {:02x?}", i, lock_hash);
+//         //if script_hash == lock_hash {
+//         if script_hash == lock_hash {
+//             match_result = true;
+//             break;
+//         }
+//         i += 1;
+//     }
+//     if !match_result {
+//         debug_log!("self not found in inputs");
+//         return Err(Error::SelfNotFound);
+//     }
+//     debug_log!("self index = {:?}", i);
+//     Ok(i)
+// }
 fn get_first_dp_cell_lock_hash() -> Result<Vec<u8>, Error> {
     let dp_cell_type_id = get_dpoint_cell_type_id()?;
     debug_log!("dp_cell_type_id = {:02x?}", dp_cell_type_id);
 
-    for i in 0..100 {
-        match load_cell_type(i, Source::Input) {
-            Ok(type_script) => {
-                if type_script.is_some() {
-                    let type_args = type_script.unwrap().code_hash().raw_data().to_vec();
-                    debug_log!("{} type_args = {:02x?}", i, type_args);
-                    if type_args == dp_cell_type_id {
-                        return Ok(load_cell_lock_hash(i, Source::Input)?.to_vec());
-                    }
-                }
-            }
-            Err(SysError::IndexOutOfBound) => {
-                debug_log!("load_cell_type_hash error: {:?}", SysError::IndexOutOfBound);
-                break;
-            }
-            Err(e) => {
-                debug_log!("load_cell_type_hash error: {:?}", e);
-                return Err(Error::LoadCellTypeHashError);
+    let index = find_cell(|i| match load_cell_type(i, Source::Input) {
+        Ok(type_script) => {
+            if let Some(type_script) = type_script {
+                let type_args = type_script.code_hash().raw_data().to_vec();
+                debug_log!("{} type_args = {:02x?}", i, type_args);
+                Ok(type_args == dp_cell_type_id)
+            } else {
+                Ok(false)
             }
         }
-    }
-    Err(Error::DpCellNotFound)
+        Err(SysError::IndexOutOfBound) => {
+            debug_log!("load_cell_type_hash error: {:?}", SysError::IndexOutOfBound);
+            Err(Error::DpCellNotFound)
+        }
+        Err(e) => {
+            debug_log!("load_cell_type_hash error: {:?}", e);
+            Err(Error::LoadCellTypeHashError)
+        }
+    })?;
+
+    Ok(load_cell_lock_hash(index, Source::Input)?.to_vec())
 }
+// fn get_first_dp_cell_lock_hash() -> Result<Vec<u8>, Error> {
+//     let dp_cell_type_id = get_dpoint_cell_type_id()?;
+//     debug_log!("dp_cell_type_id = {:02x?}", dp_cell_type_id);
+//     //todo: 100 Not a very good design
+//     for i in 0..100 {
+//         match load_cell_type(i, Source::Input) {
+//             Ok(type_script) => {
+//                 if type_script.is_some() {
+//                     let type_args = type_script.unwrap().code_hash().raw_data().to_vec();
+//                     debug_log!("{} type_args = {:02x?}", i, type_args);
+//                     if type_args == dp_cell_type_id {
+//                         return Ok(load_cell_lock_hash(i, Source::Input)?.to_vec());
+//                     }
+//                 }
+//             }
+//             Err(SysError::IndexOutOfBound) => {
+//                 debug_log!("load_cell_type_hash error: {:?}", SysError::IndexOutOfBound);
+//                 break;
+//             }
+//             Err(e) => {
+//                 debug_log!("load_cell_type_hash error: {:?}", e);
+//                 return Err(Error::LoadCellTypeHashError);
+//             }
+//         }
+//     }
+//     Err(Error::DpCellNotFound)
+// }
 
 fn check_skip_dynamic_library_signature_verification_for_bid_expired_auction(
 ) -> Result<SkipSignOrNot, Error> {
@@ -270,11 +319,21 @@ fn check_skip_dynamic_library_signature_verification_for_bid_expired_auction(
         hex_string(account_cell_type_id.as_slice())
     );
 
-    //Signature verification can be skipped only if the following two conditions are met.
-    //1. The current lock is not equal to the lock of dp cell
+    let no_other_cell_in_same_group =
+        check_no_other_cell_except_specified(TypeScript::AccountCellType) == DasPureLockCell;
+    debug_log!(
+        "no_other_cell_in_same_group = {:?}",
+        no_other_cell_in_same_group
+    );
+
+    //Signature verification can be skipped only if the following three conditions are met.
+    //1. The current lock is not equal to the lock of dp cell，
     //2. The current type is account-cell-type
+    //3. There are no other cells in the same group
+
     if current_lock_script_hash != dp_cell_lock_hash
         && current_type_script_args == account_cell_type_id
+        && no_other_cell_in_same_group
     {
         debug_log!("jump over the signature verification of the Dutch auction");
         return Ok(SkipSignOrNot::Skip);
@@ -313,6 +372,7 @@ fn check_skip_dynamic_library_signature_verification_for_update_sub_account(
 ) -> Result<SkipSignOrNot, Error> {
     debug_log!("Enter check_skip_sign_for_update_sub_account");
 
+    //todo: Maybe the checks here are redundant.
     match check_the_first_input_cell_must_be_sub_account_type_script() {
         Ok(Match) => Ok(SkipSignOrNot::Skip),
         Ok(NotMatch) => Err(Error::CheckFailSubAccFirstInputCell),
@@ -442,9 +502,34 @@ pub(crate) fn get_plain_and_cipher(alg_id: AlgId) -> Result<SignInfo, Error> {
     Ok(SignInfo { signature, message })
 }
 
-fn check_has_pure_type_script() -> CmdMatchStatus {
-    //todo: replace with find_one
-    let balance_type_id = get_balance_cell_type_id().unwrap();
+// fn check_has_pure_type_script() -> CmdMatchStatus {
+//     //If all input cells in the transaction are balance cells, signature verification is not allowed to be skipped.
+//     //Now, we have dpoint cell, so the logic here is not correct.
+//     let balance_type_id = get_balance_cell_type_id().unwrap();
+//     let mut buf = [0u8; 100];
+//     for i in 0.. {
+//         let _len = match load_cell_by_field(&mut buf, 0, i, Source::GroupInput, CellField::Type) {
+//             Ok(len) => len,
+//             Err(SysError::IndexOutOfBound) => break,
+//             Err(SysError::ItemMissing) => continue,
+//             Err(err) => {
+//                 debug_log!("load_cell_by_field error: {:?}", err);
+//                 return DasNotPureLockCell;
+//             }
+//         };
+//         //debug_assert_eq!(len, buf.len());
+//         if balance_type_id == &buf[16..] {
+//             continue;
+//         } else {
+//             return DasNotPureLockCell;
+//         }
+//     }
+//     DasPureLockCell
+// }
+fn check_no_other_cell_except_specified(some_type: TypeScript) -> CmdMatchStatus {
+    debug_log!("Enter check_no_other_cell_except_account_cell");
+    let some_type_id = get_type_id_by_type_script(some_type)
+        .expect(format!("cannot get type id of {:?}", some_type).as_str());
     let mut buf = [0u8; 100];
     for i in 0.. {
         let _len = match load_cell_by_field(&mut buf, 0, i, Source::GroupInput, CellField::Type) {
@@ -456,8 +541,14 @@ fn check_has_pure_type_script() -> CmdMatchStatus {
                 return DasNotPureLockCell;
             }
         };
+        debug_log!(
+            "load_cell_by_field success, index = {}, len = {:?}, data = {}",
+            i,
+            _len,
+            hex_string(&buf[16..])
+        );
         //debug_assert_eq!(len, buf.len());
-        if balance_type_id == &buf[16..] {
+        if some_type_id == &buf[16..16 + HASH_SIZE] {
             continue;
         } else {
             return DasNotPureLockCell;
@@ -467,7 +558,10 @@ fn check_has_pure_type_script() -> CmdMatchStatus {
 }
 
 fn check_skip_sign(action: &DasAction) -> SkipSignOrNot {
-    if DasPureLockCell == check_has_pure_type_script() {
+    //If there are other cells besides the account cell in the same group of inputs cells,
+    //the signature verification cannot be skipped.
+    if DasNotPureLockCell == check_no_other_cell_except_specified(TypeScript::AccountCellType) {
+        debug_log!("Cannot skip signature verification because there are other cells besides the account cell in the same group of inputs cells.");
         return SkipSignOrNot::NotSkip;
     }
     match action {
@@ -529,10 +623,6 @@ pub fn main() -> Result<(), Error> {
         return Err(Error::ManagerNotAllowed);
     }
 
-    //Get lock args.
-    let lock_args = get_lock_args(&das_action, role)?;
-    debug_log!("Lock args = {}", lock_args);
-
     let ret = match das_action {
         DasAction::BidExpiredAccountDutchAuction => {
             match check_skip_dynamic_library_signature_verification_for_bid_expired_auction()? {
@@ -541,7 +631,7 @@ pub fn main() -> Result<(), Error> {
                     return Ok(());
                 }
                 SkipSignOrNot::NotSkip => {
-                    dispatch_do_dyn_lib_and_then_exec_eip712_lib(role, &lock_args)
+                    dispatch(role, das_action)
                 }
             }
         }
@@ -558,27 +648,26 @@ pub fn main() -> Result<(), Error> {
                     validate_for_update_sub_account()
                 }
                 SkipSignOrNot::NotSkip => {
-                    dispatch_to_dyn_lib(role, &lock_args) //maybe redundant
+                    dispatch(role, das_action)
                 }
             }
         }
 
-        DasAction::TransferAccount
-        | DasAction::EditManager
-        | DasAction::EditRecords
-        | DasAction::CreateApproval
-        | DasAction::DelayApproval
-        | DasAction::CancelAccountSale
-        | DasAction::BurnDP
-        | DasAction::TransferDP
-        | DasAction::CancelOffer
-        | DasAction::EnableSubAccount => {
-            dispatch_do_dyn_lib_and_then_exec_eip712_lib(role, &lock_args)
-        }
+        // DasAction::TransferAccount
+        // | DasAction::EditManager
+        // | DasAction::EditRecords
+        // | DasAction::CreateApproval
+        // | DasAction::DelayApproval
+        // | DasAction::CancelAccountSale
+        // | DasAction::BurnDP
+        // | DasAction::TransferDP
+        // | DasAction::CancelOffer
+        // | DasAction::EnableSubAccount => {
+        //     dispatch_do_dyn_lib_and_then_exec_eip712_lib(role, &lock_args)
+        // }
         _ => {
-            //func normal validation
-            dispatch_to_dyn_lib(role, &lock_args)
-        }
+            dispatch(role, das_action)
+        },
     };
     match ret {
         Ok(x) => {

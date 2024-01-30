@@ -21,6 +21,7 @@ use das_core::util::hex_string;
 use das_types::constants::LockRole as Role;
 use das_types::constants::{LockRole, TypeScript};
 use hex::encode;
+use das_types::constants::{Action as DasAction};
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum CkbAuthError {
@@ -354,10 +355,10 @@ pub fn exec_eip712_lib() -> Result<i8, Error> {
         .map_err(|err| {
             //note: exec_cell never returns
             let e: Error = err.into();
-            debug_log!("exec eip712-stand-alone lib error: {:?}", e);
+            debug_log!("exec eip712 lib error: {:?}", e);
         })
         .map(|_| ());
-    Ok(0)
+    Err(Error::RunExecError)
 }
 fn check_webauthn_public_key_index(alg_id: &AlgId, sign_info: &SignInfo) -> Result<(), Error> {
     if *alg_id != AlgId::WebAuthn {
@@ -390,10 +391,27 @@ pub fn dispatch_to_dyn_lib(role: Role, lock_args: &LockArgs) -> Result<i8, Error
 
     Ok(ret)
 }
-pub fn dispatch_do_dyn_lib_and_then_exec_eip712_lib(
+pub fn dispatch(
     role: Role,
-    lock_args: &LockArgs,
+    das_action: DasAction,
 ) -> Result<i8, Error> {
+    let lock_args = crate::entry::get_lock_args(&das_action, role)?;
+
+    if lock_args.alg_id == AlgId::Eip712 {
+        match exec_eip712_lib() {
+            Ok(x) => {
+                if x != 0 {
+                    debug_log!("exec_eip712_lib error, return {}", x);
+                    return Err(Error::ValidationFailure);
+                }
+            }
+            Err(e) => {
+                debug_log!("exec_eip712_lib error: {:?}", e);
+                return Err(e);
+            }
+        };
+    };
+
     match dispatch_to_dyn_lib(role, &lock_args) {
         Ok(x) => {
             if x != 0 {
@@ -406,7 +424,7 @@ pub fn dispatch_do_dyn_lib_and_then_exec_eip712_lib(
             return Err(e);
         }
     }
-    exec_eip712_lib()
+    Ok(0)
 }
 
 fn ckb_auth(
@@ -426,6 +444,7 @@ fn ckb_auth(
     };
 
     if ret != 0 {
+        //todo: error code
         debug_log!("Auth failed, ret = {}", ret);
         return Err(Error::ValidationFailure);
     }
