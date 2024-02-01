@@ -4,8 +4,7 @@ use crate::dlopen::exec_eip712_lib;
 use crate::error::Error;
 use crate::sub_account::SubAction;
 use crate::tx_parser::{
-    get_first_account_cell_index, get_input_approval,
-    get_sub_account_cell_type_id,
+    get_first_account_cell_index, get_input_approval, get_sub_account_cell_type_id,
 };
 use alloc::borrow::ToOwned;
 use alloc::boxed::Box;

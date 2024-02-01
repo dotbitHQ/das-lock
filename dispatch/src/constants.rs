@@ -95,7 +95,7 @@ const TYPE_ID_TABLE: [&str; DYNAMIC_LIB_NUMS] = [
 
 #[allow(dead_code)]
 #[cfg(feature = "mainnet")]
-const TYPE_ID_CHECK: [u32; DYNAMIC_LIB_NUMS] = [4280, 4675, 0, 4569, 4397, 4569, 4543, 4467, 4467];
+const TYPE_ID_CHECK: [u32; DYNAMIC_LIB_NUMS] = [4280, 4675, 0, 4569, 4397, 4569, 4543, 4467, 4336];
 
 #[allow(dead_code)]
 #[cfg(feature = "testnet2")]

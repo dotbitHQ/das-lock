@@ -342,6 +342,31 @@ fn check_skip_dynamic_library_signature_verification_for_bid_expired_auction(
     Ok(SkipSignOrNot::NotSkip)
 }
 
+fn check_the_first_input_cell_must_be_reverse_record_root_cell() -> Result<MatchStatus, Error> {
+    //debug_log!("Enter check_the_first_input_cell_must_be_sub_account_type_script");
+
+    //get sub account type id
+    let reverse_record_root_cell_type_id = get_reverse_record_root_cell_type_id()?;
+
+    let mut temp = [0u8; SCRIPT_SIZE];
+    let read_len = load_cell_by_field(&mut temp, 0, 0, Source::Input, CellField::Type)?;
+
+    let script = match Script::from_slice(&temp[..read_len]) {
+        Ok(s) => s,
+        Err(e) => {
+            debug_log!("script verify failed : {:?}", e);
+            return Err(Error::InvalidMolecule);
+        }
+    };
+
+    let code_hash = script.code_hash().unpack();
+
+    if reverse_record_root_cell_type_id == code_hash {
+        return Ok(Match);
+    }
+
+    Ok(NotMatch)
+}
 fn check_the_first_input_cell_must_be_sub_account_type_script() -> Result<MatchStatus, Error> {
     //debug_log!("Enter check_the_first_input_cell_must_be_sub_account_type_script");
 
@@ -368,6 +393,16 @@ fn check_the_first_input_cell_must_be_sub_account_type_script() -> Result<MatchS
     Ok(NotMatch)
 }
 
+fn check_skip_dyn_lib_sig_verification_for_update_reverse_record_root(
+) -> Result<SkipSignOrNot, Error> {
+    debug_log!("Enter check_skip_sign_for_update_sub_account");
+
+    match check_the_first_input_cell_must_be_reverse_record_root_cell() {
+        Ok(Match) => Ok(SkipSignOrNot::Skip),
+        Ok(NotMatch) => Err(Error::CheckFailSubAccFirstInputCell),
+        Err(e) => Err(e),
+    }
+}
 fn check_skip_dynamic_library_signature_verification_for_update_sub_account(
 ) -> Result<SkipSignOrNot, Error> {
     debug_log!("Enter check_skip_sign_for_update_sub_account");
@@ -639,13 +674,25 @@ pub fn main() -> Result<(), Error> {
         DasAction::FulfillApproval => validate_for_fulfill_approval(),
         DasAction::RevokeApproval => validate_for_revoke_approval(),
         DasAction::UnlockAccountForCrossChain => validate_for_unlock_account_for_cross_chain(),
-        DasAction::UpdateReverseRecordRoot => validate_for_update_reverse_record_root(),
+        DasAction::UpdateReverseRecordRoot => {
+            match check_skip_dyn_lib_sig_verification_for_update_reverse_record_root()? {
+                SkipSignOrNot::Skip => {
+                    debug_log!("Skip check sign for update reverse record root.");
+                    //validate_for_update_reverse_record_root()
+                    Ok(0)
+                }
+                SkipSignOrNot::NotSkip => {
+                    dispatch(role, das_action)
+                }
+            }
+        },
 
         DasAction::UpdateSubAccount => {
             match check_skip_dynamic_library_signature_verification_for_update_sub_account()? {
                 SkipSignOrNot::Skip => {
                     debug_log!("Skip check sign for update sub account.");
-                    validate_for_update_sub_account()
+                    //validate_for_update_sub_account()
+                    Ok(0)
                 }
                 SkipSignOrNot::NotSkip => {
                     dispatch(role, das_action)

@@ -103,7 +103,7 @@ $(filter build/release/%, $(contract_entry_files)): build/release/%:
 $(filter debug_%, $(rust_libs_targets)): debug_%: build/debug/%
 $(filter release_%, $(rust_libs_targets)): release_%: build/release/%
 
-# Compile the eip712-stand-alone
+# Compile the eip712-lib
 # Specify output file dependencies
 $(filter build/debug/%, $(rust_libs_files)): build/debug/%:
 	@#note: If cflags is not commented out, an error will be reported when compiling smt.

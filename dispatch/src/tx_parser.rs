@@ -9,9 +9,10 @@ use das_core::util::{find_only_cell_by_type_id, hex_string};
 use das_types::constants::DataType;
 use das_types::constants::TypeScript;
 use das_types::packed;
-use das_types::packed::{AccountApprovalTransfer, Hash};
+use das_types::packed::{AccountApprovalTransfer, AccountCellData, Hash};
 use das_types::prelude::Entity;
 use witness_parser::traits::WitnessQueryable;
+use witness_parser::types::CellMeta;
 
 pub fn get_type_id_by_type_script(type_script: TypeScript) -> Result<Vec<u8>, Error> {
     debug_log!("get type id of {:?}", &type_script);
@@ -60,9 +61,9 @@ pub fn get_type_id_by_type_script(type_script: TypeScript) -> Result<Vec<u8>, Er
     Ok(type_id_vec)
 }
 //Some wrappers for get_type_id_by_type_script
-pub fn get_balance_cell_type_id() -> Result<Vec<u8>, Error> {
-    get_type_id_by_type_script(TypeScript::BalanceCellType)
-}
+// pub fn get_balance_cell_type_id() -> Result<Vec<u8>, Error> {
+//     get_type_id_by_type_script(TypeScript::BalanceCellType)
+// }
 pub fn get_sub_account_cell_type_id() -> Result<Vec<u8>, Error> {
     get_type_id_by_type_script(TypeScript::SubAccountCellType)
 }
@@ -74,7 +75,9 @@ pub fn get_account_cell_type_id() -> Result<Vec<u8>, Error> {
 pub fn get_dpoint_cell_type_id() -> Result<Vec<u8>, Error> {
     get_type_id_by_type_script(TypeScript::DPointCellType)
 }
-
+pub fn get_reverse_record_root_cell_type_id() -> Result<Vec<u8>, Error> {
+    get_type_id_by_type_script(TypeScript::ReverseRecordRootCellType)
+}
 pub fn get_first_account_cell_index() -> Result<usize, Error> {
     let account_cell_type_id = get_account_cell_type_id()?;
     let index = find_only_cell_by_type_id(
@@ -108,8 +111,20 @@ pub fn get_account_cell_witness() -> Result<packed::AccountCellData, Error> {
     let witness_parser = WitnessesParserV1::get_instance();
     debug_log!("WitnessesParserV1::get_instance() success");
 
+    // let account_cell_witness = witness_parser
+    //     .get_entity_by_data_type::<packed::AccountCellData>(DataType::AccountCellData)
+    //     .map_err(|e| {
+    //         debug_log!("WitnessParserV1 get_entity_by_data_type error: {:?}", e);
+    //         return Error::WitnessError;
+    //     })
+    //     .unwrap();
+    let cell_meta = CellMeta {
+        index: 0,
+        source: das_types::constants::Source::Input,
+    };
+
     let account_cell_witness = witness_parser
-        .get_entity_by_data_type::<packed::AccountCellData>(DataType::AccountCellData)
+        .get_entity_by_cell_meta::<AccountCellData>(cell_meta)
         .map_err(|e| {
             debug_log!("WitnessParserV1 get_entity_by_data_type error: {:?}", e);
             return Error::WitnessError;
