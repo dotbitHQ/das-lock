@@ -395,18 +395,19 @@ pub fn dispatch(
     role: Role,
     das_action: DasAction,
 ) -> Result<i8, Error> {
+    debug_log!("Enter dispatch");
     let lock_args = crate::entry::get_lock_args(&das_action, role)?;
 
     if lock_args.alg_id == AlgId::Eip712 {
         match exec_eip712_lib() {
             Ok(x) => {
                 if x != 0 {
-                    debug_log!("exec_eip712_lib error, return {}", x);
+                    debug_log!("execute eip712-lib error, return {}", x);
                     return Err(Error::ValidationFailure);
                 }
             }
             Err(e) => {
-                debug_log!("exec_eip712_lib error: {:?}", e);
+                debug_log!("call eip712-lib error: {:?}", e);
                 return Err(e);
             }
         };
@@ -415,7 +416,7 @@ pub fn dispatch(
     match dispatch_to_dyn_lib(role, &lock_args) {
         Ok(x) => {
             if x != 0 {
-                debug_log!("general_verification error, return {}", x);
+                debug_log!("general_verification failed, return {}", x);
                 return Err(Error::ValidationFailure);
             }
         }

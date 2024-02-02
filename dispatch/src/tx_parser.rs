@@ -111,13 +111,6 @@ pub fn get_account_cell_witness() -> Result<packed::AccountCellData, Error> {
     let witness_parser = WitnessesParserV1::get_instance();
     debug_log!("WitnessesParserV1::get_instance() success");
 
-    // let account_cell_witness = witness_parser
-    //     .get_entity_by_data_type::<packed::AccountCellData>(DataType::AccountCellData)
-    //     .map_err(|e| {
-    //         debug_log!("WitnessParserV1 get_entity_by_data_type error: {:?}", e);
-    //         return Error::WitnessError;
-    //     })
-    //     .unwrap();
     let cell_meta = CellMeta {
         index: 0,
         source: das_types::constants::Source::Input,

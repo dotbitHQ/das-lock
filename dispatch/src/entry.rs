@@ -34,26 +34,13 @@ use das_types::constants::{Action as DasAction, LockRole as Role, TypeScript};
 
 use crate::tx_parser::{
     get_account_cell_type_id, get_dpoint_cell_type_id, get_sub_account_cell_type_id,
-    get_type_id_by_type_script,
+    get_reverse_record_root_cell_type_id, get_type_id_by_type_script,
 };
 use crate::validators::{
     validate_for_fulfill_approval, validate_for_revoke_approval,
     validate_for_unlock_account_for_cross_chain, validate_for_update_reverse_record_root,
     validate_for_update_sub_account,
 };
-
-// fn check_cmd_match(action: &DasAction) -> MatchStatus {
-//     match action {
-//         DasAction::ConfirmProposal
-//         | DasAction::RenewAccount
-//         | DasAction::UnlockAccountForCrossChain
-//         | DasAction::ForceRecoverAccountStatus
-//         | DasAction::RecycleExpiredAccount
-//         | DasAction::RevokeApproval
-//         | DasAction::FulfillApproval => MatchStatus::Match,
-//         _ => MatchStatus::NotMatch,
-//     }
-// }
 
 fn check_witness_das_header(data: &[u8]) -> Result<(), Error> {
     if !data.starts_with(b"das") {
@@ -73,6 +60,7 @@ fn check_witness_das_header(data: &[u8]) -> Result<(), Error> {
 
     Ok(())
 }
+//todo: replace the function with WitnessParser
 fn get_witness_action(temp: &[u8]) -> Result<(DasAction, Role), Error> {
     //check if the header is action witness
     check_witness_das_header(temp)?;
@@ -288,7 +276,6 @@ fn get_first_dp_cell_lock_hash() -> Result<Vec<u8>, Error> {
 
 fn check_skip_dynamic_library_signature_verification_for_bid_expired_auction(
 ) -> Result<SkipSignOrNot, Error> {
-    //todo maybe have risks when skip by cell out of the group
     //Warning: AccountCell is always inputs[0], guarantee it through the account-cell-type.
     let script_index = get_self_index_in_inputs()?;
     debug_log!("get_self_index_in_inputs self index = {:?}", script_index);
@@ -300,7 +287,7 @@ fn check_skip_dynamic_library_signature_verification_for_bid_expired_auction(
 
     //dp-cell-type ensures that the locks of all dp cells in inputs are the same.
     let account_cell_type_id = get_account_cell_type_id()?;
-    let dp_cell_lock_hash = get_first_dp_cell_lock_hash()?; //
+    let dp_cell_lock_hash = get_first_dp_cell_lock_hash()?;
 
     debug_log!(
         "current_lock_script_hash = {}",
@@ -395,7 +382,7 @@ fn check_the_first_input_cell_must_be_sub_account_type_script() -> Result<MatchS
 
 fn check_skip_dyn_lib_sig_verification_for_update_reverse_record_root(
 ) -> Result<SkipSignOrNot, Error> {
-    debug_log!("Enter check_skip_sign_for_update_sub_account");
+    debug_log!("Enter check_skip_sign_for_update_reverse_record_root");
 
     match check_the_first_input_cell_must_be_reverse_record_root_cell() {
         Ok(Match) => Ok(SkipSignOrNot::Skip),
@@ -566,6 +553,7 @@ fn check_no_other_cell_except_specified(some_type: TypeScript) -> CmdMatchStatus
     let some_type_id = get_type_id_by_type_script(some_type)
         .expect(format!("cannot get type id of {:?}", some_type).as_str());
     let mut buf = [0u8; 100];
+    
     for i in 0.. {
         let _len = match load_cell_by_field(&mut buf, 0, i, Source::GroupInput, CellField::Type) {
             Ok(len) => len,
@@ -610,12 +598,12 @@ fn check_skip_sign(action: &DasAction) -> SkipSignOrNot {
 
 //return true if manager has permission
 fn check_manager_has_permission(action: &DasAction, role: Role) -> bool {
+    //todo: move the if to the caller
     if role != Role::Manager {
         return true;
     }
     match action {
         DasAction::EditRecords
-        // | DasAction::CreateSubAccount //note: this action is abandoned before, just das-lock does not remove it.
         | DasAction::UpdateSubAccount
         | DasAction::ConfigSubAccount => true,
         _ => false,
@@ -640,29 +628,33 @@ fn get_action_and_role() -> Result<(DasAction, Role), Error> {
 }
 
 pub fn main() -> Result<(), Error> {
-    debug_log!("Enter das lock main.");
+    debug_log!("Enter DAS lock");
 
     //Get action from witness.
     let (das_action, role) = get_action_and_role()?;
     debug_log!("Action = {:?}, role = {:?}", das_action, role);
 
     //Decide whether to skip signature verification based on action.
+    debug_log!("Check if Skip sign or not.");
     if SkipSignOrNot::Skip == check_skip_sign(&das_action) {
         debug_log!("Skip this action, {:?}", das_action);
         return Ok(());
     }
 
     //Check whether the manager has permission to execute the corresponding action.
+    debug_log!("Check if manager has permission to execute the action.");
     if !check_manager_has_permission(&das_action, role) {
         debug_log!("Manager does not have permission to execute this action.");
         return Err(Error::ManagerNotAllowed);
     }
 
+    debug_log!("Dispatch to {:?}", das_action);
     let ret = match das_action {
         DasAction::BidExpiredAccountDutchAuction => {
+            debug_log!("Check if Skip sign for bid_expired_account_dutch_auction.");
             match check_skip_dynamic_library_signature_verification_for_bid_expired_auction()? {
                 SkipSignOrNot::Skip => {
-                    debug_log!("Skip check sign for bid expired account dutch auction.");
+                    debug_log!("Skip check sign for bid_expired_account_dutch_auction.");
                     return Ok(());
                 }
                 SkipSignOrNot::NotSkip => {
@@ -699,19 +691,6 @@ pub fn main() -> Result<(), Error> {
                 }
             }
         }
-
-        // DasAction::TransferAccount
-        // | DasAction::EditManager
-        // | DasAction::EditRecords
-        // | DasAction::CreateApproval
-        // | DasAction::DelayApproval
-        // | DasAction::CancelAccountSale
-        // | DasAction::BurnDP
-        // | DasAction::TransferDP
-        // | DasAction::CancelOffer
-        // | DasAction::EnableSubAccount => {
-        //     dispatch_do_dyn_lib_and_then_exec_eip712_lib(role, &lock_args)
-        // }
         _ => {
             dispatch(role, das_action)
         },

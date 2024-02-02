@@ -54,6 +54,7 @@ pub enum Error {
     SubAccountParseFailed,
     CellNotFound,
     CannotFindEip712InCellDeps,
+    WitnessParserInitFailed,
 }
 
 impl From<SysError> for Error {

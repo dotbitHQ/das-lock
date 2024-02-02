@@ -10,5 +10,6 @@ target
 das-lock-lib/src/contracts/*
 cmake-build-debug/
 Cargo.lock
+**/Cargo.lock
 **/*.rs.bak
 
