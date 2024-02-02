@@ -155,7 +155,7 @@ pub fn verify_eip712_hashes(
         }else {
             decode_hex("eth mainnet type id", "6bbd5ca9bbdbe9a03f51329b2c6d06017ee2ae20546f724f70f79b8922a7d5b1")
         };
-
+        debug!("eth type id = {}", hex_string(code_hash.as_slice()));
         let hash_type = ScriptHashType::Type;
         let size = size_of_val(&eth_context);
         let lib = eth_context.load_with_offset(code_hash.as_slice(), hash_type, 0, size)

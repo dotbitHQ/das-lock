@@ -12,14 +12,14 @@ use witness_parser::WitnessesParserV1 as WitnessesParserDIY;
 use das_core::{assert, code_to_error, data_parser, debug, util, warn};
 use das_map::map::Map;
 use das_map::util as map_util;
-use das_types::constants::{Action, LockRole, TypeScript};
+use das_types::constants::{Action, DataType, LockRole, TypeScript};
 use das_types::mixer::AccountCellDataMixer;
 use das_types::packed::*;
 use das_types::prelude::*;
 use eip712::util::{to_semantic_capacity, to_semantic_currency};
 use witness_parser::parsers::v1::witness_parser::WitnessesParser;
 use witness_parser::traits::WitnessQueryable;
-use witness_parser::types::CellMeta;
+use witness_parser::types::{CellMeta, WitnessMeta};
 
 use super::eip712::{get_type_id, to_semantic_address, verify_eip712_hashes_if_has_das_lock};
 
@@ -215,33 +215,8 @@ fn start_account_sale_to_semantic(
     let witness_meta = parser
         .get_witness_meta_by_cell_meta(cell_meta)
         .expect("get_witness_meta_by_cell_meta failed");
-    let version = witness_meta.version;
-    let witness: Bytes = parser
-        .get_entity_by_cell_meta(cell_meta)
-        .expect("get_entity_by_cell_meta failed");
 
-    // let (version, _, witness) = parser.verify_and_get(
-    //     DataType::AccountSaleCellData,
-    //     account_sale_cells[0],
-    //     Source::Output,
-    // )?;
-
-    let price = if version == 1 {
-        let entity =
-            AccountSaleCellDataV1::from_slice(witness.as_reader().raw_data()).map_err(|_| {
-                warn!("EIP712 decoding AccountSaleCellData failed");
-                ErrorCode::WitnessEntityDecodingError
-            })?;
-        to_semantic_capacity(u64::from(entity.price()))
-    } else {
-        let entity =
-            AccountSaleCellData::from_slice(witness.as_reader().raw_data()).map_err(|_| {
-                warn!("EIP712 decoding AccountSaleCellData failed");
-                ErrorCode::WitnessEntityDecodingError
-            })?;
-        to_semantic_capacity(u64::from(entity.price()))
-    };
-
+    let price = get_account_sale_cell_data_price(parser, &witness_meta, cell_meta)?;
     Ok(format!("SELL {} FOR {}", account, price))
 }
 
@@ -255,32 +230,8 @@ fn edit_account_sale_to_semantic(
     let witness_meta = parser
         .get_witness_meta_by_cell_meta(cell_meta)
         .expect("get_witness_meta_by_cell_meta failed");
-    let version = witness_meta.version;
-    let witness: Bytes = parser
-        .get_entity_by_cell_meta(cell_meta)
-        .expect("get_entity_by_cell_meta failed");
+    let price = get_account_sale_cell_data_price(parser, &witness_meta, cell_meta)?;
 
-    // let (version, _, witness) = parser.verify_and_get(
-    //     DataType::AccountSaleCellData,
-    //     account_sale_cells[0],
-    //     Source::Output,
-    // )?;
-
-    let price = if version == 1 {
-        let entity =
-            AccountSaleCellDataV1::from_slice(witness.as_reader().raw_data()).map_err(|_| {
-                warn!("EIP712 decoding AccountSaleCellData failed");
-                ErrorCode::WitnessEntityDecodingError
-            })?;
-        to_semantic_capacity(u64::from(entity.price()))
-    } else {
-        let entity =
-            AccountSaleCellData::from_slice(witness.as_reader().raw_data()).map_err(|_| {
-                warn!("EIP712 decoding AccountSaleCellData failed");
-                ErrorCode::WitnessEntityDecodingError
-            })?;
-        to_semantic_capacity(u64::from(entity.price()))
-    };
 
     Ok(format!("EDIT SALE INFO, CURRENT PRICE IS {}", price))
 }
@@ -313,33 +264,8 @@ fn buy_account_to_semantic(parser: &mut WitnessesParser) -> Result<String, Box<d
     let witness_meta = parser
         .get_witness_meta_by_cell_meta(cell_meta)
         .expect("get_witness_meta_by_cell_meta failed");
-    let version = witness_meta.version;
-    let witness: Bytes = parser
-        .get_entity_by_cell_meta(cell_meta)
-        .expect("get_entity_by_cell_meta failed");
 
-    // let (version, _, witness) = parser.verify_and_get(
-    //     DataType::AccountSaleCellData,
-    //     account_sale_cells[0],
-    //     Source::Input,
-    // )?;
-
-    let price = if version == 1 {
-        let entity =
-            AccountSaleCellDataV1::from_slice(witness.as_reader().raw_data()).map_err(|_| {
-                warn!("EIP712 decoding AccountSaleCellData failed");
-                ErrorCode::WitnessEntityDecodingError
-            })?;
-        to_semantic_capacity(u64::from(entity.price()))
-    } else {
-        let entity =
-            AccountSaleCellData::from_slice(witness.as_reader().raw_data()).map_err(|_| {
-                warn!("EIP712 decoding AccountSaleCellData failed");
-                ErrorCode::WitnessEntityDecodingError
-            })?;
-        to_semantic_capacity(u64::from(entity.price()))
-    };
-
+    let price = get_account_sale_cell_data_price(parser, &witness_meta, cell_meta)?;
     Ok(format!("BUY {} WITH {}", account, price))
 }
 
@@ -745,3 +671,28 @@ fn find_cells_by_type_id(
     let cells = util::find_cells_by_type_id(ScriptType::Type, hash_reader, source)?;
     Ok(cells)
 }
+
+fn get_account_sale_cell_data_price(
+    parser: &mut WitnessesParser,
+    witness_meta: &WitnessMeta,
+    cell_meta: CellMeta,
+)-> Result<String, Box<dyn ScriptError>> {
+    if witness_meta.data_type != DataType::AccountSaleCellData {
+        return Err(Box::from(ErrorCode::WitnessDataDecodingError));
+    }
+    let version = witness_meta.version;
+    let price = if version == 1 {
+        let entity: AccountSaleCellDataV1 = parser
+            .get_entity_by_cell_meta(cell_meta)
+            .expect("get_entity_by_cell_meta failed");
+        to_semantic_capacity(u64::from(entity.price()))
+    } else {
+        let entity: AccountSaleCellData = parser
+            .get_entity_by_cell_meta(cell_meta)
+            .expect("get_entity_by_cell_meta failed");
+
+        to_semantic_capacity(u64::from(entity.price()))
+    };
+    Ok(price)
+}
+//AccountSaleCellData
