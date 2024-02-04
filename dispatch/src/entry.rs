@@ -34,7 +34,7 @@ use das_types::constants::{Action as DasAction, LockRole as Role, TypeScript};
 use das_types::prelude::Builder;
 use witness_parser::WitnessesParserV1;
 
-use crate::tx_parser::{get_account_cell_type_id, get_dpoint_cell_type_id, get_reverse_record_root_cell_type_id, get_sub_account_cell_type_id, get_type_id_by_type_script};
+use crate::tx_parser::{get_account_cell_type_id, get_balance_cell_type_id, get_dpoint_cell_type_id, get_reverse_record_root_cell_type_id, get_sub_account_cell_type_id, get_type_id_by_type_script, init_witness_parser};
 use crate::validators::{
     validate_for_fulfill_approval, validate_for_revoke_approval,
     validate_for_unlock_account_for_cross_chain, validate_for_update_reverse_record_root,
@@ -547,6 +547,39 @@ pub(crate) fn get_plain_and_cipher(alg_id: AlgId) -> Result<SignInfo, Error> {
 //     }
 //     DasPureLockCell
 // }
+pub fn check_if_has_assets_cell_in_inputs() -> bool {
+    debug_log!("Enter check_no_other_assets");
+    //for now, we only have two types of cells that can be used as assets cells, did point cell and balance cell.
+    let did_point_type_id = get_dpoint_cell_type_id().expect("cannot get did point type id");
+    let balance_type_id = get_balance_cell_type_id().expect("cannot get balance type id");
+
+    let mut buf = [0u8; 100];
+    for i in 0.. {
+        let _len = match load_cell_by_field(&mut buf, 0, i, Source::GroupInput, CellField::Type) {
+            Ok(len) => len,
+            Err(SysError::IndexOutOfBound) => break,
+            Err(SysError::ItemMissing) => continue,
+            Err(err) => {
+                debug_log!("load_cell_by_field error: {:?}", err);
+                return false;
+            }
+        };
+        debug_log!(
+            "load_cell_by_field success, index = {}, len = {:?}, data = {}",
+            i,
+            _len,
+            hex_string(&buf[16..])
+        );
+        //debug_assert_eq!(len, buf.len());
+        let type_id = &buf[16..16 + HASH_SIZE];
+        if type_id == did_point_type_id  || type_id == balance_type_id {
+            return true;
+        } else {
+            continue;
+        }
+    }
+    false
+}
 pub fn check_no_other_cell_except_specified(some_type: TypeScript) -> CmdMatchStatus {
     debug_log!("Enter check_no_other_cell_except_account_cell");
     let some_type_id = get_type_id_by_type_script(some_type)
@@ -582,15 +615,28 @@ pub fn check_no_other_cell_except_specified(some_type: TypeScript) -> CmdMatchSt
 fn check_skip_sign(action: &DasAction) -> SkipSignOrNot {
     //If there are other cells besides the account cell in the same group of inputs cells,
     //the signature verification cannot be skipped.
-    if DasNotPureLockCell == check_no_other_cell_except_specified(TypeScript::AccountCellType) {
-        debug_log!("Cannot skip signature verification because there are other cells besides the account cell in the same group of inputs cells.");
-        return SkipSignOrNot::NotSkip;
-    }
+    // if DasNotPureLockCell == check_no_other_cell_except_specified(TypeScript::AccountCellType) {
+    //     debug_log!("Cannot skip signature verification because there are other cells besides the account cell in the same group of inputs cells.");
+    //     return SkipSignOrNot::NotSkip;
+    // }
     match action {
         DasAction::ConfirmProposal
         | DasAction::RenewAccount
-        | DasAction::ForceRecoverAccountStatus
-        | DasAction::RecycleExpiredAccount => SkipSignOrNot::Skip,
+        | DasAction::RecycleExpiredAccount => {
+            if DasNotPureLockCell == check_no_other_cell_except_specified(TypeScript::AccountCellType) {
+                debug_log!("Cannot skip signature verification because there are other cells besides the account cell in the same group of inputs cells.");
+                return SkipSignOrNot::NotSkip;
+            }
+            SkipSignOrNot::Skip
+        },
+        DasAction::ForceRecoverAccountStatus => {
+            if check_if_has_assets_cell_in_inputs() {
+                debug_log!("Cannot skip signature verification because there are assets cells besides the account cell in the same group of inputs cells.");
+                SkipSignOrNot::NotSkip
+            } else {
+                SkipSignOrNot::Skip
+            }
+        }
         _ => SkipSignOrNot::NotSkip,
     }
 }
@@ -646,6 +692,8 @@ pub fn main() -> Result<(), Error> {
         debug_log!("Manager does not have permission to execute this action.");
         return Err(Error::ManagerNotAllowed);
     }
+
+    init_witness_parser()?;
 
     debug_log!("Dispatch to {:?}", das_action);
     let ret = match das_action {

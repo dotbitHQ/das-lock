@@ -66,9 +66,9 @@ pub fn get_type_id_by_type_script(type_script: TypeScript) -> Result<Vec<u8>, Er
     Ok(type_id_vec)
 }
 //Some wrappers for get_type_id_by_type_script
-// pub fn get_balance_cell_type_id() -> Result<Vec<u8>, Error> {
-//     get_type_id_by_type_script(TypeScript::BalanceCellType)
-// }
+pub fn get_balance_cell_type_id() -> Result<Vec<u8>, Error> {
+    get_type_id_by_type_script(TypeScript::BalanceCellType)
+}
 pub fn get_sub_account_cell_type_id() -> Result<Vec<u8>, Error> {
     get_type_id_by_type_script(TypeScript::SubAccountCellType)
 }
@@ -129,4 +129,19 @@ pub fn get_account_cell_witness() -> Result<Box<dyn AccountCellDataMixer>, Error
             return Err(Error::WitnessError);
         }
     })
+}
+
+pub fn init_witness_parser() -> Result<(), Error> {
+    let parser = WitnessesParserV1::get_instance();
+    if !parser.is_inited() {
+        parser
+            .init()
+            .map_err(|err| {
+                debug_log!("Error: witness parser init failed, {:?}", err);
+                das_core::error::ErrorCode::WitnessDataDecodingError
+            })
+            .unwrap();
+        debug_log!("WitnessesParserV1::init() success");
+    }
+    Ok(())
 }
