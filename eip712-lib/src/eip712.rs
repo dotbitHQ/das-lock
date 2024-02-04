@@ -19,6 +19,7 @@ use das_core::util::hex_string;
 use das_dynamic_libs::{load_2_methods, new_context};
 use das_dynamic_libs::sign_lib::SignLib;
 use das_types::constants::{always_success_lock, das_lock, multisign_lock, signhash_lock, Action, DasLockType, DataType, LockRole, TypeScript, ActionParams};
+use das_types::constants::Action::LockAccountForCrossChain;
 use das_types::data_parser::das_lock_args::get_owner_lock_args;
 use das_types::packed as das_packed;
 use das_types::packed::{Bytes, HashReader, Reader};
@@ -455,7 +456,43 @@ pub fn to_semantic_address(
     // debug!("lock: {} => address: {}", lock_reader, address);
     Ok(address)
 }
+#[derive(Debug)]
+struct ParamsField{
+    pub index: usize,
+    pub length: usize,
+}
+#[derive(Debug)]
+struct BuyAccountParams {
+    inviter_lock_bytes: ParamsField,
+    channel_lock_bytes: ParamsField,
+    role: ParamsField,
+}
+fn get_buy_account_action_params(
+    input_data: &[u8],
+) -> BuyAccountParams {
+    //let total_len = u32::from_le_bytes(input_data[0..4].try_into()?);
+    let field_1_len = u32::from_le_bytes(input_data[0..4].try_into().expect("u32::from_le_bytes failed"));
+    let cursor = field_1_len as usize;
+    let field_2_len = u32::from_le_bytes(input_data[cursor..cursor+4].try_into().expect("u32::from_le_bytes failed"));
+    //debug!("jason input_data = {}", hex_string(input_data));
+    //debug!("jason field_1_len = {}", field_1_len);
+    //debug!("jason field_2_len = {}", field_2_len);
 
+    BuyAccountParams{
+        inviter_lock_bytes: ParamsField{
+            index: 0,
+            length: field_1_len as usize
+        },
+        channel_lock_bytes: ParamsField{
+            index: cursor,
+            length: field_2_len as usize
+        },
+        role: ParamsField{
+            index: (field_1_len + field_2_len) as usize,
+            length: 1
+        }
+    }
+}
 fn to_typed_action(parser: &WitnessesParser) -> Result<Value, Box<dyn ScriptError>> {
     let action = String::from_utf8(parser.get_action_data().action().raw_data().to_vec())
         .map_err(|_| ErrorCode::EIP712SerializationError)?;
@@ -464,10 +501,74 @@ fn to_typed_action(parser: &WitnessesParser) -> Result<Value, Box<dyn ScriptErro
 
     //todo: replace with parser.action_params
     if action_params.len() > 10 {
-        params.push(format!(
-            "0x{}...",
-            util::hex_string(&action_params.raw_data()[..PARAM_OMIT_SIZE])
-        ));
+        match parser.action {
+            Action::LockAccountForCrossChain => {
+                params.push(format!(
+                    "0x{}",
+                    util::hex_string(&action_params.raw_data()[..8])
+                ));
+                params.push(format!(
+                    "0x{}",
+                    util::hex_string(&action_params.raw_data()[8..16])
+                ));
+                params.push(format!(
+                    "0x{}",
+                    util::hex_string(&action_params.raw_data()[16..17])
+                ));
+            }
+            Action::BuyAccount => {
+                let buy_account_params = get_buy_account_action_params(&*action_params.raw_data());
+                if  buy_account_params.inviter_lock_bytes.length > 10 {
+                    params.push(format!(
+                        "0x{}...",
+                        util::hex_string(&action_params.raw_data()[buy_account_params.inviter_lock_bytes.index..buy_account_params.inviter_lock_bytes.index + PARAM_OMIT_SIZE]
+                        )
+                    ));
+                }else {
+                    params.push(format!(
+                        "0x{}",
+                        util::hex_string(&action_params.raw_data()[buy_account_params.inviter_lock_bytes.index..buy_account_params.inviter_lock_bytes.index + buy_account_params.inviter_lock_bytes.length]
+                        )
+                    ));
+
+                }
+                if buy_account_params.channel_lock_bytes.length > 10 {
+                    params.push(format!(
+                        "0x{}...",
+                        util::hex_string(&action_params.raw_data()[buy_account_params.channel_lock_bytes.index..buy_account_params.channel_lock_bytes.index + PARAM_OMIT_SIZE]
+                        )
+                    ));
+                } else {
+                    params.push(format!(
+                        "0x{}",
+                        util::hex_string(&action_params.raw_data()[buy_account_params.channel_lock_bytes.index..buy_account_params.channel_lock_bytes.index + buy_account_params.channel_lock_bytes.length]
+                        )
+                    ));
+                }
+                if buy_account_params.role.length > 10 {
+                    params.push(format!(
+                        "0x{}...",
+                        util::hex_string(&action_params.raw_data()[buy_account_params.role.index..buy_account_params.role.index + PARAM_OMIT_SIZE]
+                        )
+                    ));
+                } else {
+                    params.push(format!(
+                        "0x{}",
+                        util::hex_string(&action_params.raw_data()[buy_account_params.role.index..buy_account_params.role.index + buy_account_params.role.length]
+                        )
+                    ));
+                }
+
+            }
+            _ => {
+                params.push(format!(
+                    "0x{}...",
+                    util::hex_string(&action_params.raw_data()[..PARAM_OMIT_SIZE])
+                ));
+            }
+        }
+
+
     } else if action_params.raw_data() != Bytes::default().raw_data() {
         params.push(format!("0x{}", util::hex_string(&action_params.raw_data())));
     }

@@ -260,7 +260,9 @@ fn buy_account_to_semantic(parser: &mut WitnessesParser) -> Result<String, Box<d
     let account = String::from_utf8(account_in_bytes.to_vec())
         .map_err(|_| ErrorCode::EIP712SerializationError)?;
 
-    let cell_meta = CellMeta::new(account_sale_cells[0], das_types::constants::Source::Output);
+    let cell_meta = CellMeta::new(account_sale_cells[0], das_types::constants::Source::Input);
+   
+
     let witness_meta = parser
         .get_witness_meta_by_cell_meta(cell_meta)
         .expect("get_witness_meta_by_cell_meta failed");
