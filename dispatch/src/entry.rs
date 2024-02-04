@@ -16,7 +16,7 @@ use ckb_std::{
 };
 use core::convert::TryFrom;
 use core::result::Result;
-use das_core::util::hex_string;
+use das_core::util::{hex_string, is_type_id_equal};
 
 use crate::constants::{
     BLAKE160_SIZE, FLAGS_SIZE, HASH_SIZE, MAX_WITNESS_SIZE, ONE_BATCH_SIZE, RIPEMD160_HASH_SIZE,
@@ -31,11 +31,10 @@ use crate::structures::{AlgId, CmdMatchStatus, LockArgs, MatchStatus, SignInfo, 
 use crate::utils::generate_sighash_all::{calculate_inputs_len, load_and_hash_witness};
 use crate::utils::{bytes_to_u32_le, check_num_boundary, new_blake2b};
 use das_types::constants::{Action as DasAction, LockRole as Role, TypeScript};
+use das_types::prelude::Builder;
+use witness_parser::WitnessesParserV1;
 
-use crate::tx_parser::{
-    get_account_cell_type_id, get_dpoint_cell_type_id, get_sub_account_cell_type_id,
-    get_reverse_record_root_cell_type_id, get_type_id_by_type_script,
-};
+use crate::tx_parser::{get_account_cell_type_id, get_dpoint_cell_type_id, get_reverse_record_root_cell_type_id, get_sub_account_cell_type_id, get_type_id_by_type_script};
 use crate::validators::{
     validate_for_fulfill_approval, validate_for_revoke_approval,
     validate_for_unlock_account_for_cross_chain, validate_for_update_reverse_record_root,
@@ -548,7 +547,7 @@ pub(crate) fn get_plain_and_cipher(alg_id: AlgId) -> Result<SignInfo, Error> {
 //     }
 //     DasPureLockCell
 // }
-fn check_no_other_cell_except_specified(some_type: TypeScript) -> CmdMatchStatus {
+pub fn check_no_other_cell_except_specified(some_type: TypeScript) -> CmdMatchStatus {
     debug_log!("Enter check_no_other_cell_except_account_cell");
     let some_type_id = get_type_id_by_type_script(some_type)
         .expect(format!("cannot get type id of {:?}", some_type).as_str());
@@ -609,7 +608,7 @@ fn check_manager_has_permission(action: &DasAction, role: Role) -> bool {
         _ => false,
     }
 }
-fn get_action_and_role() -> Result<(DasAction, Role), Error> {
+pub fn get_action_and_role() -> Result<(DasAction, Role), Error> {
     //get the number of cells in inputs
     let action_witness_index = calculate_inputs_len()?;
 

@@ -8,7 +8,7 @@ use das_dynamic_libs::constants::DynLibName;
 use strum_macros::Display;
 
 #[derive(Debug, PartialEq)]
-pub(crate) enum CmdMatchStatus {
+pub enum CmdMatchStatus {
     DasPureLockCell = 10000,
     DasNotPureLockCell = 10001,
 }

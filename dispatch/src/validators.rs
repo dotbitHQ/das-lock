@@ -1,6 +1,6 @@
 use crate::constants::get_config_cell_main;
 use crate::debug_log;
-use crate::dlopen::exec_eip712_lib;
+use crate::dlopen::{dispatch, exec_eip712_lib};
 use crate::error::Error;
 use crate::sub_account::SubAction;
 use crate::tx_parser::{
@@ -31,9 +31,11 @@ use das_dynamic_libs::{
     load_1_method, load_2_methods, load_3_methods, load_and_configure_lib, load_lib, log_loading,
     new_context,
 };
-use das_types::constants::{cross_chain_lock, das_lock};
+use das_types::constants::{cross_chain_lock, das_lock, TypeScript};
 use das_types::constants::{DasLockType, LockRole};
 use das_types::packed::{DasLockTypeIdTableReader, Hash, Reader, ScriptReader};
+use crate::entry::check_no_other_cell_except_specified;
+use crate::structures::CmdMatchStatus::DasNotPureLockCell;
 
 pub fn validate_for_update_reverse_record_root() -> Result<i8, Error> {
     let config_main = get_config_cell_main()?;
@@ -185,6 +187,18 @@ pub fn reverse_record_root_cell_verify_sign(
         }
     }
 }
+pub fn validate_if_has_other_cell_in_inputs_except_specified(
+    cell_type: TypeScript,
+) -> Result<i8, Error> {
+    debug!("Verify if there are other cells in inputs except the {}", cell_type.to_string());
+    return if check_no_other_cell_except_specified(cell_type) == DasNotPureLockCell {
+        debug!("There are some cells with the same lock, besides the account cell. Then verify the signature.");
+        let (das_action, role) = crate::entry::get_action_and_role()?;
+        dispatch(role, das_action)
+    }else {
+        Ok(0)
+    }
+}
 pub fn validate_for_fulfill_approval() -> Result<i8, Error> {
     let account_cell_index = get_first_account_cell_index()?;
 
@@ -195,8 +209,7 @@ pub fn validate_for_fulfill_approval() -> Result<i8, Error> {
     let timestamp = util::load_oracle_data(OracleCellType::Time)?;
     if timestamp > sealed_until {
         debug!("The approval is already released, so anyone can fulfill it.");
-        return Ok(0);
-    } else {
+    }else {
         let owner_lock = high_level::load_cell_lock(account_cell_index, Source::Input)
             .map_err(|_| {
                 debug_log!(
@@ -220,7 +233,8 @@ pub fn validate_for_fulfill_approval() -> Result<i8, Error> {
         exec_eip712_lib().expect("exec_eip712_lib failed");
 
     }
-    Ok(0)
+
+    validate_if_has_other_cell_in_inputs_except_specified(TypeScript::AccountCellType)
 }
 pub fn validate_for_revoke_approval() -> Result<i8, Error> {
     let input_approval = get_input_approval()?;
@@ -243,7 +257,9 @@ pub fn validate_for_revoke_approval() -> Result<i8, Error> {
         return Error::ValidationFailure;
     })
     .unwrap();
-    Ok(0)
+
+    validate_if_has_other_cell_in_inputs_except_specified(TypeScript::AccountCellType)
+
 }
 pub fn approval_verify_sign(
     lock_name: &str,
@@ -355,8 +371,7 @@ pub fn validate_for_unlock_account_for_cross_chain() -> Result<i8, Error> {
                 return Error::WitnessError;
             })?;
     }
-
-    Ok(0)
+    validate_if_has_other_cell_in_inputs_except_specified(TypeScript::AccountCellType)
 }
 
 pub fn validate_for_update_sub_account() -> Result<i8, Error> {

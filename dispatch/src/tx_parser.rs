@@ -1,13 +1,17 @@
+use alloc::boxed::Box;
 use crate::debug_log;
 use crate::error::Error;
 use alloc::vec::Vec;
 use ckb_std::ckb_constants::Source;
+use ckb_std::ckb_constants::Source::Input;
 use witness_parser::WitnessesParserV1;
 
 use das_core::constants::ScriptType;
+use das_core::util;
 use das_core::util::{find_only_cell_by_type_id, hex_string};
 use das_types::constants::DataType;
 use das_types::constants::TypeScript;
+use das_types::mixer::AccountCellDataMixer;
 use das_types::packed;
 use das_types::packed::{AccountApprovalTransfer, AccountCellData, Hash};
 use das_types::prelude::Entity;
@@ -15,6 +19,7 @@ use witness_parser::traits::WitnessQueryable;
 use witness_parser::types::CellMeta;
 
 pub fn get_type_id_by_type_script(type_script: TypeScript) -> Result<Vec<u8>, Error> {
+
     debug_log!("get type id of {:?}", &type_script);
     let parser = WitnessesParserV1::get_instance();
     if !parser.is_inited() {
@@ -87,13 +92,19 @@ pub fn get_first_account_cell_index() -> Result<usize, Error> {
             .as_reader(),
         Source::Input,
     )?;
-    //let input_account_cells = util::load_self_cells_in_inputs()?;
     Ok(index)
 }
 
 pub fn get_input_approval() -> Result<AccountApprovalTransfer, Error> {
     let account_cell_witness = get_account_cell_witness()?;
-    let account_cell_witness_reader = account_cell_witness.as_reader();
+    let account_cell_witness_reader = match account_cell_witness.as_reader().try_into_latest() {
+        Ok(reader) => reader,
+        Err(err) => {
+            debug_log!("Decoding AccountCell.witness failed: {}", err);
+            return Err(Error::WitnessError);
+        }
+    };
+
     let input_approval_params = AccountApprovalTransfer::from_compatible_slice(
         account_cell_witness_reader.approval().params().raw_data(),
     )
@@ -106,22 +117,16 @@ pub fn get_input_approval() -> Result<AccountApprovalTransfer, Error> {
     Ok(input_approval_params)
 }
 
-pub fn get_account_cell_witness() -> Result<packed::AccountCellData, Error> {
+pub fn get_account_cell_witness() -> Result<Box<dyn AccountCellDataMixer>, Error> {
     debug_log!("get_account_cell_witness");
-    let witness_parser = WitnessesParserV1::get_instance();
-    debug_log!("WitnessesParserV1::get_instance() success");
+    let account_cell_index = 0;
+    let account_cell_source = Input;
 
-    let cell_meta = CellMeta {
-        index: 0,
-        source: das_types::constants::Source::Input,
-    };
-
-    let account_cell_witness = witness_parser
-        .get_entity_by_cell_meta::<AccountCellData>(cell_meta)
-        .map_err(|e| {
-            debug_log!("WitnessParserV1 get_entity_by_data_type error: {:?}", e);
-            return Error::WitnessError;
-        })
-        .unwrap();
-    Ok(account_cell_witness)
+   Ok(match util::parse_account_cell_witness(account_cell_index, account_cell_source) {
+        Ok(witness) => witness,
+        Err(err) => {
+            debug_log!("WitnessParserV1 get_entity_by_cell_meta error: {:?}", err);
+            return Err(Error::WitnessError);
+        }
+    })
 }
