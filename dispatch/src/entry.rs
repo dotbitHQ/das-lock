@@ -16,7 +16,7 @@ use ckb_std::{
 };
 use core::convert::TryFrom;
 use core::result::Result;
-use das_core::util::{hex_string, is_type_id_equal};
+use das_core::util::hex_string;
 
 use crate::constants::{
     BLAKE160_SIZE, FLAGS_SIZE, HASH_SIZE, MAX_WITNESS_SIZE, ONE_BATCH_SIZE, RIPEMD160_HASH_SIZE,
@@ -24,17 +24,19 @@ use crate::constants::{
     WITNESS_ARGS_LOCK_LEN,
 };
 use crate::debug_log;
-use crate::dlopen::{dispatch};
+use crate::dlopen::dispatch;
 use crate::structures::CmdMatchStatus::{DasNotPureLockCell, DasPureLockCell};
 use crate::structures::MatchStatus::{Match, NotMatch};
 use crate::structures::{AlgId, CmdMatchStatus, LockArgs, MatchStatus, SignInfo, SkipSignOrNot};
 use crate::utils::generate_sighash_all::{calculate_inputs_len, load_and_hash_witness};
 use crate::utils::{bytes_to_u32_le, check_num_boundary, new_blake2b};
 use das_types::constants::{Action as DasAction, LockRole as Role, TypeScript};
-use das_types::prelude::Builder;
-use witness_parser::WitnessesParserV1;
 
-use crate::tx_parser::{get_account_cell_type_id, get_balance_cell_type_id, get_dpoint_cell_type_id, get_reverse_record_root_cell_type_id, get_sub_account_cell_type_id, get_type_id_by_type_script, init_witness_parser};
+use crate::tx_parser::{
+    get_account_cell_type_id, get_balance_cell_type_id, get_dpoint_cell_type_id,
+    get_reverse_record_root_cell_type_id, get_sub_account_cell_type_id, get_type_id_by_type_script,
+    init_witness_parser,
+};
 use crate::validators::{
     validate_for_fulfill_approval, validate_for_revoke_approval,
     validate_for_unlock_account_for_cross_chain, validate_for_update_reverse_record_root,
@@ -128,7 +130,6 @@ fn check_and_downgrade_alg_id(action: &DasAction, alg_id: AlgId) -> AlgId {
     }
 }
 pub(crate) fn get_lock_args(action: &DasAction, role: Role) -> Result<LockArgs, Error> {
-
     let script = load_script()?;
     let args: Bytes = script.args().unpack();
 
@@ -572,7 +573,7 @@ pub fn check_if_has_assets_cell_in_inputs() -> bool {
         );
         //debug_assert_eq!(len, buf.len());
         let type_id = &buf[16..16 + HASH_SIZE];
-        if type_id == did_point_type_id  || type_id == balance_type_id {
+        if type_id == did_point_type_id || type_id == balance_type_id {
             return true;
         } else {
             continue;
@@ -585,7 +586,7 @@ pub fn check_no_other_cell_except_specified(some_type: TypeScript) -> CmdMatchSt
     let some_type_id = get_type_id_by_type_script(some_type)
         .expect(format!("cannot get type id of {:?}", some_type).as_str());
     let mut buf = [0u8; 100];
-    
+
     for i in 0.. {
         let _len = match load_cell_by_field(&mut buf, 0, i, Source::GroupInput, CellField::Type) {
             Ok(len) => len,
@@ -620,15 +621,15 @@ fn check_skip_sign(action: &DasAction) -> SkipSignOrNot {
     //     return SkipSignOrNot::NotSkip;
     // }
     match action {
-        DasAction::ConfirmProposal
-        | DasAction::RenewAccount
-        | DasAction::RecycleExpiredAccount => {
-            if DasNotPureLockCell == check_no_other_cell_except_specified(TypeScript::AccountCellType) {
+        DasAction::ConfirmProposal | DasAction::RenewAccount | DasAction::RecycleExpiredAccount => {
+            if DasNotPureLockCell
+                == check_no_other_cell_except_specified(TypeScript::AccountCellType)
+            {
                 debug_log!("Cannot skip signature verification because there are other cells besides the account cell in the same group of inputs cells.");
                 return SkipSignOrNot::NotSkip;
             }
             SkipSignOrNot::Skip
-        },
+        }
         DasAction::ForceRecoverAccountStatus => {
             if check_if_has_assets_cell_in_inputs() {
                 debug_log!("Cannot skip signature verification because there are assets cells besides the account cell in the same group of inputs cells.");
@@ -648,9 +649,7 @@ fn check_manager_has_permission(action: &DasAction, role: Role) -> bool {
         return true;
     }
     match action {
-        DasAction::EditRecords
-        | DasAction::UpdateSubAccount
-        | DasAction::ConfigSubAccount => true,
+        DasAction::EditRecords | DasAction::UpdateSubAccount | DasAction::ConfigSubAccount => true,
         _ => false,
     }
 }
@@ -704,9 +703,7 @@ pub fn main() -> Result<(), Error> {
                     debug_log!("Skip check sign for bid_expired_account_dutch_auction.");
                     return Ok(());
                 }
-                SkipSignOrNot::NotSkip => {
-                    dispatch(role, das_action)
-                }
+                SkipSignOrNot::NotSkip => dispatch(role, das_action),
             }
         }
 
@@ -717,30 +714,22 @@ pub fn main() -> Result<(), Error> {
             match check_skip_dyn_lib_sig_verification_for_update_reverse_record_root()? {
                 SkipSignOrNot::Skip => {
                     debug_log!("Skip check sign for update reverse record root.");
-                    //validate_for_update_reverse_record_root()
-                    Ok(0)
+                    validate_for_update_reverse_record_root()
                 }
-                SkipSignOrNot::NotSkip => {
-                    dispatch(role, das_action)
-                }
+                SkipSignOrNot::NotSkip => dispatch(role, das_action),
             }
-        },
+        }
 
         DasAction::UpdateSubAccount => {
             match check_skip_dynamic_library_signature_verification_for_update_sub_account()? {
                 SkipSignOrNot::Skip => {
                     debug_log!("Skip check sign for update sub account.");
-                    //validate_for_update_sub_account()
-                    Ok(0)
+                    validate_for_update_sub_account()
                 }
-                SkipSignOrNot::NotSkip => {
-                    dispatch(role, das_action)
-                }
+                SkipSignOrNot::NotSkip => dispatch(role, das_action),
             }
         }
-        _ => {
-            dispatch(role, das_action)
-        },
+        _ => dispatch(role, das_action),
     };
     match ret {
         Ok(x) => {
@@ -757,4 +746,3 @@ pub fn main() -> Result<(), Error> {
         }
     }
 }
-

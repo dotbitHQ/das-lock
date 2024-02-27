@@ -18,10 +18,10 @@ use ckb_std::{
 };
 use core::mem::size_of_val;
 use das_core::util::hex_string;
+use das_types::constants::Action as DasAction;
 use das_types::constants::LockRole as Role;
 use das_types::constants::{LockRole, TypeScript};
 use hex::encode;
-use das_types::constants::{Action as DasAction};
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum CkbAuthError {
@@ -391,10 +391,7 @@ pub fn dispatch_to_dyn_lib(role: Role, lock_args: &LockArgs) -> Result<i8, Error
 
     Ok(ret)
 }
-pub fn dispatch(
-    role: Role,
-    das_action: DasAction,
-) -> Result<i8, Error> {
+pub fn dispatch(role: Role, das_action: DasAction) -> Result<i8, Error> {
     debug_log!("Enter dispatch");
     let lock_args = crate::entry::get_lock_args(&das_action, role)?;
 

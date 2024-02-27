@@ -1,7 +1,8 @@
 use crate::constants::get_config_cell_main;
-use crate::debug_log;
 use crate::dlopen::{dispatch, exec_eip712_lib};
+use crate::entry::check_no_other_cell_except_specified;
 use crate::error::Error;
+use crate::structures::CmdMatchStatus::DasNotPureLockCell;
 use crate::sub_account::SubAction;
 use crate::tx_parser::{
     get_first_account_cell_index, get_input_approval, get_sub_account_cell_type_id,
@@ -17,7 +18,7 @@ use ckb_std::{debug, high_level};
 use core::ops::Index;
 use das_core::constants::{OracleCellType, ScriptType, ACCOUNT_SUFFIX};
 use das_core::error::{ErrorCode, ReverseRecordRootCellErrorCode, ScriptError};
-use das_core::util::find_only_cell_by_type_id;
+use das_core::util::{find_only_cell_by_type_id, hex_string};
 use das_core::witness_parser::reverse_record::{
     ReverseRecordWitness, ReverseRecordWitnessesParser,
 };
@@ -34,10 +35,10 @@ use das_dynamic_libs::{
 use das_types::constants::{cross_chain_lock, das_lock, TypeScript};
 use das_types::constants::{DasLockType, LockRole};
 use das_types::packed::{DasLockTypeIdTableReader, Hash, Reader, ScriptReader};
-use crate::entry::check_no_other_cell_except_specified;
-use crate::structures::CmdMatchStatus::DasNotPureLockCell;
 
 pub fn validate_for_update_reverse_record_root() -> Result<i8, Error> {
+    debug!("Verify the signatures of ReverseRecordRootCell ...");
+
     let config_main = get_config_cell_main()?;
     let config_main_reader = config_main.as_reader();
     let type_id_table = config_main_reader.das_lock_type_id_table();
@@ -49,7 +50,7 @@ pub fn validate_for_update_reverse_record_root() -> Result<i8, Error> {
 
     let reverse_witness_parser = ReverseRecordWitnessesParser::new(&config_main_reader)
         .map_err(|e| {
-            debug_log!("ReverseRecordWitnessesParser error: {:?}", e);
+            debug!("ReverseRecordWitnessesParser error: {:?}", e);
             return Error::WitnessError;
         })
         .unwrap();
@@ -58,7 +59,7 @@ pub fn validate_for_update_reverse_record_root() -> Result<i8, Error> {
             Ok(witness) => {
                 reverse_record_root_cell_verify_sign(&sign_lib, &witness, &reverse_witness_parser)
                     .map_err(|e| {
-                        debug_log!("reverse_record_root_cell_verify_sign error: {:?}", e);
+                        debug!("reverse_record_root_cell_verify_sign error: {:?}", e);
                         return Error::ValidationFailure;
                     })
                     .unwrap();
@@ -77,14 +78,14 @@ pub fn reverse_record_root_cell_verify_sign(
 ) -> Result<(), Box<dyn ScriptError>> {
     if cfg!(feature = "dev") {
         // CAREFUL Proof verification has been skipped in development mode.
-        debug_log!(
+        debug!(
             "  witnesses[{:>2}] Skip verifying the witness.reverse_record.signature is valid.",
             witness.index
         );
         return Ok(());
     }
 
-    debug_log!(
+    debug!(
         "  witnesses[{:>2}] Verify if the witness.reverse_record.signature is valid.",
         witness.index
     );
@@ -96,7 +97,7 @@ pub fn reverse_record_root_cell_verify_sign(
         | DasLockType::Doge
         | DasLockType::WebAuthn => witness.sign_type,
         _ => {
-            debug_log!(
+            debug!(
                 "  witnesses[{:>2}] Parsing das-lock(witness.reverse_record.lock.args) algorithm failed (maybe not supported for now), but it is required in this transaction.",
                 witness.index
             );
@@ -115,7 +116,7 @@ pub fn reverse_record_root_cell_verify_sign(
     let args = witness.address_payload.as_slice().to_vec();
 
     let message = sign_lib.gen_digest(das_lock_type, data).map_err(|_| {
-        debug_log!(
+        debug!(
             "  witnesses[{:>2}] The lock type {} is still not supported.",
             witness.index,
             das_lock_type.to_string()
@@ -163,14 +164,14 @@ pub fn reverse_record_root_cell_verify_sign(
 
     match ret {
         Err(_error_code) if _error_code == DasDynamicLibError::UndefinedDasLockType as i32 => {
-            debug_log!(
+            debug!(
                 "  witnesses[{:>2}] The signature algorithm has not been supported",
                 witness.index
             );
             Err(code_to_error!(ErrorCode::HardCodedError))
         }
         Err(_error_code) => {
-            debug_log!(
+            debug!(
                 "  witnesses[{:>2}] The witness.signature is invalid, the error_code returned by dynamic library is: {}",
                 witness.index, _error_code
             );
@@ -179,7 +180,7 @@ pub fn reverse_record_root_cell_verify_sign(
             ))
         }
         _ => {
-            debug_log!(
+            debug!(
                 "  witnesses[{:>2}] The witness.signature is valid.",
                 witness.index
             );
@@ -190,14 +191,17 @@ pub fn reverse_record_root_cell_verify_sign(
 pub fn validate_if_has_other_cell_in_inputs_except_specified(
     cell_type: TypeScript,
 ) -> Result<i8, Error> {
-    debug!("Verify if there are other cells in inputs except the {}", cell_type.to_string());
+    debug!(
+        "Verify if there are other cells in inputs except the {}",
+        cell_type.to_string()
+    );
     return if check_no_other_cell_except_specified(cell_type) == DasNotPureLockCell {
         debug!("There are some cells with the same lock, besides the account cell. Then verify the signature.");
         let (das_action, role) = crate::entry::get_action_and_role()?;
         dispatch(role, das_action)
-    }else {
+    } else {
         Ok(0)
-    }
+    };
 }
 pub fn validate_for_fulfill_approval() -> Result<i8, Error> {
     let account_cell_index = get_first_account_cell_index()?;
@@ -209,10 +213,10 @@ pub fn validate_for_fulfill_approval() -> Result<i8, Error> {
     let timestamp = util::load_oracle_data(OracleCellType::Time)?;
     if timestamp > sealed_until {
         debug!("The approval is already released, so anyone can fulfill it.");
-    }else {
+    } else {
         let owner_lock = high_level::load_cell_lock(account_cell_index, Source::Input)
             .map_err(|_| {
-                debug_log!(
+                debug!(
                     "{:?}[{}] Loading lock field failed.",
                     Source::Input,
                     account_cell_index
@@ -231,7 +235,6 @@ pub fn validate_for_fulfill_approval() -> Result<i8, Error> {
         )?;
         //WARNING: There was no algorithm type checking before.
         exec_eip712_lib().expect("exec_eip712_lib failed");
-
     }
 
     validate_if_has_other_cell_in_inputs_except_specified(TypeScript::AccountCellType)
@@ -253,13 +256,12 @@ pub fn validate_for_revoke_approval() -> Result<i8, Error> {
         config_cell_main_reader.das_lock_type_id_table(),
     )
     .map_err(|e| {
-        debug_log!("revoke_approval_verify_sign error: {:?}", e);
+        debug!("revoke_approval_verify_sign error: {:?}", e);
         return Error::ValidationFailure;
     })
     .unwrap();
 
     validate_if_has_other_cell_in_inputs_except_specified(TypeScript::AccountCellType)
-
 }
 pub fn approval_verify_sign(
     lock_name: &str,
@@ -267,15 +269,14 @@ pub fn approval_verify_sign(
     input_account_index: usize,
     type_id_table: DasLockTypeIdTableReader,
 ) -> Result<(), Box<dyn ScriptError>> {
-    debug_log!("Verify the signatures of {} ...", lock_name);
+    debug!("Verify the signatures of {} ...", lock_name);
 
     let sign_type_int = data_parser::das_lock_args::get_owner_type(sign_lock.args().raw_data());
     let args = data_parser::das_lock_args::get_owner_lock_args(sign_lock.args().raw_data());
     let sign_type = DasLockType::try_from(sign_type_int).map_err(|_| {
-        debug_log!(
+        debug!(
             "inputs[{}] Invalid sign type: {}",
-            input_account_index,
-            sign_type_int
+            input_account_index, sign_type_int
         );
         code_to_error!(ErrorCode::InvalidTransactionStructure)
     })?;
@@ -312,10 +313,9 @@ pub fn approval_verify_sign(
                 args.to_vec(),
             )
             .map_err(|err_code| {
-                debug_log!(
+                debug!(
                     "inputs[{}] Verify signature failed, error code: {}",
-                    input_account_index,
-                    err_code
+                    input_account_index, err_code
                 );
                 return ErrorCode::EIP712SignatureError;
             })?;
@@ -363,10 +363,9 @@ pub fn validate_for_unlock_account_for_cross_chain() -> Result<i8, Error> {
                 args,
             )
             .map_err(|err_code| {
-                debug_log!(
+                debug!(
                     "inputs[{}] Verify signature failed, error code: {}",
-                    account_cell_index,
-                    err_code
+                    account_cell_index, err_code
                 );
                 return Error::WitnessError;
             })?;
@@ -375,20 +374,26 @@ pub fn validate_for_unlock_account_for_cross_chain() -> Result<i8, Error> {
 }
 
 pub fn validate_for_update_sub_account() -> Result<i8, Error> {
-    debug_log!("Verify the signatures of SubAccountCell ...");
+    debug!("Verify the signatures of SubAccountCell ...");
+
     let config_main_origin = get_config_cell_main()?;
     let config_main = config_main_origin.as_reader();
     let type_id_table = config_main.das_lock_type_id_table();
     let mut sign_lib = SignLib::new();
+
     load_and_configure_lib!(sign_lib, ETH, type_id_table, eth, load_2_methods);
     load_and_configure_lib!(sign_lib, TRON, type_id_table, tron, load_2_methods);
     load_and_configure_lib!(sign_lib, DOGE, type_id_table, doge, load_2_methods);
     load_and_configure_lib!(sign_lib, WebAuthn, type_id_table, web_authn, load_3_methods);
 
-
     let sub_account_type_id = get_sub_account_cell_type_id()?;
+    debug!(
+        "The type_id of SubAccountCell is {}.",
+        hex_string(sub_account_type_id.as_slice())
+    );
 
-    //note: use "only" to ensure that only one sub account cell exists.
+    //note: use "only" to ensure that only one sub-account-cell exists.
+    debug!("Check if there is only one SubAccountCell in inputs.");
     let sub_account_cell_index = find_only_cell_by_type_id(
         ScriptType::Type,
         Hash::from_slice(sub_account_type_id.as_slice())
@@ -396,7 +401,8 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
             .as_reader(),
         Source::Input,
     )?;
-    debug_log!(
+
+    debug!(
         "Found SubAccountCell in inputs[{}].",
         sub_account_cell_index
     );
@@ -406,11 +412,11 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
     let flag = match data_parser::sub_account_cell::get_flag(&input_sub_account_data) {
         Some(val) => val,
         None => {
-            debug_log!("The flag should always be some for now.");
+            debug!("The flag should always be some for now.");
             return Err(Error::ArgsError);
         }
     };
-    debug_log!("The flag of SubAccountCell is {:?}.", flag);
+    debug!("The flag of SubAccountCell is {:?}.", flag);
 
     let sub_account_parser = SubAccountWitnessesParser::new(flag, &config_main)?;
 
@@ -420,9 +426,7 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
         config_main.type_id_table().account_cell(),
         Source::CellDep,
     )?;
-    debug_log!("dep_account_cells.len() = {}", dep_account_cells.len());
-
-  
+    debug!("dep_account_cells.len() = {}", dep_account_cells.len());
 
     let account_cell_index = dep_account_cells[0];
     let account_cell_source = Source::CellDep;
@@ -437,10 +441,8 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
     let parent_account_name = account_cell_reader.account().as_readable();
     let account_lock = high_level::load_cell_lock(account_cell_index, account_cell_source)?;
     let account_lock_args = account_lock.as_reader().args().raw_data();
-  
 
-    debug_log!("The parent account name is {:02x?}.", parent_account_name);
-
+    debug!("The parent account name is {:02x?}.", parent_account_name);
     let account_cell_data = util::load_cell_data(account_cell_index, account_cell_source)?;
 
     //following three values are used in closure
@@ -449,16 +451,13 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
     let sub_account_last_updated_at = util::get_timestamp_from_header(header.as_reader());
 
     let mut sender_lock = ckb_std::ckb_types::packed::Script::default();
-  
 
     let mut sign_verified = false;
     if sub_account_parser.contains_creation || sub_account_parser.contains_renew {
-        let verify_and_init_some_vars = |_name: &str, witness: &SubAccountMintSignWitness|
+        let verify_and_init_some_vars = |_name: &str,
+                                         witness: &SubAccountMintSignWitness|
          -> Result<
-            (
-                Option<LockRole>,
-                ckb_std::ckb_types::packed::Script,
-            ),
+            (Option<LockRole>, ckb_std::ckb_types::packed::Script),
             Box<dyn ScriptError>,
         > {
             debug!(
@@ -493,14 +492,9 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
                 util::derive_owner_lock_from_cell(account_cell_index, account_cell_source)?
             };
 
-            Ok((
-                witness.sign_role.clone(),
-                sender_lock,
-                ))
+            Ok((witness.sign_role.clone(), sender_lock))
         };
         let mut mint_sign_role: Option<LockRole> = None;
-
-      
 
         if sub_account_parser.contains_creation {
             match sub_account_parser.get_mint_sign(account_lock_args) {
@@ -510,7 +504,7 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
                         verify_and_init_some_vars("SubAccountMintWitness", &witness)?;
                 }
                 Some(Err(err)) => {
-                    debug_log!("Error: witness parser mint sign err, {:?}", err);
+                    debug!("Error: witness parser mint sign err, {:?}", err);
                     return Err(Error::WitnessError);
                 }
                 None => {
@@ -530,7 +524,7 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
 
                     if mint_sign_role.is_some() {
                         if mint_sign_role != renew_sign_role {
-                            debug_log!(
+                            debug!(
                                 "The sign_role of SubAccountMintSignWitness and SubAccountRenewSignWitness should be the same in the same transaction."
                             );
                             return Err(Error::WitnessError);
@@ -540,7 +534,7 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
                     }
                 }
                 Some(Err(err)) => {
-                    debug_log!("Error: witness parser mint sign err, {:?}", err);
+                    debug!("Error: witness parser mint sign err, {:?}", err);
                     return Err(Error::WitnessError);
                 }
                 None => {
@@ -552,7 +546,7 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
                 .get_renew_sign(account_lock_args)
                 .is_some()
             {
-                debug_log!("The SubAccountRenewSignWitness is not allowed if there if no renew action exists.");
+                debug!("The SubAccountRenewSignWitness is not allowed if there if no renew action exists.");
                 return Err(Error::WitnessError);
             }
         }
@@ -597,11 +591,10 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
             );
             return Err(Error::WitnessError);
         }
-
     } else {
         debug!("Verify if there is no BalanceCells are spent.");
         if all_inputs_with_das_lock.len() != 0 {
-            debug_log!(
+            debug!(
                 "Some cells with das-lock have may be abused.(invalid_inputs: {:?})",
                 all_inputs_with_das_lock
             );

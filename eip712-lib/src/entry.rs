@@ -232,7 +232,6 @@ fn edit_account_sale_to_semantic(
         .expect("get_witness_meta_by_cell_meta failed");
     let price = get_account_sale_cell_data_price(parser, &witness_meta, cell_meta)?;
 
-
     Ok(format!("EDIT SALE INFO, CURRENT PRICE IS {}", price))
 }
 
@@ -261,7 +260,6 @@ fn buy_account_to_semantic(parser: &mut WitnessesParser) -> Result<String, Box<d
         .map_err(|_| ErrorCode::EIP712SerializationError)?;
 
     let cell_meta = CellMeta::new(account_sale_cells[0], das_types::constants::Source::Input);
-   
 
     let witness_meta = parser
         .get_witness_meta_by_cell_meta(cell_meta)
@@ -535,7 +533,10 @@ fn fulfill_approval_to_semantic(
 }
 
 fn transfer_to_semantic(parser: &mut WitnessesParser) -> Result<String, Box<dyn ScriptError>> {
-    fn sum_cells(_parser: &WitnessesParser, source: Source) -> Result<String, Box<dyn ScriptError>> {
+    fn sum_cells(
+        _parser: &WitnessesParser,
+        source: Source,
+    ) -> Result<String, Box<dyn ScriptError>> {
         let mut i = 0;
         let mut capacity_map = Map::new();
         loop {
@@ -678,7 +679,7 @@ fn get_account_sale_cell_data_price(
     parser: &mut WitnessesParser,
     witness_meta: &WitnessMeta,
     cell_meta: CellMeta,
-)-> Result<String, Box<dyn ScriptError>> {
+) -> Result<String, Box<dyn ScriptError>> {
     if witness_meta.data_type != DataType::AccountSaleCellData {
         return Err(Box::from(ErrorCode::WitnessDataDecodingError));
     }

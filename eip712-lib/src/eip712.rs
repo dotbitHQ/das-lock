@@ -7,19 +7,22 @@ use core::convert::{TryFrom, TryInto};
 use core::mem::size_of_val;
 
 use ckb_std::ckb_constants::Source;
-use ckb_std::ckb_types::prelude::{Unpack};
+use ckb_std::ckb_types::prelude::Unpack;
 use ckb_std::error::SysError;
 use ckb_std::high_level;
 use das_core::constants::{LockScript, ScriptHashType, ScriptType};
+use das_core::data_parser::das_lock_args::get_manager_lock_args;
 use das_core::error::{Error, ErrorCode, ScriptError};
 use das_core::types::LockScriptTypeIdTable;
-use das_core::{data_parser, debug, sign_util, util};
-use das_core::data_parser::das_lock_args::get_manager_lock_args;
 use das_core::util::hex_string;
-use das_dynamic_libs::{load_2_methods, new_context};
+use das_core::{data_parser, debug, sign_util, util};
 use das_dynamic_libs::sign_lib::SignLib;
-use das_types::constants::{always_success_lock, das_lock, multisign_lock, signhash_lock, Action, DasLockType, DataType, LockRole, TypeScript, ActionParams};
+use das_dynamic_libs::{load_2_methods, new_context};
 use das_types::constants::Action::LockAccountForCrossChain;
+use das_types::constants::{
+    always_success_lock, das_lock, multisign_lock, signhash_lock, Action, ActionParams,
+    DasLockType, DataType, LockRole, TypeScript,
+};
 use das_types::data_parser::das_lock_args::get_owner_lock_args;
 use das_types::packed as das_packed;
 use das_types::packed::{Bytes, HashReader, Reader};
@@ -100,24 +103,19 @@ pub fn verify_eip712_hashes(
                         input_groups_idxs.entry(args.to_vec()).or_default().push(i);
 
                         let payload = match parser.action_params {
-                            ActionParams::Role(r) => {
-                                match r {
-                                    LockRole::Owner => {
-                                        get_owner_lock_args(args.as_slice()).expect("get_owner_lock_args failed").to_vec()
-
-                                    },
-                                    LockRole::Manager => {
-                                        get_manager_lock_args(args.as_slice()).to_vec()
-
-                                    }
+                            ActionParams::Role(r) => match r {
+                                LockRole::Owner => get_owner_lock_args(args.as_slice())
+                                    .expect("get_owner_lock_args failed")
+                                    .to_vec(),
+                                LockRole::Manager => {
+                                    get_manager_lock_args(args.as_slice()).to_vec()
                                 }
-                            }
-                            _ => {
-                                get_owner_lock_args(args.as_slice()).expect("get_owner_lock_args failed").to_vec()
-                            }
+                            },
+                            _ => get_owner_lock_args(args.as_slice())
+                                .expect("get_owner_lock_args failed")
+                                .to_vec(),
                         };
                         payload_map.entry(payload).or_default().push(i);
-
                     }
                 }
             }
@@ -140,8 +138,12 @@ pub fn verify_eip712_hashes(
 
         #[cfg(debug_assertions)]
         {
-            for (k,v ) in input_groups_idxs.clone() {
-                debug!("input_groups_idxs key = {}, value = {:?}", hex_string(k.as_slice()), v);
+            for (k, v) in input_groups_idxs.clone() {
+                debug!(
+                    "input_groups_idxs key = {}, value = {:?}",
+                    hex_string(k.as_slice()),
+                    v
+                );
             }
         }
 
@@ -151,15 +153,22 @@ pub fn verify_eip712_hashes(
         let mut sign_lib = SignLib::new();
         let mut eth_context = new_context!();
 
-        let code_hash = if cfg!(feature = "testnet"){
-            decode_hex("eth testnet type id", "6d0f4c38ae82383c619b9752ed8140019aa49128e39d48b271239a668c40a174")
-        }else {
-            decode_hex("eth mainnet type id", "6bbd5ca9bbdbe9a03f51329b2c6d06017ee2ae20546f724f70f79b8922a7d5b1")
+        let code_hash = if cfg!(feature = "testnet") {
+            decode_hex(
+                "eth testnet type id",
+                "6d0f4c38ae82383c619b9752ed8140019aa49128e39d48b271239a668c40a174",
+            )
+        } else {
+            decode_hex(
+                "eth mainnet type id",
+                "6bbd5ca9bbdbe9a03f51329b2c6d06017ee2ae20546f724f70f79b8922a7d5b1",
+            )
         };
         debug!("eth type id = {}", hex_string(code_hash.as_slice()));
         let hash_type = ScriptHashType::Type;
         let size = size_of_val(&eth_context);
-        let lib = eth_context.load_with_offset(code_hash.as_slice(), hash_type, 0, size)
+        let lib = eth_context
+            .load_with_offset(code_hash.as_slice(), hash_type, 0, size)
             .map_err(|_| ErrorCode::EIP712SignatureError)?;
         sign_lib.eth = load_2_methods!(lib);
 
@@ -219,8 +228,12 @@ pub fn verify_eip712_hashes(
 
     Ok(())
 }
-fn get_payload_by_index(payload_map: BTreeMap<Vec<u8>, Vec<usize>>, idx: &usize) -> Result<Vec<u8>, Box<dyn ScriptError>> {
-    payload_map.into_iter()
+fn get_payload_by_index(
+    payload_map: BTreeMap<Vec<u8>, Vec<usize>>,
+    idx: &usize,
+) -> Result<Vec<u8>, Box<dyn ScriptError>> {
+    payload_map
+        .into_iter()
         .find(|(_, v)| v.get(0) == Some(idx))
         .map(|(k, _)| k)
         .ok_or(Box::from(ErrorCode::EIP712SignatureError))
@@ -293,7 +306,6 @@ pub fn tx_to_eip712_typed_data(
     chain_id: Vec<u8>,
     tx_to_das_message: fn(parser: &mut WitnessesParser) -> Result<String, Box<dyn ScriptError>>,
 ) -> Result<TypedDataV4, Box<dyn ScriptError>> {
-   
     let plain_text = tx_to_das_message(parser)?;
     let tx_action = to_typed_action(parser)?;
 
@@ -457,7 +469,7 @@ pub fn to_semantic_address(
     Ok(address)
 }
 #[derive(Debug)]
-struct ParamsField{
+struct ParamsField {
     pub index: usize,
     pub length: usize,
 }
@@ -467,30 +479,36 @@ struct BuyAccountParams {
     channel_lock_bytes: ParamsField,
     role: ParamsField,
 }
-fn get_buy_account_action_params(
-    input_data: &[u8],
-) -> BuyAccountParams {
+fn get_buy_account_action_params(input_data: &[u8]) -> BuyAccountParams {
     //let total_len = u32::from_le_bytes(input_data[0..4].try_into()?);
-    let field_1_len = u32::from_le_bytes(input_data[0..4].try_into().expect("u32::from_le_bytes failed"));
+    let field_1_len = u32::from_le_bytes(
+        input_data[0..4]
+            .try_into()
+            .expect("u32::from_le_bytes failed"),
+    );
     let cursor = field_1_len as usize;
-    let field_2_len = u32::from_le_bytes(input_data[cursor..cursor+4].try_into().expect("u32::from_le_bytes failed"));
+    let field_2_len = u32::from_le_bytes(
+        input_data[cursor..cursor + 4]
+            .try_into()
+            .expect("u32::from_le_bytes failed"),
+    );
     //debug!("jason input_data = {}", hex_string(input_data));
     //debug!("jason field_1_len = {}", field_1_len);
     //debug!("jason field_2_len = {}", field_2_len);
 
-    BuyAccountParams{
-        inviter_lock_bytes: ParamsField{
+    BuyAccountParams {
+        inviter_lock_bytes: ParamsField {
             index: 0,
-            length: field_1_len as usize
+            length: field_1_len as usize,
         },
-        channel_lock_bytes: ParamsField{
+        channel_lock_bytes: ParamsField {
             index: cursor,
-            length: field_2_len as usize
+            length: field_2_len as usize,
         },
-        role: ParamsField{
+        role: ParamsField {
             index: (field_1_len + field_2_len) as usize,
-            length: 1
-        }
+            length: 1,
+        },
     }
 }
 fn to_typed_action(parser: &WitnessesParser) -> Result<Value, Box<dyn ScriptError>> {
@@ -518,47 +536,59 @@ fn to_typed_action(parser: &WitnessesParser) -> Result<Value, Box<dyn ScriptErro
             }
             Action::BuyAccount => {
                 let buy_account_params = get_buy_account_action_params(&*action_params.raw_data());
-                if  buy_account_params.inviter_lock_bytes.length > 10 {
+                if buy_account_params.inviter_lock_bytes.length > 10 {
                     params.push(format!(
                         "0x{}...",
-                        util::hex_string(&action_params.raw_data()[buy_account_params.inviter_lock_bytes.index..buy_account_params.inviter_lock_bytes.index + PARAM_OMIT_SIZE]
-                        )
-                    ));
-                }else {
-                    params.push(format!(
-                        "0x{}",
-                        util::hex_string(&action_params.raw_data()[buy_account_params.inviter_lock_bytes.index..buy_account_params.inviter_lock_bytes.index + buy_account_params.inviter_lock_bytes.length]
-                        )
-                    ));
-
-                }
-                if buy_account_params.channel_lock_bytes.length > 10 {
-                    params.push(format!(
-                        "0x{}...",
-                        util::hex_string(&action_params.raw_data()[buy_account_params.channel_lock_bytes.index..buy_account_params.channel_lock_bytes.index + PARAM_OMIT_SIZE]
+                        util::hex_string(
+                            &action_params.raw_data()[buy_account_params.inviter_lock_bytes.index
+                                ..buy_account_params.inviter_lock_bytes.index + PARAM_OMIT_SIZE]
                         )
                     ));
                 } else {
                     params.push(format!(
                         "0x{}",
-                        util::hex_string(&action_params.raw_data()[buy_account_params.channel_lock_bytes.index..buy_account_params.channel_lock_bytes.index + buy_account_params.channel_lock_bytes.length]
+                        util::hex_string(
+                            &action_params.raw_data()[buy_account_params.inviter_lock_bytes.index
+                                ..buy_account_params.inviter_lock_bytes.index
+                                    + buy_account_params.inviter_lock_bytes.length]
+                        )
+                    ));
+                }
+                if buy_account_params.channel_lock_bytes.length > 10 {
+                    params.push(format!(
+                        "0x{}...",
+                        util::hex_string(
+                            &action_params.raw_data()[buy_account_params.channel_lock_bytes.index
+                                ..buy_account_params.channel_lock_bytes.index + PARAM_OMIT_SIZE]
+                        )
+                    ));
+                } else {
+                    params.push(format!(
+                        "0x{}",
+                        util::hex_string(
+                            &action_params.raw_data()[buy_account_params.channel_lock_bytes.index
+                                ..buy_account_params.channel_lock_bytes.index
+                                    + buy_account_params.channel_lock_bytes.length]
                         )
                     ));
                 }
                 if buy_account_params.role.length > 10 {
                     params.push(format!(
                         "0x{}...",
-                        util::hex_string(&action_params.raw_data()[buy_account_params.role.index..buy_account_params.role.index + PARAM_OMIT_SIZE]
+                        util::hex_string(
+                            &action_params.raw_data()[buy_account_params.role.index
+                                ..buy_account_params.role.index + PARAM_OMIT_SIZE]
                         )
                     ));
                 } else {
                     params.push(format!(
                         "0x{}",
-                        util::hex_string(&action_params.raw_data()[buy_account_params.role.index..buy_account_params.role.index + buy_account_params.role.length]
+                        util::hex_string(
+                            &action_params.raw_data()[buy_account_params.role.index
+                                ..buy_account_params.role.index + buy_account_params.role.length]
                         )
                     ));
                 }
-
             }
             _ => {
                 params.push(format!(
@@ -567,8 +597,6 @@ fn to_typed_action(parser: &WitnessesParser) -> Result<Value, Box<dyn ScriptErro
                 ));
             }
         }
-
-
     } else if action_params.raw_data() != Bytes::default().raw_data() {
         params.push(format!("0x{}", util::hex_string(&action_params.raw_data())));
     }
@@ -578,7 +606,6 @@ fn to_typed_action(parser: &WitnessesParser) -> Result<Value, Box<dyn ScriptErro
         params: params.join(",")
     }))
 }
-
 
 pub fn get_type_id(type_script: TypeScript) -> Vec<u8> {
     let parser = WitnessesParser::get_instance();
