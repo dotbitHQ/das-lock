@@ -4,7 +4,8 @@ build/*
 *.swp
 *.debug
 *.release
-.idea/*
+
+**/.idea/*
 *.sh
 target
 das-lock-lib/src/contracts/*
@@ -12,4 +13,4 @@ cmake-build-debug/
 Cargo.lock
 **/Cargo.lock
 **/*.rs.bak
-
+**/.env*

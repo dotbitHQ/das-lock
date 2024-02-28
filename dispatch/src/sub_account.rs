@@ -1,22 +1,18 @@
-use crate::debug_log;
 use alloc::borrow::ToOwned;
 use alloc::boxed::Box;
 use alloc::string::ToString;
 use ckb_std::ckb_types::prelude::{Entity, Reader};
+use ckb_std::debug;
 use core::ops::Index;
 use das_core::error::{ErrorCode, ScriptError, SubAccountCellErrorCode};
-use das_core::witness_parser::sub_account::{
-    SubAccountEditValue, SubAccountWitness, SubAccountWitnessesParser,
-};
+use das_core::witness_parser::sub_account::{SubAccountEditValue, SubAccountWitness, SubAccountWitnessesParser};
 use das_core::witness_parser::webauthn_signature::WebAuthnSignature;
 use das_core::{code_to_error, das_assert, data_parser, util, verifiers, warn};
 
 use das_dynamic_libs::error::Error;
 use das_dynamic_libs::sign_lib::SignLib;
 use das_types::constants::{das_lock, AccountStatus, DasLockType, SubAccountAction};
-use das_types::packed::{
-    AccountApproval, AccountApprovalTransferReader, Bytes, Records, SubAccount, Uint64, Uint8,
-};
+use das_types::packed::{AccountApproval, AccountApprovalTransferReader, Bytes, Records, SubAccount, Uint64, Uint8};
 use das_types::prelude::Builder;
 use das_types::prettier::Prettier;
 
@@ -51,13 +47,11 @@ impl<'a> SubAction<'a> {
     }
 
     pub fn dispatch(
-        &self,
-        witness: &SubAccountWitness,
-        witness_parser: &SubAccountWitnessesParser,
+        &self, witness: &SubAccountWitness, witness_parser: &SubAccountWitnessesParser,
     ) -> Result<(), Box<dyn ScriptError>> {
         //let sub_account_reader = witness.sub_account.as_reader();
 
-        debug_log!(
+        debug!(
             "  witnesses[{:>2}] Start verify {} action ...",
             witness.index,
             witness.action.to_string()
@@ -70,7 +64,7 @@ impl<'a> SubAction<'a> {
             | SubAccountAction::RevokeApproval
             | SubAccountAction::FulfillApproval => self.approve(witness, witness_parser)?,
             _ => {
-                debug_log!("This action does not require verification of the signature.");
+                debug!("This action does not require verification of the signature.");
             }
         }
 
@@ -78,9 +72,7 @@ impl<'a> SubAction<'a> {
     }
 
     fn edit(
-        &self,
-        witness: &SubAccountWitness,
-        witness_parser: &SubAccountWitnessesParser,
+        &self, witness: &SubAccountWitness, witness_parser: &SubAccountWitnessesParser,
     ) -> Result<(), Box<dyn ScriptError>> {
         //Only checks whether the signature is correct, regardless of the modified content
         verifiers::sub_account_cell::verify_unlock_role(&witness)?;
@@ -96,15 +88,13 @@ impl<'a> SubAction<'a> {
     }
 
     fn approve(
-        &self,
-        witness: &SubAccountWitness,
-        witness_parser: &SubAccountWitnessesParser,
+        &self, witness: &SubAccountWitness, witness_parser: &SubAccountWitnessesParser,
     ) -> Result<(), Box<dyn ScriptError>> {
         let sub_account_reader = witness.sub_account.as_reader();
         let new_sub_account = generate_new_sub_account_by_edit_value(&witness)?;
         let new_sub_account_reader = new_sub_account.as_reader();
 
-        debug_log!(
+        debug!(
             "  witnesses[{:>2}] Calculated new sub-account structure is: {}",
             witness.index,
             Prettier::as_prettier(&new_sub_account_reader)
@@ -113,19 +103,16 @@ impl<'a> SubAction<'a> {
         let approval_reader = match witness.action {
             SubAccountAction::CreateApproval => new_sub_account_reader.approval(),
             _ => {
-                let sub_account_reader = sub_account_reader.try_into_latest().map_err(|_| {
-                    code_to_error!(SubAccountCellErrorCode::WitnessVersionMismatched)
-                })?;
+                let sub_account_reader = sub_account_reader
+                    .try_into_latest()
+                    .map_err(|_| code_to_error!(SubAccountCellErrorCode::WitnessVersionMismatched))?;
                 sub_account_reader.approval()
             }
         };
         let approval_action = approval_reader.action().raw_data();
         let approval_params = approval_reader.params().raw_data();
 
-        debug_log!(
-            "  witnesses[{:>2}] Verify if the signature is valid.",
-            witness.index
-        );
+        debug!("  witnesses[{:>2}] Verify if the signature is valid.", witness.index);
 
         match witness.action {
             SubAccountAction::CreateApproval | SubAccountAction::DelayApproval => {
@@ -147,15 +134,12 @@ impl<'a> SubAction<'a> {
             }
             SubAccountAction::FulfillApproval => match approval_action {
                 b"transfer" => {
-                    let params =
-                        AccountApprovalTransferReader::from_compatible_slice(approval_params)
-                            .map_err(|_| {
-                                code_to_error!(SubAccountCellErrorCode::WitnessParsingError)
-                            })?;
+                    let params = AccountApprovalTransferReader::from_compatible_slice(approval_params)
+                        .map_err(|_| code_to_error!(SubAccountCellErrorCode::WitnessParsingError))?;
                     let sealed_util = u64::from(params.sealed_until());
 
                     if self.timestamp <= sealed_util {
-                        debug_log!(
+                        debug!(
                             "  witnesses[{:>2}] The approval is sealed, verify the signature with the owner lock.",
                             witness.index
                         );
@@ -165,23 +149,15 @@ impl<'a> SubAction<'a> {
                             self.parent_expired_at,
                             self.sub_account_last_updated_at,
                         )?;
-                        verify_sub_account_approval_sign_v2(
-                            &witness,
-                            &self.sign_lib,
-                            witness_parser,
-                        )?;
+                        verify_sub_account_approval_sign_v2(&witness, &self.sign_lib, witness_parser)?;
                     } else {
-                        debug_log!(
+                        debug!(
                             "  witnesses[{:>2}] The approval is released, no need to verify the signature.",
                             witness.index
                         );
                     }
                 }
-                _ => {
-                    return Err(code_to_error!(
-                        SubAccountCellErrorCode::ApprovalActionUndefined
-                    ))
-                }
+                _ => return Err(code_to_error!(SubAccountCellErrorCode::ApprovalActionUndefined)),
             },
             _ => {
                 warn!(
@@ -192,15 +168,13 @@ impl<'a> SubAction<'a> {
             }
         }
 
-        debug_log!("  witnesses[{:>2}] Get the approval action.", witness.index);
+        debug!("  witnesses[{:>2}] Get the approval action.", witness.index);
 
         Ok(())
     }
 }
 
-fn generate_new_sub_account_by_edit_value(
-    witness: &SubAccountWitness,
-) -> Result<SubAccount, Box<dyn ScriptError>> {
+fn generate_new_sub_account_by_edit_value(witness: &SubAccountWitness) -> Result<SubAccount, Box<dyn ScriptError>> {
     das_assert!(
         witness.new_sub_account_version == 2,
         SubAccountCellErrorCode::WitnessUpgradeNeeded,
@@ -260,60 +234,41 @@ fn generate_new_sub_account_by_edit_value(
                     sub_account_builder
                 }
                 SubAccountEditValue::Records(val) => sub_account_builder.records(val.to_owned()),
-                _ => {
-                    return Err(code_to_error!(
-                        SubAccountCellErrorCode::WitnessEditKeyInvalid
-                    ))
-                }
+                _ => return Err(code_to_error!(SubAccountCellErrorCode::WitnessEditKeyInvalid)),
             }
         }
         SubAccountAction::Renew => match edit_value {
-            SubAccountEditValue::ExpiredAt(val) => {
-                sub_account_builder.expired_at(Uint64::from(val.to_owned()))
-            }
-            _ => {
-                return Err(code_to_error!(
-                    SubAccountCellErrorCode::WitnessEditKeyInvalid
-                ))
-            }
+            SubAccountEditValue::ExpiredAt(val) => sub_account_builder.expired_at(Uint64::from(val.to_owned())),
+            _ => return Err(code_to_error!(SubAccountCellErrorCode::WitnessEditKeyInvalid)),
         },
         SubAccountAction::CreateApproval | SubAccountAction::DelayApproval => {
             match edit_value {
                 SubAccountEditValue::Approval(val) => {
                     // The status should be updated to AccountStatus::ApprovedTransfer when the edit_value is approval.
-                    sub_account_builder = sub_account_builder
-                        .status(Uint8::from(AccountStatus::ApprovedTransfer as u8));
+                    sub_account_builder =
+                        sub_account_builder.status(Uint8::from(AccountStatus::ApprovedTransfer as u8));
                     sub_account_builder.approval(val.to_owned())
                 }
-                _ => {
-                    return Err(code_to_error!(
-                        SubAccountCellErrorCode::WitnessEditKeyInvalid
-                    ))
-                }
+                _ => return Err(code_to_error!(SubAccountCellErrorCode::WitnessEditKeyInvalid)),
             }
         }
         SubAccountAction::RevokeApproval => {
             match edit_value {
                 SubAccountEditValue::None => {}
                 _ => {
-                    return Err(code_to_error!(
-                        SubAccountCellErrorCode::WitnessEditKeyInvalid
-                    ));
+                    return Err(code_to_error!(SubAccountCellErrorCode::WitnessEditKeyInvalid));
                 }
             }
 
             // The status should be updated to AccountStatus::Normal when the edit_value is None.
-            sub_account_builder =
-                sub_account_builder.status(Uint8::from(AccountStatus::Normal as u8));
+            sub_account_builder = sub_account_builder.status(Uint8::from(AccountStatus::Normal as u8));
             sub_account_builder.approval(AccountApproval::default())
         }
         SubAccountAction::FulfillApproval => {
             match edit_value {
                 SubAccountEditValue::None => {}
                 _ => {
-                    return Err(code_to_error!(
-                        SubAccountCellErrorCode::WitnessEditKeyInvalid
-                    ));
+                    return Err(code_to_error!(SubAccountCellErrorCode::WitnessEditKeyInvalid));
                 }
             }
 
@@ -322,31 +277,18 @@ fn generate_new_sub_account_by_edit_value(
 
             match approval_action {
                 b"transfer" => {
-                    let approval_params_reader =
-                        AccountApprovalTransferReader::from_compatible_slice(approval_params)
-                            .map_err(|_| {
-                                code_to_error!(SubAccountCellErrorCode::WitnessParsingError)
-                            })?;
-                    sub_account_builder =
-                        sub_account_builder.lock(approval_params_reader.to_lock().to_entity());
+                    let approval_params_reader = AccountApprovalTransferReader::from_compatible_slice(approval_params)
+                        .map_err(|_| code_to_error!(SubAccountCellErrorCode::WitnessParsingError))?;
+                    sub_account_builder = sub_account_builder.lock(approval_params_reader.to_lock().to_entity());
                     sub_account_builder = sub_account_builder.records(Records::default());
                     // The status should be updated to AccountStatus::Normal when the edit_value is None.
-                    sub_account_builder =
-                        sub_account_builder.status(Uint8::from(AccountStatus::Normal as u8));
+                    sub_account_builder = sub_account_builder.status(Uint8::from(AccountStatus::Normal as u8));
                     sub_account_builder.approval(AccountApproval::default())
                 }
-                _ => {
-                    return Err(code_to_error!(
-                        SubAccountCellErrorCode::ApprovalActionUndefined
-                    ))
-                }
+                _ => return Err(code_to_error!(SubAccountCellErrorCode::ApprovalActionUndefined)),
             }
         }
-        _ => {
-            return Err(code_to_error!(
-                SubAccountCellErrorCode::WitnessEditKeyInvalid
-            ))
-        }
+        _ => return Err(code_to_error!(SubAccountCellErrorCode::WitnessEditKeyInvalid)),
     };
 
     // Every time a sub-account is edited, its nonce must  increase by 1 .
@@ -356,20 +298,18 @@ fn generate_new_sub_account_by_edit_value(
 }
 
 pub fn verify_sub_account_edit_sign_v2(
-    witness: &SubAccountWitness,
-    sign_lib: &SignLib,
-    witness_parser: &SubAccountWitnessesParser,
+    witness: &SubAccountWitness, sign_lib: &SignLib, witness_parser: &SubAccountWitnessesParser,
 ) -> Result<(), Box<dyn ScriptError>> {
     if cfg!(feature = "dev") {
         // CAREFUL Proof verification has been skipped in development mode.
-        debug_log!(
+        debug!(
             "  witnesses[{:>2}] Skip verifying the witness.sub_account.sig is valid.",
             witness.index
         );
         return Ok(());
     }
 
-    debug_log!(
+    debug!(
         "  witnesses[{:>2}] Verify if the witness.sub_account.signature is valid.",
         witness.index
     );
@@ -431,10 +371,7 @@ pub fn verify_sub_account_edit_sign_v2(
         ]
         .concat();
         let message = util::blake2b_256(&data);
-        debug_log!(
-            "Getting DeviceKeyListCellData for sign_args: {}",
-            hex::encode(args)
-        );
+        debug!("Getting DeviceKeyListCellData for sign_args: {}", hex::encode(args));
 
         let device_key_list = witness_parser
             .device_key_lists
@@ -474,35 +411,28 @@ pub fn verify_sub_account_edit_sign_v2(
                 "  witnesses[{:>2}] The witness.signature is invalid, the error_code returned by dynamic library is: {}",
                 witness.index, _error_code
             );
-            Err(code_to_error!(
-                SubAccountCellErrorCode::SubAccountSigVerifyError
-            ))
+            Err(code_to_error!(SubAccountCellErrorCode::SubAccountSigVerifyError))
         }
         _ => {
-            debug_log!(
-                "  witnesses[{:>2}] The witness.signature is valid.",
-                witness.index
-            );
+            debug!("  witnesses[{:>2}] The witness.signature is valid.", witness.index);
             Ok(())
         }
     }
 }
 
 pub fn verify_sub_account_approval_sign_v2(
-    witness: &SubAccountWitness,
-    sign_lib: &SignLib,
-    witness_parser: &SubAccountWitnessesParser,
+    witness: &SubAccountWitness, sign_lib: &SignLib, witness_parser: &SubAccountWitnessesParser,
 ) -> Result<(), Box<dyn ScriptError>> {
     if cfg!(feature = "dev") {
         // CAREFUL Proof verification has been skipped in development mode.
-        debug_log!(
+        debug!(
             "  witnesses[{:>2}] Skip verifying the witness.sub_account.sig is valid.",
             witness.index
         );
         return Ok(());
     }
 
-    debug_log!(
+    debug!(
         "  witnesses[{:>2}] Verify if the witness.sub_account.signature is valid.",
         witness.index
     );
@@ -563,10 +493,7 @@ pub fn verify_sub_account_approval_sign_v2(
         let data = [action_bytes, approval_bytes, nonce, sign_expired_at].concat();
         let message = util::blake2b_256(&data);
 
-        debug_log!(
-            "Getting DeviceKeyListCellData for sign_args: {}",
-            hex::encode(args)
-        );
+        debug!("Getting DeviceKeyListCellData for sign_args: {}", hex::encode(args));
 
         let device_key_list = witness_parser
             .device_key_lists
@@ -605,15 +532,10 @@ pub fn verify_sub_account_approval_sign_v2(
                 "  witnesses[{:>2}] The witness.signature is invalid, the error_code returned by dynamic library is: {}",
                 witness.index, _error_code
             );
-            Err(code_to_error!(
-                SubAccountCellErrorCode::SubAccountSigVerifyError
-            ))
+            Err(code_to_error!(SubAccountCellErrorCode::SubAccountSigVerifyError))
         }
         _ => {
-            debug_log!(
-                "  witnesses[{:>2}] The witness.signature is valid.",
-                witness.index
-            );
+            debug!("  witnesses[{:>2}] The witness.signature is valid.", witness.index);
             Ok(())
         }
     }

@@ -16,13 +16,13 @@ pub enum CmdMatchStatus {
 #[derive(Debug, PartialEq)]
 pub(crate) enum MatchStatus {
     Match,
-    NotMatch,
+    MisMatch,
 }
 
 #[derive(Debug, PartialEq)]
-pub(crate) enum SkipSignOrNot {
+pub(crate) enum SignatureCheck {
     Skip,
-    NotSkip,
+    Required,
 }
 
 #[derive(Debug, PartialEq)]
