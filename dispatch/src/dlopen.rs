@@ -2,21 +2,19 @@ extern crate alloc;
 
 use crate::constants::get_dyn_lib_desc_info;
 use crate::error::Error;
-use crate::structures::{AlgId, LockArgs, SignInfo};
-use crate::tx_parser::get_type_id_by_type_script;
+use crate::structures::{AlgId, LockArgs};
+use crate::tx_parser::{get_type_id_by_type_script, get_webauthn_lock_args_from_cell};
 use crate::utils::generate_sighash_all::MAX_WITNESS_SIZE;
-use alloc::collections::BTreeMap;
-use alloc::ffi::NulError;
-use alloc::vec::Vec;
-use alloc::{fmt, vec};
+use alloc::{collections::BTreeMap, ffi::NulError, fmt, vec, vec::Vec};
 use ckb_std::dynamic_loading_c_impl::{CKBDLContext, Library};
 use ckb_std::{ckb_types::core::ScriptHashType, debug, dynamic_loading_c_impl::Symbol, high_level, syscalls::SysError};
 use core::mem::size_of_val;
 use das_core::util::hex_string;
 use das_types::constants::Action as DasAction;
 use das_types::constants::LockRole as Role;
-use das_types::constants::{LockRole, TypeScript};
+use das_types::constants::TypeScript;
 use hex::encode;
+
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum CkbAuthError {
@@ -177,18 +175,6 @@ pub fn ckb_auth_dl(
     debug!("payload: {}", encode(payload));
     debug!("entry_func_name: {}", entry_func_name);
 
-    let (alg_id, type_) = match alg_id {
-        AlgId::Eip712 => (AlgId::Eth, 1), //eip712 use eth lib
-        AlgId::WebAuthn => {
-            //todo: not elegant design, maybe move the logic for parsing witnesses from C to Rust.
-            let r = match role {
-                LockRole::Owner => 0,
-                LockRole::Manager => 1,
-            };
-            (AlgId::WebAuthn, r)
-        }
-        _ => (alg_id, 0),
-    };
     //todo: every time get desc info, may be cache it
     let dyn_lib_desc = match get_dyn_lib_desc_info(alg_id) {
         Ok(v) => v,
@@ -222,6 +208,7 @@ pub fn ckb_auth_dl(
     debug!("ckb entry entry_category: {:?}", entry.entry_category as u8);
 
     //todo: if there is validate device, func param should be changed
+    let type_ = 0;
     let rc_code = match entry_func_name {
         "validate" => {
             let func: Symbol<CkbAuthValidate> =
@@ -323,26 +310,15 @@ pub fn exec_eip712_lib() -> Result<i8, Error> {
         .map(|_| ());
     Err(Error::RunExecError)
 }
-fn check_webauthn_public_key_index(alg_id: &AlgId, sign_info: &SignInfo) -> Result<(), Error> {
-    if *alg_id != AlgId::WebAuthn {
-        return Ok(());
-    }
-    let pk_idx = sign_info.signature[1];
-    if pk_idx != 255 && pk_idx > 9 {
-        debug!("Invalid pk_idx = {}", pk_idx);
-        return Err(Error::InvalidPubkeyIndex);
-    }
-    Ok(())
-}
-//normal validation
+
 pub fn dispatch_to_dyn_lib(role: Role, lock_args: &LockArgs) -> Result<i8, Error> {
     //get plain and cipher
     let sign_info = crate::entry::get_plain_and_cipher(lock_args.alg_id)?;
 
-    //check for webauthn, the pk_idx should be 0-9 or 255.
-    check_webauthn_public_key_index(&lock_args.alg_id, &sign_info)?;
+    //parse webauthn witness and override lock_args
+    let lock_args = get_webauthn_lock_args_from_cell(&lock_args, &sign_info)?;
 
-    //call auth lib
+    //call dyn lib
     let ret = ckb_auth(
         lock_args.alg_id,
         role,
@@ -376,12 +352,12 @@ pub fn dispatch(role: Role, das_action: DasAction) -> Result<i8, Error> {
     match dispatch_to_dyn_lib(role, &lock_args) {
         Ok(x) => {
             if x != 0 {
-                debug!("general_verification failed, return {}", x);
+                debug!("Dyn lib validation failure, return {}", x);
                 return Err(Error::ValidationFailure);
             }
         }
         Err(e) => {
-            debug!("general_verification error: {:?}", e);
+            debug!("Call dyn lib failure: {:?}", e);
             return Err(e);
         }
     }

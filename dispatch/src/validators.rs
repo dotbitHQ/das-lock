@@ -4,7 +4,7 @@ use crate::entry::check_no_other_cell_except_specified;
 use crate::error::Error;
 use crate::structures::CmdMatchStatus::DasNotPureLockCell;
 use crate::sub_account::SubAction;
-use crate::tx_parser::{get_first_account_cell_index, get_input_approval, get_sub_account_cell_type_id};
+use crate::tx_parser::{get_first_account_cell_index, get_input_approval, get_type_id_by_type_script};
 use alloc::borrow::ToOwned;
 use alloc::boxed::Box;
 use alloc::string::ToString;
@@ -342,7 +342,7 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
     load_and_configure_lib!(sign_lib, DOGE, type_id_table, doge, load_2_methods);
     load_and_configure_lib!(sign_lib, WebAuthn, type_id_table, web_authn, load_3_methods);
 
-    let sub_account_type_id = get_sub_account_cell_type_id()?;
+    let sub_account_type_id = get_type_id_by_type_script(TypeScript::SubAccountCellType)?;
     debug!(
         "The type_id of SubAccountCell is {}.",
         hex_string(sub_account_type_id.as_slice())

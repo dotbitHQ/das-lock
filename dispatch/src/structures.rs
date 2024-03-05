@@ -98,6 +98,8 @@ impl Into<&'static str> for AlgId {
     }
 }
 
+//todo maybe do the parsing here, instead of putting it in the code, use the enum type,
+// let each algorithm contain its payload
 #[derive(Debug)]
 pub struct LockArgs {
     pub alg_id: AlgId,
@@ -117,5 +119,13 @@ impl fmt::Display for LockArgs {
             self.alg_id,
             hex::encode(&self.payload)
         )
+    }
+}
+impl Clone for LockArgs {
+    fn clone(&self) -> Self {
+        LockArgs {
+            alg_id: self.alg_id,
+            payload: self.payload.clone(),
+        }
     }
 }

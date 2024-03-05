@@ -22,7 +22,7 @@ use crate::constants::{
     BLAKE160_SIZE, FLAGS_SIZE, HASH_SIZE, MAX_WITNESS_SIZE, ONE_BATCH_SIZE, RIPEMD160_HASH_SIZE, SCRIPT_SIZE,
     SIGNATURE_SIZE, SIZE_UINT64, WEBAUTHN_SIZE, WITNESS_ARGS_HEADER_LEN, WITNESS_ARGS_LOCK_LEN,
 };
-use ckb_std::{debug, high_level};
+use ckb_std::debug;
 
 use crate::dlopen::dispatch;
 use crate::structures::CmdMatchStatus::{DasNotPureLockCell, DasPureLockCell};
@@ -30,12 +30,10 @@ use crate::structures::MatchStatus::{Match, MisMatch};
 use crate::structures::{AlgId, CmdMatchStatus, LockArgs, MatchStatus, SignInfo, SignatureCheck};
 use crate::utils::generate_sighash_all::{calculate_inputs_len, load_and_hash_witness};
 use crate::utils::{bytes_to_u32_le, check_num_boundary, new_blake2b};
+use das_types::constants::TypeScript::DPointCellType;
 use das_types::constants::{Action as DasAction, LockRole as Role, TypeScript};
 
-use crate::tx_parser::{
-    get_account_cell_type_id, get_balance_cell_type_id, get_dpoint_cell_type_id, get_type_id_by_type_script,
-    init_witness_parser,
-};
+use crate::tx_parser::{get_type_id_by_type_script, init_witness_parser};
 use crate::validators::{
     validate_for_fulfill_approval, validate_for_revoke_approval, validate_for_unlock_account_for_cross_chain,
     validate_for_update_reverse_record_root, validate_for_update_sub_account,
@@ -186,7 +184,7 @@ fn get_self_index_in_inputs() -> Result<usize, Error> {
 }
 
 fn get_first_dp_cell_lock_hash() -> Result<Vec<u8>, Error> {
-    let dp_cell_type_id = get_dpoint_cell_type_id()?;
+    let dp_cell_type_id = get_type_id_by_type_script(TypeScript::DPointCellType)?;
     debug!("dp_cell_type_id = {:02x?}", dp_cell_type_id);
 
     let index = find_cell(|i| match load_cell_type(i, Source::Input) {
@@ -224,7 +222,7 @@ fn check_skip_dynamic_library_signature_verification_for_bid_expired_auction() -
     let current_lock_script_hash = load_cell_lock_hash(script_index, Source::Input)?.to_vec();
 
     //dp-cell-type ensures that the locks of all dp cells in inputs are the same.
-    let account_cell_type_id = get_account_cell_type_id()?;
+    let account_cell_type_id = get_type_id_by_type_script(TypeScript::AccountCellType)?;
     let dp_cell_lock_hash = get_first_dp_cell_lock_hash()?;
 
     debug!(
@@ -259,7 +257,7 @@ fn check_skip_dynamic_library_signature_verification_for_bid_expired_auction() -
 }
 fn check_cell_is_specified_type(cell_idx: usize, expect_type: TypeScript) -> Result<MatchStatus, Error> {
     debug!(
-        "Check whether the type of cell with index {} is {}.",
+        "Check whether the type of cell with index {} is {:?}.",
         cell_idx, expect_type
     );
     let some_type_id = get_type_id_by_type_script(expect_type)?;
@@ -413,8 +411,8 @@ pub(crate) fn get_plain_and_cipher(alg_id: AlgId) -> Result<SignInfo, Error> {
 pub fn check_if_has_assets_cell_in_inputs() -> bool {
     debug!("Enter check_no_other_assets");
     //for now, we only have two types of cells that can be used as assets cells, did point cell and balance cell.
-    let did_point_type_id = get_dpoint_cell_type_id().expect("cannot get did point type id");
-    let balance_type_id = get_balance_cell_type_id().expect("cannot get balance type id");
+    let did_point_type_id = get_type_id_by_type_script(DPointCellType).expect("cannot get did point type id");
+    let balance_type_id = get_type_id_by_type_script(TypeScript::BalanceCellType).expect("cannot get balance type id");
 
     let mut buf = [0u8; 100];
     for i in 0.. {
