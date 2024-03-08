@@ -4,6 +4,7 @@ use alloc::boxed::Box;
 use alloc::string::ToString;
 use ckb_std::ckb_types::prelude::{Entity, Reader};
 use core::ops::Index;
+use ckb_std::debug;
 use das_core::error::{ErrorCode, ScriptError, SubAccountCellErrorCode};
 use das_core::witness_parser::sub_account::{
     SubAccountEditValue, SubAccountWitness, SubAccountWitnessesParser,
@@ -399,16 +400,11 @@ pub fn verify_sub_account_edit_sign_v2(
         }
     };
 
-    let sub_account_reader = witness
-        .sub_account
-        .as_reader()
-        .try_into_latest()
-        .map_err(|_| code_to_error!(SubAccountCellErrorCode::WitnessVersionMismatched))?;
-
-    let account_id = sub_account_reader.id().as_slice().to_vec();
+    let sub_account_reader_mixer = witness.sub_account.as_reader();
+    let account_id = sub_account_reader_mixer.id().as_slice().to_vec();
     let edit_key = witness.edit_key.as_slice();
     let edit_value = witness.edit_value_bytes.as_slice();
-    let nonce = sub_account_reader.nonce().as_slice().to_vec();
+    let nonce = sub_account_reader_mixer.nonce().as_slice().to_vec();
 
     let signature = witness.signature.as_slice();
     let args = witness.sign_args.as_slice();
