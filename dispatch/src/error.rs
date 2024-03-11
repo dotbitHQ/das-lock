@@ -47,7 +47,7 @@ pub enum Error {
     WitnessParserInitFailed,
     WitnessStructureError,
     WitnessTooLarge,
-    InvalidTransactionStructure,
+    InvalidTransactionStructure, //40
 }
 
 impl From<SysError> for Error {

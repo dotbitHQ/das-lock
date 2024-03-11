@@ -316,6 +316,7 @@ pub fn dispatch_to_dyn_lib(role: Role, lock_args: &LockArgs) -> Result<i8, Error
     let sign_info = crate::entry::get_plain_and_cipher(lock_args.alg_id)?;
 
     //parse webauthn witness and override lock_args
+    debug!("prepare to get webauthn lock args from cell");
     let lock_args = get_webauthn_lock_args_from_cell(&lock_args, &sign_info)?;
 
     //call dyn lib

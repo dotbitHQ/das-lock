@@ -366,7 +366,7 @@ pub(crate) fn get_plain_and_cipher(alg_id: AlgId) -> Result<SignInfo, Error> {
 
     // Load tx hash.
     let tx_hash = load_tx_hash()?;
-    debug!("tx_hash = {:02x?}", tx_hash);
+    debug!("tx_hash = {:02x?}", hex_string(tx_hash.as_slice()));
 
     // Prepare sign message.
     let mut blake2b_ctx = new_blake2b();

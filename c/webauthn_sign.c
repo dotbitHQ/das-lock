@@ -2,7 +2,7 @@
 #include "sha256.h"
 #include "json_operator.h"
 #include "secp256r1_helper.h"
-#include "keylist_oprate.h"
+
 enum SubAlgId {
     Secp256r1 = 7,
 };
@@ -61,7 +61,7 @@ int get_tx_digest_from_json(uint8_t *tx_digest, uint8_t *json_data, size_t json_
 
     //convert from string to bytes
     //11 is the length of "From .bit "
-    //If there is no From.bit at the beginning, it will report an error and exit
+    //If there is no "From .bit" at the beginning, it will report an error and exit
     if (memcmp(tx_digest_str, COMMON_PREFIX, COMMON_PREFIX_LENGTH) == 0) {
         memcpy(tx_digest, tx_digest_str, COMMON_PREFIX_LENGTH);
         str2bin(tx_digest + COMMON_PREFIX_LENGTH, (unsigned char *) (tx_digest_str + COMMON_PREFIX_LENGTH),

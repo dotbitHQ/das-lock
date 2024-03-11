@@ -213,7 +213,10 @@ pub fn get_webauthn_lock_args_from_cell(lock_args: &LockArgs, sign_info: &SignIn
         for i in 0.. {
             match witness_parser.get_witness_meta_by_index(i) {
                 Ok(witness_meta) => {
-                    debug!("witness_meta = {:?}", witness_meta);
+                    debug!(
+                        "witness_meta DataType = {:?}, index = {}",
+                        witness_meta.data_type, witness_meta.index
+                    );
                     if witness_meta.data_type == DataType::DeviceKeyListCellData {
                         witness_idx = i;
                         break;

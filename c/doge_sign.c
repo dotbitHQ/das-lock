@@ -33,7 +33,7 @@ int magic_hash(uint8_t* hash, uint8_t* message, size_t message_len) {
         debug_print_int("message_len : ", message_len);
         return ERR_DAS_MESSAGE_LENGTH;
     }
-    debug_print_int("message vi len: ", message_vi_len);
+    debug_print_int("message_vi_len: ", message_vi_len);
 
     //Prevent stack overflow caused by excessively long messages.
     if(message_len > 4096) {
