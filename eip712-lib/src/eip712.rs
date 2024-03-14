@@ -18,7 +18,6 @@ use das_core::util::hex_string;
 use das_core::{data_parser, debug, sign_util, util};
 use das_dynamic_libs::sign_lib::SignLib;
 use das_dynamic_libs::{load_2_methods, new_context};
-use das_types::constants::Action::LockAccountForCrossChain;
 use das_types::constants::{
     always_success_lock, das_lock, multisign_lock, signhash_lock, Action, ActionParams,
     DasLockType, DataType, LockRole, TypeScript,
@@ -152,7 +151,7 @@ pub fn verify_eip712_hashes(
         let mut typed_data = tx_to_eip712_typed_data(parser, eip712_chain_id, tx_to_das_message)?;
         let mut sign_lib = SignLib::new();
         let mut eth_context = new_context!();
-
+        //todo: replace with get_type_id
         let code_hash = if cfg!(feature = "testnet") {
             decode_hex(
                 "eth testnet type id",
@@ -329,10 +328,10 @@ pub fn tx_to_eip712_typed_data(
     let typed_data = typed_data_v4!({
         types: {
             EIP712Domain: {
-                chainId: "uint256",
                 name: "string",
-                verifyingContract: "address",
-                version: "string"
+                version: "string",
+                chainId: "uint256",
+                verifyingContract: "address"
             },
             Action: {
                 action: "string",
@@ -358,10 +357,10 @@ pub fn tx_to_eip712_typed_data(
         },
         primaryType: "Transaction",
         domain: {
-            chainId: chain_id_num,
             name: "da.systems",
-            verifyingContract: "0x0000000000000000000000000000000020210722",
-            version: "1"
+            version: "1",
+            chainId: chain_id_num,
+            verifyingContract: "0x0000000000000000000000000000000020210722"
         },
         message: {
             DAS_MESSAGE: plain_text,
