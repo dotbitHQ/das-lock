@@ -105,7 +105,6 @@ const TYPE_ID_CHECK: [u32; DYNAMIC_LIB_NUMS] = [4452, 4499, 0, 4154, 4472, 4154,
 #[cfg(feature = "testnet3")]
 const TYPE_ID_CHECK: [u32; DYNAMIC_LIB_NUMS] = [4452, 4499, 0, 4154, 4472, 4154, 4508, 4485, 4223];
 
-
 pub const MAX_WITNESS_SIZE: usize = 32768;
 pub const ONE_BATCH_SIZE: usize = 32768;
 
@@ -193,7 +192,6 @@ pub fn get_config_cell_main() -> Result<ConfigCellMain, Error> {
 fn checksum(s: &str) -> u32 {
     s.as_bytes().iter().map(|&b| b as u32).sum()
 }
-
 
 //test only
 // const TYPE_ID_TABLE_TYPE_NUMS: usize = 5;
