@@ -49,14 +49,15 @@ int get_tx_digest_from_json(uint8_t *tx_digest, uint8_t *json_data, size_t json_
     int ret = 0;
 
     //get challenge string from json that is base64url encoded
-    size_t challenge_len = 100;
-    char challenge_str[100] = {0}; //The challenge has a fixed length of 86 characters.
+    const size_t BUF_LEN = 256; //The protocol length here is fixed at 86 bytes, with 256 being a bit of a margin.
+    size_t challenge_len = BUF_LEN;
+    char challenge_str[BUF_LEN];
     ret = get_challenge_from_json(challenge_str, &challenge_len, json_data, json_len);
     debug_print_string("challenge_str = ", (unsigned char *) challenge_str, challenge_len);
     SIMPLE_ASSERT(0);
 
     //convert from base64url to string
-    char tx_digest_str[64];//The tx_digest has a fixed length of 64 characters.
+    char tx_digest_str[BUF_LEN];//The tx_digest has a fixed length of 64 characters.
     ret = decode_base64url_to_string(tx_digest_str, challenge_str, &challenge_len);
     debug_print_int("decode_base64url_to_string, ret = ", ret);
     SIMPLE_ASSERT(0);

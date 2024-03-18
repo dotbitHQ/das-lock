@@ -24,46 +24,57 @@ int magic_hash(uint8_t* hash, uint8_t* message, size_t message_len) {
 
 
     //Todo: What is judged here is message_len, in fact, it should be message_len + common_prefix_len
-    uint8_t message_vi_len = 0;
-    if (message_len < 65536 && message_len > 255) {
-        message_vi_len = 2;
-    }else if (message_len < 256 && message_len > 0) {
-        message_vi_len = 1;
+    uint8_t msg_len_len = 0; //the length of the message length variable
+    size_t msg_hex_len = message_len * 2;
+    size_t msg_hex_with_prefix_len = COMMON_PREFIX_LENGTH + msg_hex_len;
+
+    if (msg_hex_with_prefix_len < 65536 && msg_hex_with_prefix_len > 255) {
+        msg_len_len = 2;
+    }else if (msg_hex_with_prefix_len < 256 && msg_hex_with_prefix_len > 0) {
+        msg_len_len = 1;
     }else {
         debug_print_int("message_len : ", message_len);
         return ERR_DAS_MESSAGE_LENGTH;
     }
-    debug_print_int("message vi len: ", message_vi_len);
+    debug_print_int("message vi len: ", msg_len_len);
 
     //Prevent stack overflow caused by excessively long messages.
-    if(message_len > 4096) {
+    if(msg_hex_with_prefix_len > 4096) {
         return ERR_DAS_MESSAGE_TOO_LONG;
     }
 
-    size_t message_hex_len = message_len * 2;
-    uint8_t message_hex[message_hex_len];
-    bin_to_hex(message_hex, message, message_len);
-    debug_print_data("message_hex  : ", message_hex, message_hex_len);
+    uint8_t msg_hex[msg_hex_len];
+    bin_to_hex(msg_hex, message, message_len);
+    debug_print_data("message_hex  : ", msg_hex, msg_hex_len);
 
     //1 + 25 + 1or2 + 11 + 64 = 102 or 103 = 0x66 or 0x67
-    size_t total_message_len = 1 + DOGE_MASSAGE_PREFIX_LEN + message_vi_len + COMMON_PREFIX_LENGTH + message_hex_len;
-    uint8_t total_message[total_message_len];
-    debug_print_int("message total len: ", total_message_len);
+    size_t final_msg_len = 1 + DOGE_MASSAGE_PREFIX_LEN + msg_len_len + msg_hex_with_prefix_len;
+    uint8_t final_msg[final_msg_len];
+    debug_print_int("final_msg_len: ", final_msg_len);
     
-    //total_message = [prefix_len, prefix, message_with_prefix_len, COMMON_PREFIX, message_hex]
-    total_message[0] = DOGE_MASSAGE_PREFIX_LEN;
-    memcpy(total_message  + 1, "Dogecoin Signed Message:\n", DOGE_MASSAGE_PREFIX_LEN);
-    debug_print_data("total message : after copy doge prefix : ", total_message, total_message_len);
+    //final_msg = [prefix_len, prefix, message_with_prefix_len, COMMON_PREFIX, message_hex]
+    size_t idx = 0;
+    final_msg[idx] = DOGE_MASSAGE_PREFIX_LEN;
+
+    idx += 1;
+    memcpy(final_msg  + idx, "Dogecoin Signed Message:\n", DOGE_MASSAGE_PREFIX_LEN);
+    debug_print_data("after copy doge prefix, final_msg = ", final_msg, final_msg_len);
 
     //add prefix and message_hex
-    total_message[DOGE_MASSAGE_PREFIX_LEN + 1] = COMMON_PREFIX_LENGTH + message_hex_len;
-    memcpy(total_message + 1 + DOGE_MASSAGE_PREFIX_LEN + message_vi_len,
-           COMMON_PREFIX, COMMON_PREFIX_LENGTH);
-    memcpy(total_message + 1 + DOGE_MASSAGE_PREFIX_LEN + message_vi_len + COMMON_PREFIX_LENGTH,
-           message_hex, message_hex_len);
-    debug_print_data("total message : after copy message : ", total_message, total_message_len);
+    idx += DOGE_MASSAGE_PREFIX_LEN;
+    final_msg[idx] = msg_hex_with_prefix_len % 256; //size_t into uint8
+    if(msg_len_len == 2) {
+        final_msg[idx + 1] = msg_hex_with_prefix_len / 256;
+    }
 
-    sha256x2(hash, total_message, total_message_len);
+    idx += msg_len_len;
+    memcpy(final_msg + idx, COMMON_PREFIX, COMMON_PREFIX_LENGTH);
+
+    idx += COMMON_PREFIX_LENGTH;
+    memcpy(final_msg + idx, msg_hex, msg_hex_len);
+    debug_print_data("after copy message hex: ", final_msg, final_msg_len);
+
+    sha256x2(hash, final_msg, final_msg_len);
     debug_print_data("sha256x2 : ", hash, SHA256_HASH_SIZE);
     return 0;
 }

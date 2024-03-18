@@ -170,7 +170,7 @@ unsigned int base64_decode(char *out, const char *in, unsigned int inlen) {
  * (+/=)   > (-_ )
  */
 void base64_to_base64url(char *base64url, char *base64, int *len) {
-    int i = 0;
+    int i;
     for (i = 0; i < *len; i++) {
         if (base64[i] == '+') {
             base64url[i] = '-';
@@ -187,7 +187,7 @@ void base64_to_base64url(char *base64url, char *base64, int *len) {
 
 void base64url_to_base64(char *base64, char *base64url, size_t *len) {
 
-    int i = 0;
+    int i;
     int quotient = *len / 4;
     int modulus = *len % 4;
     if (modulus != 0) {
@@ -228,7 +228,7 @@ int decode_base64url_to_string(char *str, char *base64url, size_t *len) {
     //debug_print_string("base64url = ", (unsigned char*)base64url, *len);
 
     //Manually set the limit here to 256
-    if (*len < 1 && *len > 256) {
+    if (*len < 1 || *len > 256) {
         debug_print("decode_base64url_to_string: invalid input, length out of range");
         return ERROR_ARGUMENTS_LEN;
     }
@@ -236,6 +236,7 @@ int decode_base64url_to_string(char *str, char *base64url, size_t *len) {
     base64url_to_base64(tmp, base64url, len);
     //debug_print_string("base64 = ", (unsigned char*)tmp, *len);
 
+    debug_print_int("base64 = ", *len);
     *len = base64_decode(str, tmp, (unsigned int) (*len));
     //*len = BASE64_DECODE_OUT_SIZE(*len);
     debug_print_string("decoded base64 = ", (unsigned char *) str, *len);

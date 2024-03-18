@@ -47,52 +47,9 @@ int parse_keys(const char* buf, jsmntok_t* tok) {
     return -1;
 }
 
-//abondoned
-//int splice_into_json(unsigned char* output, size_t* output_len, unsigned char* digest_bytes, size_t digest_len) {
-//    //convert digest from bytes to string
-//    unsigned char digest_hex_string[digest_len * 2]; //
-//    bin_to_hex(digest_hex_string, digest_bytes, digest_len);
-//    debug_print_string("digest_hex = ", digest_hex_string, digest_len * 2);
-//
-//    //convert digest to base64url format
-//    int base64_len = BASE64_ENCODE_OUT_SIZE(digest_len * 2);
-//    debug_print_int("base64_len = ", base64_len);
-//
-//    char base64[base64_len]; //fixed length, 86 bytes base64url for 32 bytes digest
-//    base64_encode(base64, digest_hex, digest_len * 2);
-//    debug_print_data("base64 = ", (unsigned char*)base64, base64_len);
-//
-//    //build json
-//    /*
-//     * The json structure is as follows
-//     {
-//        "type": "webauthn.get",
-//        "challenge": "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMA",
-//        "origin": "http://localhost",
-//        "crossOrigin": false
-//    }
-//     “0000000000000000000000000000000000000000000000000000000000000000” base64url ->
-//     "MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMA"
-//     */
-//    char json_temple_buf[200] ={123, 34, 116, 121, 112, 101, 34, 58, 34, 119, 101, 98, 97, 117, 116, 104, 110, 46, 103, 101, 116, 34, 44, 34, 99, 104, 97, 108, 108, 101, 110, 103, 101, 34, 58, 34, 77, 68, 65, 119, 77, 68, 65, 119, 77, 68, 65, 119, 77, 68, 65, 119, 77, 68, 65, 119, 77, 68, 65, 119, 77, 68, 65, 119, 77, 68, 65, 119, 77, 68, 65, 119, 77, 68, 65, 119, 77, 68, 65, 119, 77, 68, 65, 119, 77, 68, 65, 119, 77, 68, 65, 119, 77, 68, 65, 119, 77, 68, 65, 119, 77, 68, 65, 119, 77, 68, 65, 119, 77, 68, 65, 119, 77, 68, 65, 119, 77, 68, 65, 119, 77, 65, 34, 44, 34, 111, 114, 105, 103, 105, 110, 34, 58, 34, 104, 116, 116, 112, 58, 47, 47, 108, 111, 99, 97, 108, 104, 111, 115, 116, 34, 44, 34, 99, 114, 111, 115, 115, 79, 114, 105, 103, 105, 110, 34, 58, 102, 97, 108, 115, 101, 125};
-//
-//    //memcpy(json_temple_buf + 36, base64url_digest, digest_len);
-//    base64_to_base64url(json_temple_buf + 36, base64, &base64_len);
-//    debug_print_data("json base64url = ", (unsigned char*)(json_temple_buf + 36), base64_len);
-//    //debug_print_data("json temple buf = ", (unsigned char*)json_temple_buf, 200);
-//
-//    //fixed length, 172 bytes json for 32 bytes digest
-//    memcpy(output, json_temple_buf, 172);
-//    *output_len = 172;
-//
-//    return 0;
-//}
-//
 int get_challenge_from_json(char* output, size_t *output_len, unsigned char* json_buf, size_t buf_len){
     debug_print("Ready to parse json.");
-    //debug_print_int("json_len = ", buf_len);
     debug_print_string("json string = ", json_buf, buf_len);
-    //debug_print_data("json = ", json_buf, buf_len);
     //init
     int i = 0, c = 0;
     jsmn_parser p;
@@ -100,13 +57,17 @@ int get_challenge_from_json(char* output, size_t *output_len, unsigned char* jso
 
     jsmn_init(&p);
 
-//    size_t json_len = strlen((const char*)json_buf);
-//    if(json_len != buf_len) {
-//        debug_print_int("json len in witness lv = ", buf_len);
-//        debug_print_int("json len in strlen = ", json_len);
-//        debug_print("There is a null value before or after the json data");
-//        return ERROR_ENCODING;
-//    }
+    //Because of the agreement with the backend, the fixed-length witness_args.lock field is used,
+    // so the length of the json data here is inconsistent with the length of the data.
+    //Comment this out to avoid errors;
+    /*size_t json_len = strlen((const char*)json_buf);
+    if(json_len != buf_len) {
+        debug_print_int("json len in witness lv = ", buf_len);
+        debug_print_int("json len in strlen = ", json_len);
+        debug_print("There is a null value before or after the json data");
+        return ERROR_ENCODING;
+    }*/
+
 
     c = jsmn_parse(&p, (const char*)json_buf, buf_len, t, sizeof(t) / sizeof(t[0]));
     if (c < 0) {
@@ -136,6 +97,7 @@ int get_challenge_from_json(char* output, size_t *output_len, unsigned char* jso
             case Jchallenge : {
                 //debug_print_string("json parser: Challenge: ", value_start, value_length);
                 //if value_length > output_len, only copy output_len bytes
+                //Protecting arrays from going out of bounds
                 size_t cpy_len = value_length > *output_len ? *output_len : value_length;
                 memcpy(output, value_start, cpy_len);
                 *output_len = cpy_len;

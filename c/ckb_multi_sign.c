@@ -9,6 +9,12 @@ int check_lock_args(uint8_t* lock_bytes, uint8_t* lock_args) {
 	uint8_t threshold = lock_bytes[2];
 	uint8_t require_first_n = lock_bytes[1];
 	uint8_t reserved_field = lock_bytes[0];
+
+    debug_print_int("pubkeys_cnt: ", pubkeys_cnt);
+    debug_print_int("threshold: ", threshold);
+    debug_print_int("require_first_n: ", require_first_n);
+    debug_print_int("reserved_field: ", reserved_field);
+
 	if (reserved_field != 0) {
 		return ERROR_INVALID_RESERVE_FIELD;
 	}
