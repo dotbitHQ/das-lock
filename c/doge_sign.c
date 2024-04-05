@@ -1,27 +1,12 @@
 
-//1 + 25 + 1 + 32
-#define MAGIC_HASH_TOTAL_MESSAGE_LEN 59
+#define MAGIC_HASH_TOTAL_MESSAGE_LEN 59  //1 + 25 + 1 + 32
 #define DOGE_MASSAGE_PREFIX_LEN  25
 
 #include "inc_def.h"
 #include "sha256.h"
 #include "ripemd160.h"
 
-
-//const char HEX_TABLE[] = {'0', '1', '2', '3', '4', '5', '6', '7',
-//                          '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
-//
-//void bin_to_hex(uint8_t *source, uint8_t *dest, size_t len) {
-//    for (int i = 0; i < len; i++) {
-//        dest[i * 2] = HEX_TABLE[source[i] >> 4];
-//        dest[i * 2 + 1] = HEX_TABLE[source[i] & 0x0F];
-//    }
-//    return;
-//}
-
-
 int magic_hash(uint8_t* hash, uint8_t* message, size_t message_len) {
-
 
     //Todo: What is judged here is message_len, in fact, it should be message_len + common_prefix_len
     uint8_t msg_len_len = 0; //the length of the message length variable
@@ -134,12 +119,9 @@ int recover_public_key(uint8_t *pubkey, uint8_t* msg, uint8_t* sig_doge, size_t*
         return ERROR_SECP_PARSE_SIGNATURE;
     };
 
-
     ret = secp256k1_ec_pubkey_serialize(ctx, pubkey, &output_len, &pubkey_recover, flag);
     debug_print_data("after serialize pubkey :", pubkey, output_len);
     NORMAL_ASSERT(1, ERROR_SECP_RECOVER_PUBKEY);
-
-
 
     // destroy
     secp256k1_context_destroy(ctx);
@@ -168,7 +150,6 @@ int is_array_all_zeros(const unsigned char *arr, size_t len) {
 }
 int verify_signature(uint8_t* message, uint8_t* lock_bytes, void* lock_args, size_t message_len) {
 
-
     debug_print("Enter verify_signature doge");
     debug_print_data("digest : ", message, message_len);
     debug_print_data("lock_bytes : ", lock_bytes, SIGNATURE_DOGE_SIZE);
@@ -186,17 +167,14 @@ int verify_signature(uint8_t* message, uint8_t* lock_bytes, void* lock_args, siz
     NORMAL_ASSERT(0, ERROR_INVALID_ARGS);
     uint8_t hash[SHA256_HASH_SIZE] = {0};
     uint8_t pub_key[PUBKEY_UNCOMPRESSED_SIZE] = {0};
-  
 
     //convert message from bin to hex
     uint8_t message_hex[message_len * 2];
     bin_to_hex(message_hex, message, message_len);
 
-
     //magic hash
     magic_hash(hash, message, message_len);
     debug_print_data("magic hash: ", hash, SHA256_HASH_SIZE);
-
 
     //Recover public_key from signature(lock_bytes)
     size_t pubkey_len = 0;
@@ -207,7 +185,6 @@ int verify_signature(uint8_t* message, uint8_t* lock_bytes, void* lock_args, siz
 
     //note: Reuse hash memory space.
     memset(hash, 0, SHA256_HASH_SIZE);
-
 
     //Get the hash160 of the public key.
     hash160(hash, pub_key, pubkey_len);

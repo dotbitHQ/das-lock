@@ -74,7 +74,7 @@ static const unsigned char base64de[] = {
         /* 'x', 'y', 'z', '{', '|', '}', '~', del, */
         49, 50, 51, 255, 255, 255, 255, 255
 };
-
+//note: we haven't used the following functions, so please use it with caution
 unsigned int base64_encode(char *out, const unsigned char *in, unsigned int inlen) {
     int s;
     unsigned int i;
@@ -122,7 +122,6 @@ unsigned int base64_encode(char *out, const unsigned char *in, unsigned int inle
     return j;
 }
 
-//
 unsigned int base64_decode(char *out, size_t *out_len, const char *in, size_t inlen) {
     size_t i;
     size_t j;
@@ -169,9 +168,8 @@ unsigned int base64_decode(char *out, size_t *out_len, const char *in, size_t in
     return 0;
 }
 
-/*
- * (+/=)   > (-_ )
- */
+
+// (+/=) >>> (-_ )
 void base64_to_base64url(char *base64url, char *base64, int *len) {
     int i;
     for (i = 0; i < *len; i++) {
@@ -187,7 +185,7 @@ void base64_to_base64url(char *base64url, char *base64, int *len) {
     }
     *len = i;
 }
-
+// (-_ ) >>> (+/=)
 int base64url_to_base64(char *base64, size_t *bs64_len, char *base64url, size_t *bs64_url_len) {
 
     int i;
@@ -212,7 +210,6 @@ int base64url_to_base64(char *base64, size_t *bs64_len, char *base64url, size_t 
             base64[i] = base64url[i];
         }
     }
-
 
     //add "="
     for (i = 0; i < blank_len; i++) {

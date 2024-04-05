@@ -1,6 +1,4 @@
-
 #include "inc_def.h"
-
 
 int verify_signature(uint8_t *message, uint8_t *lock_bytes,
                     const void *lock_args) {
@@ -75,7 +73,6 @@ __attribute__((visibility("default"))) int validate(int type, uint8_t* message, 
 	eth_prefix[0] = 0x19;
 	memcpy(eth_prefix + 1, "Ethereum Signed Message:\n75", 27);
     debug_print_data("eth_prefix ", eth_prefix, 28);
-
 
     SHA3_CTX sha3_ctx;
 	keccak_init(&sha3_ctx);
