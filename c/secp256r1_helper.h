@@ -64,7 +64,7 @@ int secp256r1_verify_signature(const secp256r1_context_t *context, const u8 *sig
                     context->hash_algo);
 //    ret = ec_verify(sig, siglen, pub_key, m, mlen, context->sig_algo,
 //                    context->hash_algo, NULL, 0);
-    debug_print_int("signature verification result: ", ret);
+    debug_print_int("signature verification, ret", ret);
     return ret;
 }
 //

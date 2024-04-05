@@ -23,7 +23,7 @@ static void debug_print_data_impl(const char *prefix,
 }
 static void debug_print_int_impl(const char *prefix, int ret) {
     int offset = 0;
-    offset += sprintf_(debug_buffer, "%s%d", prefix, ret);
+    offset += sprintf_(debug_buffer, "%s(%d)", prefix, ret);
     debug_buffer[offset] = '\0';
     ckb_debug(debug_buffer);
 }

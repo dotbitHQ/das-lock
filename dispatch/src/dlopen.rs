@@ -248,7 +248,7 @@ pub fn ckb_auth_dl(
     signature_copy[0..signature.len()].copy_from_slice(signature);
     payload_copy[0..payload.len()].copy_from_slice(payload);
 
-    debug_log!("ckb entry code_hash: {:02x?}", entry.code_hash);
+    debug_log!("ckb entry code_hash: {:?}", hex_string(entry.code_hash.as_ref()));
     debug_log!("ckb entry hash_type: {:?}", entry.hash_type as u8);
     debug_log!("ckb entry entry_category: {:?}", entry.entry_category as u8);
 
