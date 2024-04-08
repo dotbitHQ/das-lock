@@ -40,7 +40,7 @@ CKB_BINARY_PATCHER_PATH = ./tools/ckb-binary-patcher/target/release/ckb-binary-p
 # Target aliases
 contract_entry := dispatch
 rust_libs := eip712-lib
-dyn_libs := ckb_sign tron_sign eth_sign ed25519_sign ckb_multi_sign doge_sign
+dyn_libs := ckb_sign tron_sign eth_sign ed25519_sign ckb_multi_sign doge_sign btc_sign
 webauthn_lib := webauthn_sign
 NET_TYPE ?= testnet2 #note: use testnet2 by default
 
