@@ -63,6 +63,7 @@ pub enum AlgId {
     Ed25519 = 6,
     DogeCoin = 7,
     WebAuthn = 8,
+    Btc = 9,
 }
 
 impl Into<DynLibName> for AlgId {
@@ -79,6 +80,7 @@ impl Into<DynLibName> for AlgId {
             AlgId::Ed25519 => DynLibName::ED25519,
             AlgId::DogeCoin => DynLibName::DOGE,
             AlgId::WebAuthn => DynLibName::WebAuthn,
+            AlgId::Btc => DynLibName::BTC,
         }
     }
 }
@@ -94,6 +96,7 @@ impl Into<&'static str> for AlgId {
             AlgId::Ed25519 => "ED25519",
             AlgId::DogeCoin => "DOGE",
             AlgId::WebAuthn => "WebAuthn",
+            AlgId::Btc => "BTC",
         }
     }
 }

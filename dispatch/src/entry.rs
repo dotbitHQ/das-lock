@@ -115,6 +115,7 @@ fn get_payload_len(alg_id: u8) -> Result<usize, Error> {
         AlgId::Ed25519 => Ok(HASH_SIZE),
         AlgId::DogeCoin => Ok(RIPEMD160_HASH_SIZE),
         AlgId::WebAuthn => Ok(WEBAUTHN_SIZE),
+        AlgId::Btc => Ok(RIPEMD160_HASH_SIZE),
         _ => Ok(BLAKE160_SIZE),
     }
 }
@@ -139,17 +140,18 @@ pub(crate) fn get_lock_args(action: &DasAction, role: Role) -> Result<LockArgs, 
     let payload1_len = get_payload_len(alg_id_owner)?;
 
     let (payload_start_idx, payload_end_index, alg_id) = {
+        let idx_delta = if alg_id_owner == AlgId::Btc as u8 { 2 } else { 1 };
         match role {
             Role::Owner => {
-                let start = 1;
+                let start = idx_delta;
                 let end = start + payload1_len;
                 (start, end, alg_id_owner)
             }
             Role::Manager => {
-                let manager_alg_idx = 1 + payload1_len;
+                let manager_alg_idx = idx_delta + payload1_len;
                 let manager_alg_id = args_slice[manager_alg_idx];
                 let payload2_len = get_payload_len(manager_alg_id)?;
-                let start = manager_alg_idx + 1;
+                let start = manager_alg_idx + idx_delta;
                 let end = start + payload2_len;
                 (start, end, manager_alg_id)
             }

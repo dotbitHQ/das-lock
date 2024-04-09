@@ -25,7 +25,7 @@ core::compile_error!(
     "Conflicting features: `mainnet`, `testnet2`, and `testnet3` cannot be enabled simultaneously"
 );
 
-const DYNAMIC_LIB_NUMS: usize = 9;
+const DYNAMIC_LIB_NUMS: usize = 10;
 const ENTRY_CATEGORY_TYPE_TABLE: [u8; DYNAMIC_LIB_NUMS] = [
     1, //ckb
     1, //ckb-multi
@@ -36,6 +36,7 @@ const ENTRY_CATEGORY_TYPE_TABLE: [u8; DYNAMIC_LIB_NUMS] = [
     1, //ed25519
     1, //doge
     1, //webauthn
+    1, //btc
 ];
 
 const EXPORTED_FUNC_NAME_STR_TABLE: [[&str; 3]; DYNAMIC_LIB_NUMS] = [
@@ -48,6 +49,7 @@ const EXPORTED_FUNC_NAME_STR_TABLE: [[&str; 3]; DYNAMIC_LIB_NUMS] = [
     ["validate", "validate_str", ""],
     ["validate", "validate_str", ""],
     ["validate", "validate_str", "validate_device"],
+    ["validate", "validate_str", ""],
 ];
 #[allow(dead_code)]
 #[cfg(feature = "mainnet")]
@@ -61,6 +63,8 @@ const TYPE_ID_TABLE: [&str; DYNAMIC_LIB_NUMS] = [
     "3000f8c98b8b020b8a0785320d24f73b3ba37fc1d4697c1a00fc8dda0bbc1cc7", // ed25519
     "1d13b5f6956c55dc13e8fb58b8aa7be2db429078d131fc140ccf94132a302a57", //doge
     "23bb512344f12fac23353466d436d0021a0df82114bcbcf23b733e447bcde404", //webauthn
+    // FIXME
+    "1d13b5f6956c55dc13e8fb58b8aa7be2db429078d131fc140ccf94132a302a57", //btc
 ];
 
 #[allow(dead_code)]
@@ -75,6 +79,8 @@ const TYPE_ID_TABLE: [&str; DYNAMIC_LIB_NUMS] = [
     "ebb79383a2947f36a095b434dd4f7c670dec6c2a53d925fb5c5f949104e59a6f", // ed25519
     "7ab1b06d51c579d528395d7f472582bf1d3dce45ba96c2bff2c19e30f0d90281", //doge
     "b2d54e4da02130a9f7a9067ced1996180c0f2b122a6399090649a1050a66b2d8", //webauthn
+    // FIXME
+    "7ab1b06d51c579d528395d7f472582bf1d3dce45ba96c2bff2c19e30f0d90281", //btc
 ];
 
 #[allow(dead_code)]
@@ -89,21 +95,23 @@ const TYPE_ID_TABLE: [&str; DYNAMIC_LIB_NUMS] = [
     "ebb79383a2947f36a095b434dd4f7c670dec6c2a53d925fb5c5f949104e59a6f", // ed25519
     "7ab1b06d51c579d528395d7f472582bf1d3dce45ba96c2bff2c19e30f0d90281", //doge
     "b2d54e4da02130a9f7a9067ced1996180c0f2b122a6399090649a1050a66b2d8", //webauthn
+    // FIXME
+    "7ab1b06d51c579d528395d7f472582bf1d3dce45ba96c2bff2c19e30f0d90281" //btc
 ];
 
 //tyep id checksum
 
 #[allow(dead_code)]
 #[cfg(feature = "mainnet")]
-const TYPE_ID_CHECK: [u32; DYNAMIC_LIB_NUMS] = [4280, 4675, 0, 4569, 4397, 4569, 4543, 4467, 4336];
+const TYPE_ID_CHECK: [u32; DYNAMIC_LIB_NUMS] = [4280, 4675, 0, 4569, 4397, 4569, 4543, 4467, 4336, /*FIXME*/ 4467];
 
 #[allow(dead_code)]
 #[cfg(feature = "testnet2")]
-const TYPE_ID_CHECK: [u32; DYNAMIC_LIB_NUMS] = [4452, 4499, 0, 4154, 4472, 4154, 4508, 4485, 4223];
+const TYPE_ID_CHECK: [u32; DYNAMIC_LIB_NUMS] = [4452, 4499, 0, 4154, 4472, 4154, 4508, 4485, 4223, /*FIXME*/ 4485];
 
 #[allow(dead_code)]
 #[cfg(feature = "testnet3")]
-const TYPE_ID_CHECK: [u32; DYNAMIC_LIB_NUMS] = [4452, 4499, 0, 4154, 4472, 4154, 4508, 4485, 4223];
+const TYPE_ID_CHECK: [u32; DYNAMIC_LIB_NUMS] = [4452, 4499, 0, 4154, 4472, 4154, 4508, 4485, 4223, /*FIXME*/ 4485];
 
 pub const MAX_WITNESS_SIZE: usize = 32768;
 pub const ONE_BATCH_SIZE: usize = 32768;
