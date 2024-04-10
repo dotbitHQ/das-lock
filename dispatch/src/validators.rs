@@ -47,6 +47,7 @@ pub fn validate_for_update_reverse_record_root() -> Result<i8, Error> {
     load_and_configure_lib!(sign_lib, TRON, type_id_table, tron, load_2_methods);
     load_and_configure_lib!(sign_lib, DOGE, type_id_table, doge, load_2_methods);
     load_and_configure_lib!(sign_lib, WebAuthn, type_id_table, web_authn, load_3_methods);
+    load_and_configure_lib!(sign_lib, BTC, type_id_table, btc, load_2_methods);
 
     let reverse_witness_parser = ReverseRecordWitnessesParser::new(&config_main_reader)
         .map_err(|e| {
@@ -385,6 +386,7 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
     load_and_configure_lib!(sign_lib, TRON, type_id_table, tron, load_2_methods);
     load_and_configure_lib!(sign_lib, DOGE, type_id_table, doge, load_2_methods);
     load_and_configure_lib!(sign_lib, WebAuthn, type_id_table, web_authn, load_3_methods);
+    load_and_configure_lib!(sign_lib, BTC, type_id_table, btc, load_2_methods);
 
     let sub_account_type_id = get_sub_account_cell_type_id()?;
     debug!(

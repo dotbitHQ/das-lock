@@ -46,7 +46,6 @@ int magic_hash(uint8_t *hash, uint8_t *message, size_t message_len)
     // total_message = [prefix_len, prefix, message_with_prefix_len, COMMON_PREFIX, message_hex]
     total_message[0] = BTC_MASSAGE_PREFIX_LEN;
     memcpy(total_message + 1, "\x19""Bitcoin Signed Message:\n", BTC_MASSAGE_PREFIX_LEN);
-    // memcpy(total_message  + 1, "Dogecoin Signed Message:\n", BTC_MASSAGE_PREFIX_LEN);
     debug_print_data("total message : after copy btc prefix : ", total_message, total_message_len);
 
     // add prefix and message_hex
@@ -163,7 +162,7 @@ int verify_signature(uint8_t *message, uint8_t *lock_bytes, void *lock_args, siz
 
     debug_print("Enter verify_signature btc");
     debug_print_data("digest : ", message, message_len);
-    debug_print_data("lock_bytes : ", lock_bytes, SIGNATURE_DOGE_SIZE);
+    debug_print_data("lock_bytes : ", lock_bytes, SIGNATURE_BTC_SIZE);
     debug_print_data("lock_args : ", lock_args, RIPEMD160_HASH_SIZE);
 
     int ret = -1;
@@ -171,7 +170,7 @@ int verify_signature(uint8_t *message, uint8_t *lock_bytes, void *lock_args, siz
     ret = is_array_all_zeros(message, message_len);
     NORMAL_ASSERT(0, ERROR_INVALID_ARGS);
 
-    ret = is_array_all_zeros(lock_bytes, SIGNATURE_DOGE_SIZE);
+    ret = is_array_all_zeros(lock_bytes, SIGNATURE_BTC_SIZE);
     NORMAL_ASSERT(0, ERROR_INVALID_ARGS);
 
     ret = is_array_all_zeros(lock_args, RIPEMD160_HASH_SIZE);
@@ -233,7 +232,7 @@ __attribute__((visibility("default"))) int validate_str(int type, uint8_t *messa
     debug_print_int("type: ", type);
     debug_print_data("message: ", message, message_len);
     debug_print_int("message_len: ", message_len);
-    debug_print_data("lock_bytes: ", lock_bytes, SIGNATURE_DOGE_SIZE);
+    debug_print_data("lock_bytes: ", lock_bytes, SIGNATURE_BTC_SIZE);
     debug_print_data("lock_args: ", lock_args, RIPEMD160_HASH_SIZE);
 
     /* verify signature with personal hash */

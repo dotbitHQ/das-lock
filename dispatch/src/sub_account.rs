@@ -381,7 +381,8 @@ pub fn verify_sub_account_edit_sign_v2(
             | DasLockType::ETHTypedData
             | DasLockType::TRON
             | DasLockType::Doge
-            | DasLockType::WebAuthn => val,
+            | DasLockType::WebAuthn 
+            | DasLockType::BTC => val,
             _ => {
                 warn!(
                         "  witnesses[{:>2}] Parsing das-lock(witness.sub_account.lock.args) algorithm failed (maybe not supported for now), but it is required in this transaction.",
@@ -521,7 +522,8 @@ pub fn verify_sub_account_approval_sign_v2(
             | DasLockType::ETHTypedData
             | DasLockType::TRON
             | DasLockType::Doge
-            | DasLockType::WebAuthn => val,
+            | DasLockType::WebAuthn
+            | DasLockType::BTC => val,
             _ => {
                 warn!(
                         "  witnesses[{:>2}] Parsing das-lock(witness.sub_account.lock.args) algorithm failed (maybe not supported for now), but it is required in this transaction.",
