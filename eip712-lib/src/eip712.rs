@@ -329,10 +329,11 @@ pub fn tx_to_eip712_typed_data(
     let typed_data = typed_data_v4!({
         types: {
             EIP712Domain: {
-                chainId: "uint256",
+            
                 name: "string",
-                verifyingContract: "address",
-                version: "string"
+                version: "string",
+                chainId: "uint256",
+                verifyingContract: "address"
             },
             Action: {
                 action: "string",
@@ -358,10 +359,10 @@ pub fn tx_to_eip712_typed_data(
         },
         primaryType: "Transaction",
         domain: {
+            name: "d.id",
+            version: "1",
             chainId: chain_id_num,
-            name: "da.systems",
-            verifyingContract: "0x0000000000000000000000000000000020210722",
-            version: "1"
+            verifyingContract: "0x0000000000000000000000000000000020210722"
         },
         message: {
             DAS_MESSAGE: plain_text,
@@ -520,7 +521,7 @@ fn to_typed_action(parser: &WitnessesParser) -> Result<Value, Box<dyn ScriptErro
     //todo: replace with parser.action_params
     if action_params.len() > 10 {
         match parser.action {
-            Action::LockAccountForCrossChain => {
+            LockAccountForCrossChain => {
                 params.push(format!(
                     "0x{}",
                     util::hex_string(&action_params.raw_data()[..8])
