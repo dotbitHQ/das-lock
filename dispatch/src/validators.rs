@@ -96,7 +96,8 @@ pub fn reverse_record_root_cell_verify_sign(
         | DasLockType::ETHTypedData
         | DasLockType::TRON
         | DasLockType::Doge
-        | DasLockType::WebAuthn => witness.sign_type,
+        | DasLockType::WebAuthn
+        | DasLockType::BTC => witness.sign_type,
         _ => {
             debug!(
                 "  witnesses[{:>2}] Parsing das-lock(witness.reverse_record.lock.args) algorithm failed (maybe not supported for now), but it is required in this transaction.",
@@ -295,6 +296,7 @@ pub fn approval_verify_sign(
         load_and_configure_lib!(sign_lib, TRON, type_id_table, tron, load_2_methods);
         load_and_configure_lib!(sign_lib, DOGE, type_id_table, doge, load_2_methods);
         load_and_configure_lib!(sign_lib, WebAuthn, type_id_table, web_authn, load_3_methods);
+        load_and_configure_lib!(sign_lib, BTC, type_id_table, btc, load_2_methods);
 
         let (digest, witness_args_lock) = if sign_type == DasLockType::ETHTypedData {
             let (_, _, digest, _, witness_args_lock) =
