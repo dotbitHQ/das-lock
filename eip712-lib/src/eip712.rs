@@ -114,6 +114,7 @@ pub fn verify_eip712_hashes(
                                 .expect("get_owner_lock_args failed")
                                 .to_vec(),
                         };
+                        //note: little redundant, but it is ok
                         payload_map.entry(payload).or_default().push(i);
                     }
                 }
@@ -179,14 +180,18 @@ pub fn verify_eip712_hashes(
             let expected_hash = hash_data(&typed_data).unwrap(); //expected_hash is calculated from json
 
             debug!(
-                "Calculated hash of EIP712 typed data with digest.(digest: 0x{}, hash: 0x{})",
+                "Calculated hash of EIP712 typed data with digest.(idx: {}, digest: 0x{}, hash: 0x{})",
+                index,
                 digest,
                 hex_string(&expected_hash)
             );
 
             //call sign lib to verify signature
             let signature_copy = item.signature.as_ref().to_vec();
+
+            debug!("payload_map = {:?}", payload_map.clone());
             let payload_copy = get_payload_by_index(payload_map.clone(), index)?;
+
 
             let signature = util::hex_string(&item.signature);
             let typed_data_hash = util::hex_string(&item.typed_data_hash);
@@ -233,9 +238,10 @@ fn get_payload_by_index(
 ) -> Result<Vec<u8>, Box<dyn ScriptError>> {
     payload_map
         .into_iter()
-        .find(|(_, v)| v.get(0) == Some(idx))
+        .find(|(_, v)| v.contains(idx))
         .map(|(k, _)| k)
         .ok_or(Box::from(ErrorCode::EIP712SignatureError))
+
 }
 fn decode_hex(title: &str, hex_str: &str) -> Vec<u8> {
     match hex::decode(hex_str) {
@@ -357,7 +363,7 @@ pub fn tx_to_eip712_typed_data(
         },
         primaryType: "Transaction",
         domain: {
-            name: "da.systems",
+            name: "d.id",
             version: "1",
             chainId: chain_id_num,
             verifyingContract: "0x0000000000000000000000000000000020210722"
@@ -491,9 +497,6 @@ fn get_buy_account_action_params(input_data: &[u8]) -> BuyAccountParams {
             .try_into()
             .expect("u32::from_le_bytes failed"),
     );
-    //debug!("jason input_data = {}", hex_string(input_data));
-    //debug!("jason field_1_len = {}", field_1_len);
-    //debug!("jason field_2_len = {}", field_2_len);
 
     BuyAccountParams {
         inviter_lock_bytes: ParamsField {
