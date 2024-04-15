@@ -1,27 +1,20 @@
 extern crate alloc;
 
 use crate::constants::get_dyn_lib_desc_info;
-use crate::debug_log;
 use crate::error::Error;
-use crate::structures::{AlgId, LockArgs, SignInfo};
-use crate::tx_parser::get_type_id_by_type_script;
+use crate::structures::{AlgId, LockArgs};
+use crate::tx_parser::{get_type_id_by_type_script, get_webauthn_lock_args_from_cell};
 use crate::utils::generate_sighash_all::MAX_WITNESS_SIZE;
-use alloc::collections::BTreeMap;
-use alloc::ffi::NulError;
-use alloc::vec::Vec;
-use alloc::{fmt, vec};
-use ckb_std::{
-    ckb_types::core::ScriptHashType,
-    dynamic_loading_c_impl::{CKBDLContext, Library, Symbol},
-    high_level,
-    syscalls::SysError,
-};
+use alloc::{collections::BTreeMap, ffi::NulError, fmt, vec, vec::Vec};
+use ckb_std::dynamic_loading_c_impl::{CKBDLContext, Library};
+use ckb_std::{ckb_types::core::ScriptHashType, debug, dynamic_loading_c_impl::Symbol, high_level, syscalls::SysError};
 use core::mem::size_of_val;
 use das_core::util::hex_string;
 use das_types::constants::Action as DasAction;
 use das_types::constants::LockRole as Role;
-use das_types::constants::{LockRole, TypeScript};
+use das_types::constants::TypeScript;
 use hex::encode;
+
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum CkbAuthError {
@@ -36,14 +29,14 @@ pub enum CkbAuthError {
 
 impl From<SysError> for CkbAuthError {
     fn from(err: SysError) -> Self {
-        debug_log!("exec error: {:?}", err);
+        debug!("exec error: {:?}", err);
         Self::ExecError(err)
     }
 }
 
 impl From<NulError> for CkbAuthError {
     fn from(err: NulError) -> Self {
-        debug_log!("Exec encode args failed: {:?}", err);
+        debug!("Exec encode args failed: {:?}", err);
         Self::EncodeArgs
     }
 }
@@ -100,12 +93,8 @@ pub struct CkbEntryType {
 }
 
 type DLContext = CKBDLContext<[u8; 256 * 1024]>; //each is 256k
-type CkbAuthValidate = unsafe extern "C" fn(
-    type_: i32,
-    message: *const u8,
-    lock_bytes: *const u8,
-    lock_args: *const u8,
-) -> i32;
+type CkbAuthValidate =
+    unsafe extern "C" fn(type_: i32, message: *const u8, lock_bytes: *const u8, lock_args: *const u8) -> i32;
 
 struct CKBDLLoader {
     pub context: DLContext,
@@ -132,11 +121,7 @@ impl CKBDLLoader {
         }
     }
 
-    fn get_lib(
-        &mut self,
-        code_hash: &[u8; 32],
-        hash_type: ScriptHashType,
-    ) -> Result<&Library, CkbAuthError> {
+    fn get_lib(&mut self, code_hash: &[u8; 32], hash_type: ScriptHashType) -> Result<&Library, CkbAuthError> {
         let mut lib_key = [0u8; 33];
         lib_key[..32].copy_from_slice(code_hash);
         lib_key[32] = hash_type as u8;
@@ -147,13 +132,13 @@ impl CKBDLLoader {
         };
 
         if !has_lib {
-            debug_log!("loading library");
+            debug!("loading library");
             let size = size_of_val(&self.context);
             let lib = self
                 .context
                 .load_with_offset(code_hash, hash_type, self.context_used, size)
                 .map_err(|_| {
-                    debug_log!("load library error");
+                    debug!("load library error");
                     CkbAuthError::LoadDLError
                 })?;
             self.context_used += lib.consumed_size();
@@ -163,22 +148,16 @@ impl CKBDLLoader {
     }
 
     pub fn get_validate_func<T>(
-        &mut self,
-        code_hash: &[u8; 32],
-        hash_type: ScriptHashType,
-        func_name: &str,
+        &mut self, code_hash: &[u8; 32], hash_type: ScriptHashType, func_name: &str,
     ) -> Result<Symbol<T>, CkbAuthError> {
-        debug_log!(
-            "Prepare to load function {} from dynamic linking.",
-            func_name
-        );
+        debug!("Prepare to load function {} from dynamic linking.", func_name);
 
         let lib = self.get_lib(code_hash, hash_type)?;
-        debug_log!("Load function {} from dynamic linking success.", func_name);
+        debug!("Load function {} from dynamic linking success.", func_name);
 
         let func: Option<Symbol<T>> = unsafe { lib.get(func_name.as_bytes()) };
         if func.is_none() {
-            debug_log!("Load function {} from dynamic linking failed.", func_name);
+            debug!("Load function {} from dynamic linking failed.", func_name);
             return Err(CkbAuthError::LoadDLFuncError);
         }
 
@@ -186,50 +165,26 @@ impl CKBDLLoader {
     }
 }
 pub fn ckb_auth_dl(
-    role: Role,
-    alg_id: AlgId,
-    message: &[u8],
-    signature: &[u8],
-    payload: &[u8],
-    entry_func_name: &str,
+    role: Role, alg_id: AlgId, message: &[u8], signature: &[u8], payload: &[u8], entry_func_name: &str,
 ) -> Result<i8, CkbAuthError> {
-    debug_log!("Prepare to run auth in dynamic linking.");
-    debug_log!("role: {:?}", role);
-    debug_log!("alg_id: {}", alg_id);
-    debug_log!("message: {}", encode(message));
-    debug_log!("signature: {}", encode(signature));
-    debug_log!("payload: {}", encode(payload));
-    debug_log!("entry_func_name: {}", entry_func_name);
+    debug!("Prepare to run auth in dynamic linking.");
+    debug!("role: {:?}", role);
+    debug!("alg_id: {}", alg_id);
+    debug!("message: {}", encode(message));
+    debug!("signature: {}", encode(signature));
+    debug!("payload: {}", encode(payload));
+    debug!("entry_func_name: {}", entry_func_name);
 
-    let (alg_id, type_) = match alg_id {
-        AlgId::Eip712 => (AlgId::Eth, 1), //eip712 use eth lib
-        AlgId::WebAuthn => {
-            //todo: not elegant design, maybe move the logic for parsing witnesses from C to Rust.
-            let r = match role {
-                LockRole::Owner => 0,
-                LockRole::Manager => 1,
-            };
-            (AlgId::WebAuthn, r)
-        }
-        _ => (alg_id, 0),
-    };
     //todo: every time get desc info, may be cache it
     let dyn_lib_desc = match get_dyn_lib_desc_info(alg_id) {
         Ok(v) => v,
         Err(e) => {
-            debug_log!(
-                "cannot found dyn_lib_desc for alg_id: {:?}, err: {:?}",
-                alg_id,
-                e
-            );
+            debug!("cannot found dyn_lib_desc for alg_id: {:?}, err: {:?}", alg_id, e);
             return Err(CkbAuthError::EncodeArgs);
         }
     };
     if !dyn_lib_desc.entry_name.contains(&entry_func_name) {
-        debug_log!(
-            "entry_func_name: {}, cannot found in dyn_lib_desc",
-            entry_func_name
-        );
+        debug!("entry_func_name: {}, cannot found in dyn_lib_desc", entry_func_name);
         return Err(CkbAuthError::EncodeArgs);
     }
 
@@ -248,19 +203,18 @@ pub fn ckb_auth_dl(
     signature_copy[0..signature.len()].copy_from_slice(signature);
     payload_copy[0..payload.len()].copy_from_slice(payload);
 
-    debug_log!("ckb entry code_hash: {:?}", hex_string(entry.code_hash.as_ref()));
-    debug_log!("ckb entry hash_type: {:?}", entry.hash_type as u8);
-    debug_log!("ckb entry entry_category: {:?}", entry.entry_category as u8);
+
+    debug!("ckb entry code_hash: {:02x?}", entry.code_hash);
+    debug!("ckb entry hash_type: {:?}", entry.hash_type as u8);
+    debug!("ckb entry entry_category: {:?}", entry.entry_category as u8);
 
     //todo: if there is validate device, func param should be changed
+    let type_ = 0;
     let rc_code = match entry_func_name {
         "validate" => {
-            let func: Symbol<CkbAuthValidate> = CKBDLLoader::get().get_validate_func(
-                &entry.code_hash,
-                entry.hash_type,
-                "validate",
-            )?;
-            debug_log!("load function success.");
+            let func: Symbol<CkbAuthValidate> =
+                CKBDLLoader::get().get_validate_func(&entry.code_hash, entry.hash_type, "validate")?;
+            debug!("load function success.");
             unsafe {
                 func(
                     type_,
@@ -277,7 +231,7 @@ pub fn ckb_auth_dl(
         //         entry.hash_type,
         //         "validate_str",
         //     )?;
-        //     debug_log!("load function success.");
+        //     debug!("load function success.");
         //     //todo: may check the type_ , when different action
         //     let type_ = 1;
         //     let message_len = payload.len();
@@ -297,7 +251,7 @@ pub fn ckb_auth_dl(
         //         entry.hash_type,
         //         "validate_device",
         //     )?;
-        //     debug_log!("load function success.");
+        //     debug!("load function success.");
         //     let version = 0;
         //     let signature = signature;
         //     let signature_len = signature.len();
@@ -324,62 +278,49 @@ pub fn ckb_auth_dl(
         //     }
         // }
         _ => {
-            debug_log!(
-                "entry_func_name: {}, cannot found in dyn_lib_desc",
-                entry_func_name
-            );
+            debug!("entry_func_name: {}, cannot found in dyn_lib_desc", entry_func_name);
             -1
         }
     };
 
     match rc_code {
         0 => {
-            debug_log!("Run auth success in dynamic linking.");
+            debug!("Run auth success in dynamic linking.");
             Ok(0)
         }
         _ => {
-            debug_log!("Run auth error({}) in dynamic linking", rc_code);
+            debug!("Run auth error({}) in dynamic linking", rc_code);
             Err(CkbAuthError::RunDLError)
         }
     }
 }
 
 pub fn exec_eip712_lib() -> Result<i8, Error> {
-    debug_log!("enter exec_eip712_lib");
+    debug!("enter exec_eip712_lib");
     let type_id = get_type_id_by_type_script(TypeScript::EIP712Lib)?;
 
-    debug_log!("EIP712Lib type_id = {:?}", hex_string(type_id.as_slice()));
+    debug!("EIP712Lib type_id = {:?}", hex_string(type_id.as_slice()));
 
     let argv = vec![]; //not needed for now
     let _ = high_level::exec_cell(type_id.as_slice(), ScriptHashType::Type, 0, 0, &*argv)
         .map_err(|err| {
             //note: exec_cell never returns
             let e: Error = err.into();
-            debug_log!("exec eip712 lib error: {:?}", e);
+            debug!("exec eip712 lib error: {:?}", e);
         })
         .map(|_| ());
     Err(Error::RunExecError)
 }
-fn check_webauthn_public_key_index(alg_id: &AlgId, sign_info: &SignInfo) -> Result<(), Error> {
-    if *alg_id != AlgId::WebAuthn {
-        return Ok(());
-    }
-    let pk_idx = sign_info.signature[1];
-    if pk_idx != 255 && pk_idx > 9 {
-        debug_log!("Invalid pk_idx = {}", pk_idx);
-        return Err(Error::InvalidPubkeyIndex);
-    }
-    Ok(())
-}
-//normal validation
+
 pub fn dispatch_to_dyn_lib(role: Role, lock_args: &LockArgs) -> Result<i8, Error> {
     //get plain and cipher
     let sign_info = crate::entry::get_plain_and_cipher(lock_args.alg_id)?;
 
-    //check for webauthn, the pk_idx should be 0-9 or 255.
-    check_webauthn_public_key_index(&lock_args.alg_id, &sign_info)?;
+    //parse webauthn witness and override lock_args
+    debug!("prepare to get webauthn lock args from cell");
+    let lock_args = get_webauthn_lock_args_from_cell(&lock_args, &sign_info)?;
 
-    //call auth lib
+    //call dyn lib
     let ret = ckb_auth(
         lock_args.alg_id,
         role,
@@ -392,19 +333,19 @@ pub fn dispatch_to_dyn_lib(role: Role, lock_args: &LockArgs) -> Result<i8, Error
     Ok(ret)
 }
 pub fn dispatch(role: Role, das_action: DasAction) -> Result<i8, Error> {
-    debug_log!("Enter dispatch");
+    debug!("Enter dispatch");
     let lock_args = crate::entry::get_lock_args(&das_action, role)?;
 
     if lock_args.alg_id == AlgId::Eip712 {
         match exec_eip712_lib() {
             Ok(x) => {
                 if x != 0 {
-                    debug_log!("execute eip712-lib error, return {}", x);
+                    debug!("execute eip712-lib error, return {}", x);
                     return Err(Error::ValidationFailure);
                 }
             }
             Err(e) => {
-                debug_log!("call eip712-lib error: {:?}", e);
+                debug!("call eip712-lib error: {:?}", e);
                 return Err(e);
             }
         };
@@ -413,12 +354,12 @@ pub fn dispatch(role: Role, das_action: DasAction) -> Result<i8, Error> {
     match dispatch_to_dyn_lib(role, &lock_args) {
         Ok(x) => {
             if x != 0 {
-                debug_log!("general_verification failed, return {}", x);
+                debug!("Dyn lib validation failure, return {}", x);
                 return Err(Error::ValidationFailure);
             }
         }
         Err(e) => {
-            debug_log!("general_verification error: {:?}", e);
+            debug!("Call dyn lib failure: {:?}", e);
             return Err(e);
         }
     }
@@ -426,27 +367,22 @@ pub fn dispatch(role: Role, das_action: DasAction) -> Result<i8, Error> {
 }
 
 fn ckb_auth(
-    alg_id: AlgId,
-    role: Role,
-    message: &[u8],
-    signature: &[u8],
-    payload: &[u8],
-    entry_func_name: &str,
+    alg_id: AlgId, role: Role, message: &[u8], signature: &[u8], payload: &[u8], entry_func_name: &str,
 ) -> Result<i8, Error> {
     let ret = match ckb_auth_dl(role, alg_id, message, signature, payload, entry_func_name) {
         Ok(x) => x,
         Err(e) => {
-            debug_log!("auth dl error : {:?}", e);
+            debug!("auth dl error : {:?}", e);
             return Err(Error::ValidationFailure);
         }
     };
 
     if ret != 0 {
         //todo: error code
-        debug_log!("Auth failed, ret = {}", ret);
+        debug!("Auth failed, ret = {}", ret);
         return Err(Error::ValidationFailure);
     }
-    debug_log!("Dyn lib Auth success");
+    debug!("Dyn lib Auth success");
 
     Ok(0)
 }

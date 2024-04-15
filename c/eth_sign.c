@@ -15,7 +15,10 @@ int verify_signature(uint8_t *message, uint8_t *lock_bytes,
 	ret = ckb_secp256k1_custom_verify_only_initialize(&context, secp_data);
 	SIMPLE_ASSERT(CKB_SUCCESS);
 
+    debug_print("secp256k1 initialize success");
 	secp256k1_ecdsa_recoverable_signature signature;
+    debug_print_int("lock_bytes[RECID_INDEX]: ", lock_bytes[RECID_INDEX]);
+
 	if (secp256k1_ecdsa_recoverable_signature_parse_compact(
 		&context, &signature, lock_bytes, lock_bytes[RECID_INDEX]) == 0) {
 		return ERROR_SECP_PARSE_SIGNATURE;

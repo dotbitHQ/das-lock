@@ -73,22 +73,14 @@ pub fn generate_sighash_all() -> Result<[u8; 32], Error> {
 }
 
 pub fn load_and_hash_witness(
-    ctx: &mut Blake2b,
-    start: usize,
-    index: usize,
-    source: Source,
-    hash_length: bool,
+    ctx: &mut Blake2b, start: usize, index: usize, source: Source, hash_length: bool,
 ) -> Result<(), SysError> {
     let mut temp = [0u8; ONE_BATCH_SIZE];
     let len = load_witness(&mut temp, start, index, source)?;
     if hash_length {
         ctx.update(&(len as u64).to_le_bytes());
     }
-    let mut offset = if len > ONE_BATCH_SIZE {
-        ONE_BATCH_SIZE
-    } else {
-        len
-    };
+    let mut offset = if len > ONE_BATCH_SIZE { ONE_BATCH_SIZE } else { len };
     ctx.update(&temp[..offset]);
     while offset < len {
         let current_len = load_witness(&mut temp, start + offset, index, source)?;

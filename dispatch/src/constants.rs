@@ -1,9 +1,9 @@
-use crate::debug_log;
 use crate::dlopen::DynLibDesc;
 use crate::error::Error;
 use crate::structures::AlgId;
 use alloc::vec::Vec;
 use ckb_std::ckb_types::core::ScriptHashType;
+use ckb_std::debug;
 
 use das_types::constants::DataType;
 use das_types::packed::ConfigCellMain;
@@ -21,9 +21,7 @@ use das_proc_macro::test_level;
     all(feature = "mainnet", feature = "testnet3"),
     all(feature = "testnet2", feature = "testnet3")
 ))]
-core::compile_error!(
-    "Conflicting features: `mainnet`, `testnet2`, and `testnet3` cannot be enabled simultaneously"
-);
+core::compile_error!("Conflicting features: `mainnet`, `testnet2`, and `testnet3` cannot be enabled simultaneously");
 
 const DYNAMIC_LIB_NUMS: usize = 9;
 const ENTRY_CATEGORY_TYPE_TABLE: [u8; DYNAMIC_LIB_NUMS] = [
@@ -157,10 +155,7 @@ pub(crate) fn decode_hex(title: &str, hex_str: &str) -> Vec<u8> {
     match hex::decode(hex_str) {
         Ok(v) => v,
         Err(e) => {
-            panic!(
-                "decode hex ({}) error: {:?}, hex string = {}",
-                title, e, hex_str
-            );
+            panic!("decode hex ({}) error: {:?}, hex string = {}", title, e, hex_str);
         }
     }
 }
@@ -168,22 +163,22 @@ pub(crate) fn decode_hex(title: &str, hex_str: &str) -> Vec<u8> {
 pub fn get_config_cell_main() -> Result<ConfigCellMain, Error> {
     let witness_parser = WitnessesParserV1::get_instance();
     if !witness_parser.is_inited() {
-        debug_log!("WitnessesParserV1::init() start");
+        debug!("WitnessesParserV1::init() start");
         witness_parser
             .init()
             .map_err(|err| {
-                debug_log!("Error: witness parser init failed, {:?}", err);
+                debug!("Error: witness parser init failed, {:?}", err);
                 Error::LoadWitnessError
             })
             .unwrap();
-        debug_log!("WitnessesParserV1::init() success");
+        debug!("WitnessesParserV1::init() success");
     } else {
-        debug_log!("WitnessesParserV1::init() already inited");
+        debug!("WitnessesParserV1::init() already inited");
     }
     match witness_parser.get_entity_by_data_type::<ConfigCellMain>(DataType::ConfigCellMain) {
         Ok(config) => Ok(config),
         Err(e) => {
-            debug_log!("get_config_cell_main error: {:?}", e);
+            debug!("get_config_cell_main error: {:?}", e);
             Err(Error::LoadWitnessError)
         }
     }

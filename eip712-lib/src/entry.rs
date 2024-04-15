@@ -9,6 +9,7 @@ use das_core::constants::*;
 use das_core::error::*;
 use witness_parser::WitnessesParserV1 as WitnessesParserDIY;
 
+use das_core::util::hex_string;
 use das_core::{assert, code_to_error, data_parser, debug, util, warn};
 use das_map::map::Map;
 use das_map::util as map_util;
@@ -670,7 +671,11 @@ fn find_cells_by_type_id(
         warn!("EIP712 decoding type id failed");
         ErrorCode::WitnessEntityDecodingError
     })?;
-
+    debug!(
+        "get type id {:?} : {}",
+        type_script,
+        hex_string(hash_reader.as_slice())
+    );
     let cells = util::find_cells_by_type_id(ScriptType::Type, hash_reader, source)?;
     Ok(cells)
 }
