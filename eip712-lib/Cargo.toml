@@ -4,10 +4,10 @@ version = "1.1.0"
 edition = "2021"
 
 [features]
-dev = ["das-core/dev"]
-local = ["das-core/local"]
-testnet = ["das-core/testnet"]
+default = []
 mainnet = ["das-core/mainnet"]
+testnet2 = ["das-core/testnet"]
+testnet3 = ["das-core/testnet"]
 
 [dependencies]
 ckb-std = "0.13.0"
@@ -18,10 +18,3 @@ eip712 = { git = "https://github.com/dotbitHQ/das-contracts-private.git", defaul
 witness-parser = { git = "https://github.com/dotbitHQ/das-contracts-private.git",  default-features = false,  branch = "testnet2" }
 das-dynamic-libs = { git = "https://github.com/dotbitHQ/das-contracts-private.git", branch = "testnet2" }
 hex = { version = "0.4.3", default-features = false, features = ["alloc"]}
-
-#das-core = { path = "../../das-contracts-private/libs/das-core", default-features = false }
-#das-map = {  path = "../../das-contracts-private/libs/das-map", default-features = false }
-#das-types = {  path = "../../das-contracts-private/libs/das-types", default-features = false }
-#eip712 = {  path = "../../das-contracts-private/libs/eip712", default-features = false }
-#witness-parser = {  path = "../../das-contracts-private/libs/witness-parser",  default-features = false  }
-#das-dynamic-libs = {  path = "../../das-contracts-private/libs/das-dynamic-libs" }

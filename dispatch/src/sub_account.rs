@@ -339,12 +339,7 @@ pub fn verify_sub_account_edit_sign_v2(
         }
     };
 
-    let sub_account_reader = witness
-        .sub_account
-        .as_reader()
-        .try_into_latest()
-        .map_err(|_| code_to_error!(SubAccountCellErrorCode::WitnessVersionMismatched))?;
-
+    let sub_account_reader = witness.sub_account.as_reader();
     let account_id = sub_account_reader.id().as_slice().to_vec();
     let edit_key = witness.edit_key.as_slice();
     let edit_value = witness.edit_value_bytes.as_slice();
