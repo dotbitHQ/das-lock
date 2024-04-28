@@ -8,12 +8,10 @@ use das_core::error::{ErrorCode, ScriptError, SubAccountCellErrorCode};
 use das_core::witness_parser::sub_account::{SubAccountEditValue, SubAccountWitness, SubAccountWitnessesParser};
 use das_core::witness_parser::webauthn_signature::WebAuthnSignature;
 use das_core::{code_to_error, das_assert, data_parser, util, verifiers, warn};
-use das_core::util::hex_string;
 
 use das_dynamic_libs::error::Error;
 use das_dynamic_libs::sign_lib::SignLib;
 use das_types::constants::{das_lock, AccountStatus, DasLockType, SubAccountAction};
-use das_types::mixer::{SubAccountMixer, SubAccountReaderMixer};
 use das_types::packed::{AccountApproval, AccountApprovalTransferReader, Bytes, Records, SubAccount, Uint64, Uint8};
 use das_types::prelude::Builder;
 use das_types::prettier::Prettier;
@@ -316,7 +314,6 @@ pub fn verify_sub_account_edit_sign_v2(
         witness.index
     );
 
-    debug!("file{} ,line{}", file!(), line!());
     let das_lock_type = match witness.sign_type {
         Some(val) => match val {
             DasLockType::CKBSingle
@@ -342,26 +339,7 @@ pub fn verify_sub_account_edit_sign_v2(
         }
     };
 
-    debug!("witness.sub_account: {:?}", hex_string(witness.sub_account.as_reader().as_slice()));
-    // let sub_account_reader = witness
-    //     .sub_account
-    //     .as_reader()
-    //     .try_into_latest()
-    //     .map_err(|_| code_to_error!(SubAccountCellErrorCode::WitnessVersionMismatched))?;
-
-    let sub_account_reader: Box<dyn SubAccountReaderMixer> = if let Ok(sub_account_reader) =
-        witness.sub_account.as_reader().try_into_latest() {
-        Box::new(sub_account_reader)
-    } else {
-        if let Ok(sub_account_reader) =
-            witness.sub_account.as_reader().try_into_v1() {
-            Box::new(sub_account_reader)
-        } else {
-            return Err(code_to_error!(SubAccountCellErrorCode::WitnessVersionMismatched));
-        }
-    };
-
-
+    let sub_account_reader = witness.sub_account.as_reader();
     let account_id = sub_account_reader.id().as_slice().to_vec();
     let edit_key = witness.edit_key.as_slice();
     let edit_value = witness.edit_value_bytes.as_slice();
