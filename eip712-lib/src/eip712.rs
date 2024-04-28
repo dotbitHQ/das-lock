@@ -153,7 +153,7 @@ pub fn verify_eip712_hashes(
         let mut sign_lib = SignLib::new();
         let mut eth_context = new_context!();
         //todo: replace with get_type_id
-        let code_hash = if cfg!(feature = "testnet") {
+        let code_hash = if cfg!(any(feature = "testnet2", feature = "testnet3")) {
             decode_hex(
                 "eth testnet type id",
                 "6d0f4c38ae82383c619b9752ed8140019aa49128e39d48b271239a668c40a174",
