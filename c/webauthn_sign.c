@@ -401,15 +401,16 @@ __attribute__((visibility("default"))) int validate_device(
     }
 
     //get tx-digest from json then compare with the tx-digest calculated from transaction
-    uint8_t tx_digest[HASH_SIZE] = {0};
+    uint8_t tx_digest[100] = {0};
     ret = get_tx_digest_from_json(tx_digest, json_value, json_len);
     debug_print_int("get tx digest from json, ret", ret);
     SIMPLE_ASSERT(0);
 
     //compare with the tx_digest
-    ret = memcmp(tx_digest, msg, msg_len);
+    ret = memcmp(tx_digest, COMMON_PREFIX, COMMON_PREFIX_LENGTH) +
+            memcmp(tx_digest + COMMON_PREFIX_LENGTH, msg, HASH_SIZE);
     if (ret != 0) {
-        debug_print_data("tx_digest from json parsed = ", tx_digest, HASH_SIZE);
+        debug_print_data("tx_digest from json parsed = ", tx_digest, COMMON_PREFIX_LENGTH + HASH_SIZE);
         debug_print_data("tx_digest from transaction calculated = ", msg, HASH_SIZE);
         debug_print("tx_digest from json is not equal to tx_digest calculated");
         return ERROR_INCORRECT_DIGEST;

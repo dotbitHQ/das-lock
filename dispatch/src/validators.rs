@@ -136,12 +136,13 @@ pub fn reverse_record_root_cell_verify_sign(
             .device_key_lists
             .get(args.index(..))
             .ok_or(code_to_error!(ErrorCode::WitnessStructureError))?;
+        let key_list = device_key_list.keys().as_reader().as_slice()[4..].to_vec();
         sign_lib.validate_device(
             das_lock_type,
             0i32,
             &signature,
             &message,
-            device_key_list.as_slice(),
+            key_list.as_slice(),
             Default::default(),
         )
     } else {
