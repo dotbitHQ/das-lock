@@ -35,7 +35,7 @@ use das_types::constants::{Action as DasAction, LockRole as Role, TypeScript};
 
 use crate::tx_parser::{get_type_id_by_type_script, init_witness_parser};
 use crate::validators::{
-    validate_for_fulfill_approval, validate_for_revoke_approval, validate_for_unlock_account_for_cross_chain,
+    validate_for_fulfill_approval, validate_for_revoke_approval,
     validate_for_update_reverse_record_root, validate_for_update_sub_account,
 };
 
@@ -564,7 +564,7 @@ pub fn main() -> Result<(), Error> {
 
         DasAction::FulfillApproval => validate_for_fulfill_approval(),
         DasAction::RevokeApproval => validate_for_revoke_approval(),
-        DasAction::UnlockAccountForCrossChain => validate_for_unlock_account_for_cross_chain(),
+        DasAction::UnlockAccountForCrossChain => Err(Error::InvalidAction),
         DasAction::UpdateReverseRecordRoot => match check_the_first_input_cell_must_be_reverse_record_root_cell()? {
             Match => validate_for_update_reverse_record_root(),
             MisMatch => Err(Error::InvalidTransactionStructure),

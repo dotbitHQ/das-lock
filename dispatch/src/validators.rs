@@ -27,7 +27,7 @@ use das_dynamic_libs::sign_lib::SignLib;
 use das_dynamic_libs::{
     load_1_method, load_2_methods, load_3_methods, load_and_configure_lib, load_lib, log_loading, new_context,
 };
-use das_types::constants::{cross_chain_lock, das_lock, TypeScript};
+use das_types::constants::{das_lock, TypeScript};
 use das_types::constants::{DasLockType, LockRole};
 use das_types::packed::{DasLockTypeIdTableReader, Hash, Reader, ScriptReader};
 
@@ -42,6 +42,7 @@ pub fn validate_for_update_reverse_record_root() -> Result<i8, Error> {
     load_and_configure_lib!(sign_lib, TRON, type_id_table, tron, load_2_methods);
     load_and_configure_lib!(sign_lib, DOGE, type_id_table, doge, load_2_methods);
     load_and_configure_lib!(sign_lib, WebAuthn, type_id_table, web_authn, load_3_methods);
+    load_and_configure_lib!(sign_lib, BTC, type_id_table, btc, load_2_methods);
 
     let reverse_witness_parser = ReverseRecordWitnessesParser::new(&config_main_reader)
         .map_err(|e| {
@@ -88,7 +89,8 @@ pub fn reverse_record_root_cell_verify_sign(
         | DasLockType::ETHTypedData
         | DasLockType::TRON
         | DasLockType::Doge
-        | DasLockType::WebAuthn => witness.sign_type,
+        | DasLockType::WebAuthn 
+        | DasLockType::BTC => witness.sign_type,
         _ => {
             debug!(
                 "  witnesses[{:>2}] Parsing das-lock(witness.reverse_record.lock.args) algorithm failed (maybe not supported for now), but it is required in this transaction.",
@@ -293,42 +295,6 @@ pub fn approval_verify_sign(
     Ok(())
 }
 
-pub fn validate_for_unlock_account_for_cross_chain() -> Result<i8, Error> {
-    let account_cell_index = get_first_account_cell_index()?;
-    let config_main = get_config_cell_main()?;
-    let config_main_reader = config_main.as_reader();
-    let type_id_table = config_main_reader.das_lock_type_id_table();
-
-    let (digest, witness_args_lock) =
-        sign_util::calc_digest_by_input_group(DasLockType::CKBMulti, vec![account_cell_index])?;
-    let lock_script = cross_chain_lock();
-    let mut args = lock_script.as_reader().args().raw_data().to_vec();
-    let since = high_level::load_input_since(account_cell_index, Source::Input)?;
-
-    // It is the signature validation requirement.
-    args.extend_from_slice(&since.to_le_bytes());
-
-    let mut sign_lib = SignLib::new();
-    load_and_configure_lib!(sign_lib, CKBMultisig, type_id_table, ckb_multisig, load_1_method);
-
-    // let mut ckb_multi_context = new_context!();
-    // log_loading!(DynLibName::CKBMultisig, type_id_table);
-    // let ckb_multi_lib = load_lib!(ckb_multi_context, DynLibName::CKBMultisig, type_id_table);
-    // sign_lib.ckb_multisig = load_1_method!(ckb_multi_lib);
-
-    if cfg!(not(feature = "dev")) {
-        sign_lib
-            .validate(DasLockType::CKBMulti, 0i32, digest.to_vec(), witness_args_lock, args)
-            .map_err(|err_code| {
-                debug!(
-                    "inputs[{}] Verify signature failed, error code: {}",
-                    account_cell_index, err_code
-                );
-                return Error::WitnessError;
-            })?;
-    }
-    validate_if_has_other_cell_in_inputs_except_specified(TypeScript::AccountCellType)
-}
 
 pub fn validate_for_update_sub_account() -> Result<i8, Error> {
     debug!("Verify the signatures of SubAccountCell ...");
