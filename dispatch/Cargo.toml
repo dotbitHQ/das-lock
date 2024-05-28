@@ -10,10 +10,10 @@ hex = { version = "0.4.3", default-features = false, features = ["alloc"]}
 num_enum = { version = "0.7.2", default-features = false }
 strum = { default-features = false, features = ["derive"], version = "0.26.1" }
 strum_macros = "0.26.1"
-das-types = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, branch = "testnet2" }
-das-core = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false,  branch = "testnet2" }
-das-dynamic-libs = { git = "https://github.com/dotbitHQ/das-contracts-private.git", branch = "testnet2" }
-witness-parser = { git = "https://github.com/dotbitHQ/das-contracts-private.git",  default-features = false,  branch = "testnet2" }
+das-types = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, branch = "feat/reverse-record-verify" }
+das-core = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false,  branch = "feat/reverse-record-verify" }
+das-dynamic-libs = { git = "https://github.com/dotbitHQ/das-contracts-private.git", branch = "feat/reverse-record-verify" }
+witness-parser = { git = "https://github.com/dotbitHQ/das-contracts-private.git",  default-features = false,  branch = "feat/reverse-record-verify" }
 #das-types = { path = '../../das-contracts-private/libs/das-types', default-features = false }
 #das-core = {path = '../../das-contracts-private/libs/das-core', default-features = false}
 #das-dynamic-libs = { path = '../../das-contracts-private/libs/das-dynamic-libs', default-features = false }
