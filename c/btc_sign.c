@@ -45,7 +45,7 @@ int magic_hash(uint8_t *hash, uint8_t *message, size_t message_len)
 
     // total_message = [prefix_len, prefix, message_with_prefix_len, COMMON_PREFIX, message_hex]
     total_message[0] = BTC_MASSAGE_PREFIX_LEN;
-    memcpy(total_message + 1, "\x19""Bitcoin Signed Message:\n", BTC_MASSAGE_PREFIX_LEN);
+    memcpy(total_message + 1, "\x18""Bitcoin Signed Message:\n", BTC_MASSAGE_PREFIX_LEN);
     debug_print_data("total message : after copy btc prefix : ", total_message, total_message_len);
 
     // add prefix and message_hex
