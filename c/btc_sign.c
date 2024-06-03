@@ -9,51 +9,31 @@
 
 int magic_hash(uint8_t *hash, uint8_t *message, size_t message_len)
 {
-    debug_print(">>>>>>>>>>> btc magic_hash!!!!!");
-    // Todo: What is judged here is message_len, in fact, it should be message_len + common_prefix_len
-    uint8_t message_vi_len = 0;
-    if (message_len < 65536 && message_len > 255)
-    {
-        message_vi_len = 2;
-    }
-    else if (message_len < 256 && message_len > 0)
-    {
-        message_vi_len = 1;
-    }
-    else
-    {
-        debug_print_int("message_len : ", message_len);
-        return ERR_DAS_MESSAGE_LENGTH;
-    }
-    debug_print_int("message vi len: ", message_vi_len);
-
+    debug_print(">>>>>>>>>>> btc magic_hash 18!!!!!");
+    
     // Prevent stack overflow caused by excessively long messages.
     if (message_len > 4096)
     {
         return ERR_DAS_MESSAGE_TOO_LONG;
     }
 
-    size_t message_hex_len = message_len * 2;
-    uint8_t message_hex[message_hex_len];
-    bin_to_hex(message_hex, message, message_len);
-    debug_print_data("message_hex  : ", message_hex, message_hex_len);
+    size_t msg_hex_len = message_len * 2;
+    uint8_t msg_hex[msg_hex_len];
+    bin_to_hex(msg_hex, message, message_len);
 
-    // 1 + 25 + 1or2 + 11 + 64 = 102 or 103 = 0x66 or 0x67
-    size_t total_message_len = 1 + BTC_MASSAGE_PREFIX_LEN + message_vi_len + COMMON_PREFIX_LENGTH + message_hex_len;
+    debug_print_data("message_hex  : ", msg_hex, msg_hex_len);
+    size_t total_message_len = BTC_MASSAGE_PREFIX_LEN + 1 + COMMON_PREFIX_LENGTH + msg_hex_len;
     uint8_t total_message[total_message_len];
     debug_print_int("message total len: ", total_message_len);
 
-    // total_message = [prefix_len, prefix, message_with_prefix_len, COMMON_PREFIX, message_hex]
-    total_message[0] = BTC_MASSAGE_PREFIX_LEN;
-    memcpy(total_message + 1, "\x18""Bitcoin Signed Message:\n", BTC_MASSAGE_PREFIX_LEN);
+    // total_message = [prefix, message_with_prefix_len, COMMON_PREFIX, message_hex]
+    memcpy(total_message, "\x18""Bitcoin Signed Message:\n", BTC_MASSAGE_PREFIX_LEN);
     debug_print_data("total message : after copy btc prefix : ", total_message, total_message_len);
 
     // add prefix and message_hex
-    total_message[BTC_MASSAGE_PREFIX_LEN + 1] = COMMON_PREFIX_LENGTH + message_hex_len;
-    memcpy(total_message + 1 + BTC_MASSAGE_PREFIX_LEN + message_vi_len,
-           COMMON_PREFIX, COMMON_PREFIX_LENGTH);
-    memcpy(total_message + 1 + BTC_MASSAGE_PREFIX_LEN + message_vi_len + COMMON_PREFIX_LENGTH,
-           message_hex, message_hex_len);
+    total_message[BTC_MASSAGE_PREFIX_LEN] = COMMON_PREFIX_LENGTH + msg_hex_len;
+    memcpy(total_message + BTC_MASSAGE_PREFIX_LEN + 1, COMMON_PREFIX, COMMON_PREFIX_LENGTH);
+    memcpy(total_message + BTC_MASSAGE_PREFIX_LEN + 1 + COMMON_PREFIX_LENGTH, msg_hex, msg_hex_len);
     debug_print_data("total message : after copy message : ", total_message, total_message_len);
 
     sha256x2(hash, total_message, total_message_len);
