@@ -883,10 +883,11 @@ fn to_typed_script(script_type: ScriptType, script: das_packed::ScriptReader) ->
         match get_lock_script_type(script) {
             Some(LockScript::AlwaysSuccessLock) => String::from("always-success"),
             Some(LockScript::DasLock) => String::from("das-lock"),
-            Some(LockScript::Secp256k1Blake160SignhashLock) => String::from("account-cell-type"),
-            Some(LockScript::Secp256k1Blake160MultisigLock) => {
-                String::from("account-sale-cell-type")
-            }
+            // The following locks should not be recognized as account-cell
+            // Some(LockScript::Secp256k1Blake160SignhashLock) => String::from("account-cell-type"),
+            // Some(LockScript::Secp256k1Blake160MultisigLock) => {
+            //     String::from("account-sale-cell-type")
+            // }
             _ => format!(
                 "0x{}...",
                 util::hex_string(&script.code_hash().raw_data().as_ref()[0..DATA_OMIT_SIZE])
