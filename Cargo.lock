@@ -154,33 +154,65 @@ checksum = "b365fabc795046672053e29c954733ec3b05e4be654ab130fe8f1f94d7051f35"
 [[package]]
 name = "das-core"
 version = "1.4.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2#2964afe18bf55b395fa53d4549fef19d5591bbbb"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell#79fc499e1b62bb315c0cb7963b840446a8ae50ac"
 dependencies = [
  "blake2b-ref",
  "chrono",
  "ckb-std",
- "das-dynamic-libs",
- "das-map",
- "das-types",
- "eip712",
+ "das-dynamic-libs 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
+ "das-map 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
+ "das-types 1.11.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
+ "eip712 1.1.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
  "hex",
  "libm",
  "molecule",
  "paste",
  "primitive-types",
- "simple-ast",
+ "simple-ast 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
  "sparse-merkle-tree",
- "witness-parser",
+ "witness-parser 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
+]
+
+[[package]]
+name = "das-core"
+version = "1.4.0"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2#b6255e148d975609101e7960c94fb3837648686e"
+dependencies = [
+ "blake2b-ref",
+ "chrono",
+ "ckb-std",
+ "das-dynamic-libs 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
+ "das-map 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
+ "das-types 1.11.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
+ "eip712 1.1.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
+ "hex",
+ "libm",
+ "molecule",
+ "paste",
+ "primitive-types",
+ "simple-ast 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
+ "sparse-merkle-tree",
+ "witness-parser 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
 ]
 
 [[package]]
 name = "das-dynamic-libs"
 version = "1.0.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2#2964afe18bf55b395fa53d4549fef19d5591bbbb"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell#79fc499e1b62bb315c0cb7963b840446a8ae50ac"
 dependencies = [
  "blake2b-ref",
  "ckb-std",
- "das-types",
+ "das-types 1.11.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
+]
+
+[[package]]
+name = "das-dynamic-libs"
+version = "1.0.0"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2#b6255e148d975609101e7960c94fb3837648686e"
+dependencies = [
+ "blake2b-ref",
+ "ckb-std",
+ "das-types 1.11.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
 ]
 
 [[package]]
@@ -195,7 +227,16 @@ dependencies = [
 [[package]]
 name = "das-map"
 version = "1.0.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2#2964afe18bf55b395fa53d4549fef19d5591bbbb"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell#79fc499e1b62bb315c0cb7963b840446a8ae50ac"
+dependencies = [
+ "hex",
+ "no-std-compat",
+]
+
+[[package]]
+name = "das-map"
+version = "1.0.0"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2#b6255e148d975609101e7960c94fb3837648686e"
 dependencies = [
  "hex",
  "no-std-compat",
@@ -204,7 +245,21 @@ dependencies = [
 [[package]]
 name = "das-types"
 version = "1.11.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2#2964afe18bf55b395fa53d4549fef19d5591bbbb"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell#79fc499e1b62bb315c0cb7963b840446a8ae50ac"
+dependencies = [
+ "blake2b-ref",
+ "ckb-std",
+ "dotenvy",
+ "hex",
+ "molecule",
+ "num_enum",
+ "strum 0.25.0",
+]
+
+[[package]]
+name = "das-types"
+version = "1.11.0"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2#b6255e148d975609101e7960c94fb3837648686e"
 dependencies = [
  "blake2b-ref",
  "ckb-std",
@@ -231,14 +286,14 @@ version = "1.0.0"
 dependencies = [
  "blake2b-rs 0.2.0",
  "ckb-std",
- "das-core",
- "das-dynamic-libs",
- "das-types",
+ "das-core 1.4.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
+ "das-dynamic-libs 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
+ "das-types 1.11.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
  "hex",
  "num_enum",
  "strum 0.26.2",
  "strum_macros 0.26.2",
- "witness-parser",
+ "witness-parser 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
 ]
 
 [[package]]
@@ -250,7 +305,21 @@ checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
 [[package]]
 name = "eip712"
 version = "1.1.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2#2964afe18bf55b395fa53d4549fef19d5591bbbb"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell#79fc499e1b62bb315c0cb7963b840446a8ae50ac"
+dependencies = [
+ "bech32",
+ "bs58",
+ "dotenvy",
+ "hex",
+ "no-std-compat",
+ "sha2",
+ "tiny-keccak",
+]
+
+[[package]]
+name = "eip712"
+version = "1.1.0"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2#b6255e148d975609101e7960c94fb3837648686e"
 dependencies = [
  "bech32",
  "bs58",
@@ -266,13 +335,13 @@ name = "eip712-lib"
 version = "1.1.0"
 dependencies = [
  "ckb-std",
- "das-core",
- "das-dynamic-libs",
- "das-map",
- "das-types",
- "eip712",
+ "das-core 1.4.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
+ "das-dynamic-libs 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
+ "das-map 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
+ "das-types 1.11.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
+ "eip712 1.1.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
  "hex",
- "witness-parser",
+ "witness-parser 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
 ]
 
 [[package]]
@@ -422,10 +491,25 @@ dependencies = [
 [[package]]
 name = "simple-ast"
 version = "1.0.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2#2964afe18bf55b395fa53d4549fef19d5591bbbb"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell#79fc499e1b62bb315c0cb7963b840446a8ae50ac"
 dependencies = [
  "blake2b-ref",
- "das-types",
+ "das-types 1.11.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
+ "hex",
+ "log",
+ "num_enum",
+ "paste",
+ "strum 0.25.0",
+ "thiserror-no-std",
+]
+
+[[package]]
+name = "simple-ast"
+version = "1.0.0"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2#b6255e148d975609101e7960c94fb3837648686e"
+dependencies = [
+ "blake2b-ref",
+ "das-types 1.11.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
  "hex",
  "log",
  "num_enum",
@@ -579,11 +663,28 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 [[package]]
 name = "witness-parser"
 version = "1.0.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2#2964afe18bf55b395fa53d4549fef19d5591bbbb"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell#79fc499e1b62bb315c0cb7963b840446a8ae50ac"
 dependencies = [
  "blake2b-ref",
  "ckb-std",
- "das-types",
+ "das-types 1.11.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
+ "hex",
+ "log",
+ "molecule",
+ "num_enum",
+ "paste",
+ "strum 0.25.0",
+ "thiserror-no-std",
+]
+
+[[package]]
+name = "witness-parser"
+version = "1.0.0"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2#b6255e148d975609101e7960c94fb3837648686e"
+dependencies = [
+ "blake2b-ref",
+ "ckb-std",
+ "das-types 1.11.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
  "hex",
  "log",
  "molecule",
