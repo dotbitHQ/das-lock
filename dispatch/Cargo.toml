@@ -5,19 +5,16 @@ edition = "2021"
 
 [dependencies]
 blake2b-rs = {version = "0.2.0", default-features = false}
-ckb-std = { version = "0.13.0" }
-hex = { version = "0.4.3", default-features = false, features = ["alloc"]}
+ckb-std = { workspace = true }
+hex = { workspace = true, features = ["alloc"]}
 num_enum = { version = "0.7.2", default-features = false }
 strum = { default-features = false, features = ["derive"], version = "0.26.1" }
 strum_macros = "0.26.1"
-das-types = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, branch = "feat/did-cell" }
-das-core = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false,  branch = "feat/did-cell" }
-das-dynamic-libs = { git = "https://github.com/dotbitHQ/das-contracts-private.git", branch = "feat/did-cell" }
-witness-parser = { git = "https://github.com/dotbitHQ/das-contracts-private.git",  default-features = false,  branch = "feat/did-cell" }
-#das-types = { path = '../../das-contracts-private/libs/das-types', default-features = false }
-#das-core = {path = '../../das-contracts-private/libs/das-core', default-features = false}
-#das-dynamic-libs = { path = '../../das-contracts-private/libs/das-dynamic-libs', default-features = false }
-#witness-parser = { path = '../../das-contracts-private/libs/witness-parser', default-features = false }
+das-core = { workspace = true }
+das-types = { workspace = true }
+das-dynamic-libs = { workspace = true }
+config = { workspace = true, features = ["no_std"] }
+witness-parser = { workspace = true }
 
 [features]
 default = []

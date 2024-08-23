@@ -100,24 +100,52 @@ dependencies = [
 ]
 
 [[package]]
-name = "ckb-standalone-types"
-version = "0.1.5"
+name = "ckb-gen-types"
+version = "0.112.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5c776d70eb4f60a22a3180857646d77b2da8d33c0c4a063ad9f6610fc94609f"
+checksum = "4a12020d50dd3757cde0fdc88d3837b7a2ab503fe38bd11be86ddace11318c77"
 dependencies = [
  "cfg-if 1.0.0",
+ "ckb-hash",
  "molecule",
 ]
 
 [[package]]
-name = "ckb-std"
-version = "0.13.0"
+name = "ckb-hash"
+version = "0.112.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f54eab6dca547f2123a6d84c64da2414e5532263568e81899b9806ba21d7c8f"
+checksum = "25af660fc8746f7c756444e6aa47ede9a874206563b6a1ce1b230a5b86519392"
+dependencies = [
+ "blake2b-ref",
+]
+
+[[package]]
+name = "ckb-std"
+version = "0.15.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9357d9464ed36a8e542a7d588e894aff25ccb0cdd66221ac94e76bc69ca3ad55"
 dependencies = [
  "buddy-alloc",
  "cc",
- "ckb-standalone-types",
+ "ckb-gen-types",
+ "gcd",
+]
+
+[[package]]
+name = "config"
+version = "1.0.0"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=171756f#171756f638a427c5ba32a45a65caafe016183918"
+dependencies = [
+ "blake2b-ref",
+ "ckb-std",
+ "das-types",
+ "hex",
+ "log",
+ "molecule",
+ "num_enum",
+ "paste",
+ "strum",
+ "thiserror-no-std",
 ]
 
 [[package]]
@@ -154,65 +182,34 @@ checksum = "b365fabc795046672053e29c954733ec3b05e4be654ab130fe8f1f94d7051f35"
 [[package]]
 name = "das-core"
 version = "1.4.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell#79fc499e1b62bb315c0cb7963b840446a8ae50ac"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=171756f#171756f638a427c5ba32a45a65caafe016183918"
 dependencies = [
  "blake2b-ref",
  "chrono",
  "ckb-std",
- "das-dynamic-libs 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
- "das-map 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
- "das-types 1.11.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
- "eip712 1.1.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
+ "config",
+ "das-dynamic-libs",
+ "das-map",
+ "das-types",
+ "eip712",
  "hex",
  "libm",
  "molecule",
  "paste",
  "primitive-types",
- "simple-ast 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
+ "simple-ast",
  "sparse-merkle-tree",
- "witness-parser 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
-]
-
-[[package]]
-name = "das-core"
-version = "1.4.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2#b6255e148d975609101e7960c94fb3837648686e"
-dependencies = [
- "blake2b-ref",
- "chrono",
- "ckb-std",
- "das-dynamic-libs 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
- "das-map 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
- "das-types 1.11.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
- "eip712 1.1.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
- "hex",
- "libm",
- "molecule",
- "paste",
- "primitive-types",
- "simple-ast 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
- "sparse-merkle-tree",
- "witness-parser 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
+ "witness-parser",
 ]
 
 [[package]]
 name = "das-dynamic-libs"
 version = "1.0.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell#79fc499e1b62bb315c0cb7963b840446a8ae50ac"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=171756f#171756f638a427c5ba32a45a65caafe016183918"
 dependencies = [
  "blake2b-ref",
  "ckb-std",
- "das-types 1.11.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
-]
-
-[[package]]
-name = "das-dynamic-libs"
-version = "1.0.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2#b6255e148d975609101e7960c94fb3837648686e"
-dependencies = [
- "blake2b-ref",
- "ckb-std",
- "das-types 1.11.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
+ "das-types",
 ]
 
 [[package]]
@@ -227,16 +224,7 @@ dependencies = [
 [[package]]
 name = "das-map"
 version = "1.0.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell#79fc499e1b62bb315c0cb7963b840446a8ae50ac"
-dependencies = [
- "hex",
- "no-std-compat",
-]
-
-[[package]]
-name = "das-map"
-version = "1.0.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2#b6255e148d975609101e7960c94fb3837648686e"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=171756f#171756f638a427c5ba32a45a65caafe016183918"
 dependencies = [
  "hex",
  "no-std-compat",
@@ -245,7 +233,7 @@ dependencies = [
 [[package]]
 name = "das-types"
 version = "1.11.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell#79fc499e1b62bb315c0cb7963b840446a8ae50ac"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=171756f#171756f638a427c5ba32a45a65caafe016183918"
 dependencies = [
  "blake2b-ref",
  "ckb-std",
@@ -253,21 +241,7 @@ dependencies = [
  "hex",
  "molecule",
  "num_enum",
- "strum 0.25.0",
-]
-
-[[package]]
-name = "das-types"
-version = "1.11.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2#b6255e148d975609101e7960c94fb3837648686e"
-dependencies = [
- "blake2b-ref",
- "ckb-std",
- "dotenvy",
- "hex",
- "molecule",
- "num_enum",
- "strum 0.25.0",
+ "strum",
 ]
 
 [[package]]
@@ -286,14 +260,15 @@ version = "1.0.0"
 dependencies = [
  "blake2b-rs 0.2.0",
  "ckb-std",
- "das-core 1.4.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
- "das-dynamic-libs 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
- "das-types 1.11.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
+ "config",
+ "das-core",
+ "das-dynamic-libs",
+ "das-types",
  "hex",
  "num_enum",
- "strum 0.26.2",
- "strum_macros 0.26.2",
- "witness-parser 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
+ "strum",
+ "strum_macros",
+ "witness-parser",
 ]
 
 [[package]]
@@ -305,21 +280,7 @@ checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
 [[package]]
 name = "eip712"
 version = "1.1.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell#79fc499e1b62bb315c0cb7963b840446a8ae50ac"
-dependencies = [
- "bech32",
- "bs58",
- "dotenvy",
- "hex",
- "no-std-compat",
- "sha2",
- "tiny-keccak",
-]
-
-[[package]]
-name = "eip712"
-version = "1.1.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2#b6255e148d975609101e7960c94fb3837648686e"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=171756f#171756f638a427c5ba32a45a65caafe016183918"
 dependencies = [
  "bech32",
  "bs58",
@@ -335,13 +296,14 @@ name = "eip712-lib"
 version = "1.1.0"
 dependencies = [
  "ckb-std",
- "das-core 1.4.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
- "das-dynamic-libs 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
- "das-map 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
- "das-types 1.11.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
- "eip712 1.1.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
+ "config",
+ "das-core",
+ "das-dynamic-libs",
+ "das-map",
+ "das-types",
+ "eip712",
  "hex",
- "witness-parser 1.0.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
+ "witness-parser",
 ]
 
 [[package]]
@@ -352,6 +314,12 @@ checksum = "835c052cb0c08c1acf6ffd71c022172e18723949c8282f2b9f27efbc51e64534"
 dependencies = [
  "static_assertions",
 ]
+
+[[package]]
+name = "gcd"
+version = "2.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d758ba1b47b00caf47f24925c0074ecb20d6dfcffe7f6d53395c0465674841a"
 
 [[package]]
 name = "generic-array"
@@ -491,30 +459,15 @@ dependencies = [
 [[package]]
 name = "simple-ast"
 version = "1.0.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell#79fc499e1b62bb315c0cb7963b840446a8ae50ac"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=171756f#171756f638a427c5ba32a45a65caafe016183918"
 dependencies = [
  "blake2b-ref",
- "das-types 1.11.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
+ "das-types",
  "hex",
  "log",
  "num_enum",
  "paste",
- "strum 0.25.0",
- "thiserror-no-std",
-]
-
-[[package]]
-name = "simple-ast"
-version = "1.0.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2#b6255e148d975609101e7960c94fb3837648686e"
-dependencies = [
- "blake2b-ref",
- "das-types 1.11.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
- "hex",
- "log",
- "num_enum",
- "paste",
- "strum 0.25.0",
+ "strum",
  "thiserror-no-std",
 ]
 
@@ -537,33 +490,11 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "strum"
-version = "0.25.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "290d54ea6f91c969195bdbcd7442c8c2a2ba87da8bf60a7ee86a235d4bc1e125"
-dependencies = [
- "strum_macros 0.25.3",
-]
-
-[[package]]
-name = "strum"
 version = "0.26.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d8cec3501a5194c432b2b7976db6b7d10ec95c253208b45f83f7136aa985e29"
 dependencies = [
- "strum_macros 0.26.2",
-]
-
-[[package]]
-name = "strum_macros"
-version = "0.25.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23dc1fa9ac9c169a78ba62f0b841814b7abae11bdd047b9c58f893439e309ea0"
-dependencies = [
- "heck",
- "proc-macro2",
- "quote",
- "rustversion",
- "syn 2.0.59",
+ "strum_macros",
 ]
 
 [[package]]
@@ -663,33 +594,16 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 [[package]]
 name = "witness-parser"
 version = "1.0.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell#79fc499e1b62bb315c0cb7963b840446a8ae50ac"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=171756f#171756f638a427c5ba32a45a65caafe016183918"
 dependencies = [
  "blake2b-ref",
  "ckb-std",
- "das-types 1.11.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=feat/did-cell)",
+ "das-types",
  "hex",
  "log",
  "molecule",
  "num_enum",
  "paste",
- "strum 0.25.0",
- "thiserror-no-std",
-]
-
-[[package]]
-name = "witness-parser"
-version = "1.0.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2#b6255e148d975609101e7960c94fb3837648686e"
-dependencies = [
- "blake2b-ref",
- "ckb-std",
- "das-types 1.11.0 (git+https://github.com/dotbitHQ/das-contracts-private.git?branch=testnet2)",
- "hex",
- "log",
- "molecule",
- "num_enum",
- "paste",
- "strum 0.25.0",
+ "strum",
  "thiserror-no-std",
 ]

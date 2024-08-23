@@ -48,6 +48,8 @@ pub enum Error {
     WitnessStructureError,
     WitnessTooLarge,
     InvalidTransactionStructure, //40
+    LoadConfigCellError,
+    EIP712SignatureError,
 }
 
 impl From<SysError> for Error {

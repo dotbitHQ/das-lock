@@ -3,6 +3,7 @@ use alloc::collections::btree_map::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::{format, vec};
+use config::constants::FieldKey;
 use core::convert::{TryFrom, TryInto};
 use core::mem::size_of_val;
 
@@ -15,7 +16,7 @@ use das_core::data_parser::das_lock_args::get_manager_lock_args;
 use das_core::error::{Error, ErrorCode, ScriptError};
 use das_core::types::LockScriptTypeIdTable;
 use das_core::util::hex_string;
-use das_core::{data_parser, debug, sign_util, util};
+use das_core::{data_parser, debug, sign_util, util, warn};
 use das_dynamic_libs::sign_lib::SignLib;
 use das_dynamic_libs::{load_2_methods, new_context};
 use das_types::constants::{
@@ -24,20 +25,21 @@ use das_types::constants::{
 };
 use das_types::data_parser::das_lock_args::get_owner_lock_args;
 use das_types::packed as das_packed;
-use das_types::packed::{Bytes, HashReader, Reader};
+use das_types::packed::{Bytes, Reader};
 use eip712::eip712::{TypedDataV4, Value};
 use eip712::util::{
     to_doge_address, to_full_address, to_semantic_capacity, to_short_address, to_tron_address,
 };
 use eip712::{hash_data, typed_data_v4};
-use witness_parser::parsers::v1::witness_parser::WitnessesParser;
-use witness_parser::traits::WitnessQueryable;
+use witness_parser::WitnessesParserV1;
+use config::Config;
+
 const DATA_OMIT_SIZE: usize = 20;
 const PARAM_OMIT_SIZE: usize = 10;
 
 pub fn verify_eip712_hashes(
-    parser: &mut WitnessesParser,
-    tx_to_das_message: fn(parser: &mut WitnessesParser) -> Result<String, Box<dyn ScriptError>>,
+    parser: &mut WitnessesParserV1,
+    tx_to_das_message: fn(parser: &mut WitnessesParserV1) -> Result<String, Box<dyn ScriptError>>,
 ) -> Result<(), Box<dyn ScriptError>> {
     let das_action = parser.action;
     let required_role_opt = util::get_action_required_role(das_action);
@@ -52,13 +54,9 @@ pub fn verify_eip712_hashes(
         Action::AcceptOffer => 1,
         Action::BidExpiredAccountDutchAuction => {
             //todo: Maybe replace it with an all-0 check
-            let dp_cell_type_id = get_type_id(TypeScript::DPointCellType);
-            let dp_cell_type_id_reader = HashReader::from_slice(dp_cell_type_id.as_slice())
-                .expect("HashReader::from_slice failed");
-
             let input_dp_cells = util::find_cells_by_type_id(
                 ScriptType::Type,
-                dp_cell_type_id_reader,
+                get_type_id(FieldKey::DpointCellTypeArgs),
                 Source::Input,
             )?;
 
@@ -256,8 +254,8 @@ fn decode_hex(title: &str, hex_str: &str) -> Vec<u8> {
 }
 
 pub fn verify_eip712_hashes_if_has_das_lock(
-    parser: &mut WitnessesParser,
-    tx_to_das_message: fn(parser: &mut WitnessesParser) -> Result<String, Box<dyn ScriptError>>,
+    parser: &mut WitnessesParserV1,
+    tx_to_das_message: fn(parser: &mut WitnessesParserV1) -> Result<String, Box<dyn ScriptError>>,
 ) -> Result<(), Box<dyn ScriptError>> {
     let das_lock = das_lock();
     let input_cells = util::find_cells_by_type_id(
@@ -307,9 +305,9 @@ fn tx_to_digest(
 }
 
 pub fn tx_to_eip712_typed_data(
-    parser: &mut WitnessesParser,
+    parser: &mut WitnessesParserV1,
     chain_id: Vec<u8>,
-    tx_to_das_message: fn(parser: &mut WitnessesParser) -> Result<String, Box<dyn ScriptError>>,
+    tx_to_das_message: fn(parser: &mut WitnessesParserV1) -> Result<String, Box<dyn ScriptError>>,
 ) -> Result<TypedDataV4, Box<dyn ScriptError>> {
     let plain_text = tx_to_das_message(parser)?;
     let tx_action = to_typed_action(parser)?;
@@ -513,7 +511,7 @@ fn get_buy_account_action_params(input_data: &[u8]) -> BuyAccountParams {
         },
     }
 }
-fn to_typed_action(parser: &WitnessesParser) -> Result<Value, Box<dyn ScriptError>> {
+fn to_typed_action(parser: &WitnessesParserV1) -> Result<Value, Box<dyn ScriptError>> {
     let action = String::from_utf8(parser.get_action_data().action().raw_data().to_vec())
         .map_err(|_| ErrorCode::EIP712SerializationError)?;
     let mut params = Vec::new();
@@ -609,23 +607,28 @@ fn to_typed_action(parser: &WitnessesParser) -> Result<Value, Box<dyn ScriptErro
     }))
 }
 
-pub fn get_type_id(type_script: TypeScript) -> Vec<u8> {
-    let parser = WitnessesParser::get_instance();
-    parser
-        .get_type_id(type_script.clone())
+pub fn get_type_id(field_key: FieldKey) -> [u8; 32] {
+    let config_main = Config::get_instance().main()
         .map_err(|err| {
-            debug!(
-                "Error: witness parser get type id of {:?} failed, {:?}",
-                &type_script, err
+            warn!("Error: load data of ConfigCellMain failed: {:?}", err);
+
+            err
+        })
+        .unwrap();
+    config_main.get_type_id_of(field_key)
+        .map_err(|err| {
+            warn!(
+                "Error: get type id of {:?} failed, {:?}",
+                &field_key, err
             );
-            das_core::error::ErrorCode::WitnessDataDecodingError
+
+            err
         })
         .unwrap()
-        .to_vec()
-    //HashReader::from_slice(type_id.as_slice()).expect("HashReader::from_slice failed")
 }
+
 fn to_typed_cells(
-    parser: &mut WitnessesParser,
+    parser: &mut WitnessesParserV1,
     source: Source,
 ) -> Result<(u64, Value), Box<dyn ScriptError>> {
     let mut i = 0;
@@ -674,14 +677,8 @@ fn to_typed_cells(
                         let type_script_reader =
                             das_packed::ScriptReader::from(type_script.as_reader());
                         // Skip BalanceCells which has the type script named balance-cell-type.
-                        let balance_cell_type_id = get_type_id(TypeScript::BalanceCellType);
-                        let balance_cell_type_id_reader =
-                            HashReader::from_slice(balance_cell_type_id.as_slice())
-                                .expect("HashReader::from_slice failed");
-                        if util::is_reader_eq(
-                            type_script_reader.code_hash(),
-                            balance_cell_type_id_reader,
-                        ) {
+                        let balance_cell_type_id = get_type_id(FieldKey::BalanceCellTypeArgs);
+                        if type_script_reader.code_hash().raw_data() == &balance_cell_type_id {
                             i += 1;
                             continue;
                         }
@@ -690,14 +687,10 @@ fn to_typed_cells(
                             ScriptType::Type,
                             das_packed::ScriptReader::from(type_script.as_reader()),
                         );
-                        let account_cell_type_id = get_type_id(TypeScript::AccountCellType);
-                        let account_cell_type_id_reader =
-                            HashReader::from_slice(account_cell_type_id.as_slice())
-                                .expect("HashReader::from_slice failed");
-
+                        let account_cell_type_id = get_type_id(FieldKey::AccountCellTypeArgs);
                         match type_script_reader.code_hash() {
                             // Handle cells which with DAS type script.
-                            x if util::is_reader_eq(x, account_cell_type_id_reader) => {
+                            x if x.raw_data() == &account_cell_type_id => {
                                 extract_and_push!(
                                     to_semantic_account_cell_data,
                                     to_semantic_account_witness,
@@ -786,98 +779,59 @@ fn get_lock_script_type(script_reader: das_packed::ScriptReader) -> Option<LockS
     }
 }
 fn get_type_script_type(script_reader: das_packed::ScriptReader) -> Option<TypeScript> {
-    let apply_register_cell_type_id = get_type_id(TypeScript::ApplyRegisterCellType);
-    let account_cell_type_id = get_type_id(TypeScript::AccountCellType);
-    let account_sale_cell_type_id = get_type_id(TypeScript::AccountSaleCellType);
-    let account_auction_cell_type_id = get_type_id(TypeScript::AccountAuctionCellType);
-    let balance_cell_type_id = get_type_id(TypeScript::BalanceCellType);
-    let income_cell_type_id = get_type_id(TypeScript::IncomeCellType);
-    let offer_cell_type_id = get_type_id(TypeScript::OfferCellType);
-    let pre_account_cell_type_id = get_type_id(TypeScript::PreAccountCellType);
-    let proposal_cell_type_id = get_type_id(TypeScript::ProposalCellType);
-    let reverse_record_cell_type_id = get_type_id(TypeScript::ReverseRecordCellType);
-    let sub_account_cell_type_id = get_type_id(TypeScript::SubAccountCellType);
-    let reverse_record_root_cell_type_id = get_type_id(TypeScript::ReverseRecordRootCellType);
-    let dpoint_cell_type_id = get_type_id(TypeScript::DPointCellType);
-    let config_cell_type_id = get_type_id(TypeScript::ConfigCellType);
-
-    let apply_register_cell_type_id_reader =
-        HashReader::from_slice(apply_register_cell_type_id.as_slice())
-            .expect("HashReader::from_slice failed");
-    let account_cell_type_id_reader = HashReader::from_slice(account_cell_type_id.as_slice())
-        .expect("HashReader::from_slice failed");
-    let account_sale_cell_type_id_reader =
-        HashReader::from_slice(account_sale_cell_type_id.as_slice())
-            .expect("HashReader::from_slice failed");
-    let account_auction_cell_type_id_reader =
-        HashReader::from_slice(account_auction_cell_type_id.as_slice())
-            .expect("HashReader::from_slice failed");
-    let balance_cell_type_id_reader = HashReader::from_slice(balance_cell_type_id.as_slice())
-        .expect("HashReader::from_slice failed");
-    let income_cell_type_id_reader = HashReader::from_slice(income_cell_type_id.as_slice())
-        .expect("HashReader::from_slice failed");
-    let offer_cell_type_id_reader = HashReader::from_slice(offer_cell_type_id.as_slice())
-        .expect("HashReader::from_slice failed");
-    let pre_account_cell_type_id_reader =
-        HashReader::from_slice(pre_account_cell_type_id.as_slice())
-            .expect("HashReader::from_slice failed");
-    let proposal_cell_type_id_reader = HashReader::from_slice(proposal_cell_type_id.as_slice())
-        .expect("HashReader::from_slice failed");
-    let reverse_record_cell_type_id_reader =
-        HashReader::from_slice(reverse_record_cell_type_id.as_slice())
-            .expect("HashReader::from_slice failed");
-    let sub_account_cell_type_id_reader =
-        HashReader::from_slice(sub_account_cell_type_id.as_slice())
-            .expect("HashReader::from_slice failed");
-    let reverse_record_root_cell_type_id_reader =
-        HashReader::from_slice(reverse_record_root_cell_type_id.as_slice())
-            .expect("HashReader::from_slice failed");
-    let dpoint_cell_type_id_reader = HashReader::from_slice(dpoint_cell_type_id.as_slice())
-        .expect("HashReader::from_slice failed");
-    let config_cell_type_id_reader = HashReader::from_slice(config_cell_type_id.as_slice())
-        .expect("HashReader::from_slice failed");
+    let apply_register_cell_type_id = get_type_id(FieldKey::ApplyRegisterCellTypeArgs);
+    let account_cell_type_id = get_type_id(FieldKey::AccountCellTypeArgs);
+    let account_sale_cell_type_id = get_type_id(FieldKey::AccountSaleCellTypeArgs);
+    let balance_cell_type_id = get_type_id(FieldKey::BalanceCellTypeArgs);
+    let income_cell_type_id = get_type_id(FieldKey::IncomeCellTypeArgs);
+    let offer_cell_type_id = get_type_id(FieldKey::OfferCellTypeArgs);
+    let pre_account_cell_type_id = get_type_id(FieldKey::PreAccountCellTypeArgs);
+    let proposal_cell_type_id = get_type_id(FieldKey::ProposalCellTypeArgs);
+    let reverse_record_cell_type_id = get_type_id(FieldKey::ReverseRecordCellTypeArgs);
+    let sub_account_cell_type_id = get_type_id(FieldKey::SubAccountCellTypeArgs);
+    let reverse_record_root_cell_type_id = get_type_id(FieldKey::ReverseRecordRootCellTypeArgs);
+    let dpoint_cell_type_id = get_type_id(FieldKey::DpointCellTypeArgs);
+    let config_cell_type_id = get_type_id(FieldKey::ConfigCellTypeArgs);
 
     match script_reader.code_hash() {
-        x if util::is_reader_eq(x, apply_register_cell_type_id_reader) => {
+        x if x.raw_data() == &apply_register_cell_type_id => {
             Some(TypeScript::ApplyRegisterCellType)
         }
-        x if util::is_reader_eq(x, account_cell_type_id_reader) => {
+        x if x.raw_data() == &account_cell_type_id => {
             Some(TypeScript::AccountCellType)
         }
-        x if util::is_reader_eq(x, account_sale_cell_type_id_reader) => {
+        x if x.raw_data() == &account_sale_cell_type_id => {
             Some(TypeScript::AccountSaleCellType)
         }
-        x if util::is_reader_eq(x, account_auction_cell_type_id_reader) => {
-            Some(TypeScript::AccountAuctionCellType)
-        }
-        x if util::is_reader_eq(x, balance_cell_type_id_reader) => {
+        x if x.raw_data() == &balance_cell_type_id => {
             Some(TypeScript::BalanceCellType)
         }
-        x if util::is_reader_eq(x, income_cell_type_id_reader) => Some(TypeScript::IncomeCellType),
-        x if util::is_reader_eq(x, offer_cell_type_id_reader) => Some(TypeScript::OfferCellType),
-        x if util::is_reader_eq(x, pre_account_cell_type_id_reader) => {
+        x if x.raw_data() == &income_cell_type_id => Some(TypeScript::IncomeCellType),
+        x if x.raw_data() == &offer_cell_type_id => Some(TypeScript::OfferCellType),
+        x if x.raw_data() == &pre_account_cell_type_id => {
             Some(TypeScript::PreAccountCellType)
         }
 
-        x if util::is_reader_eq(x, proposal_cell_type_id_reader) => {
+        x if x.raw_data() == &proposal_cell_type_id => {
             Some(TypeScript::ProposalCellType)
         }
 
-        x if util::is_reader_eq(x, reverse_record_cell_type_id_reader) => {
+        x if x.raw_data() == &reverse_record_cell_type_id => {
             Some(TypeScript::ReverseRecordCellType)
         }
-        x if util::is_reader_eq(x, sub_account_cell_type_id_reader) => {
+        x if x.raw_data() == &sub_account_cell_type_id => {
             Some(TypeScript::SubAccountCellType)
         }
-        x if util::is_reader_eq(x, reverse_record_root_cell_type_id_reader) => {
+        x if x.raw_data() == &reverse_record_root_cell_type_id => {
             Some(TypeScript::ReverseRecordRootCellType)
         }
-        x if util::is_reader_eq(x, dpoint_cell_type_id_reader) => Some(TypeScript::DPointCellType),
-        x if util::is_reader_eq(x, config_cell_type_id_reader) => Some(TypeScript::ConfigCellType),
+        x if x.raw_data() == &dpoint_cell_type_id => Some(TypeScript::DPointCellType),
+        x if x.raw_data() == &config_cell_type_id => Some(TypeScript::ConfigCellType),
 
         _ => None,
     }
 }
+
 fn to_typed_script(script_type: ScriptType, script: das_packed::ScriptReader) -> String {
     let code_hash = if script_type == ScriptType::Lock {
         match get_lock_script_type(script) {
@@ -898,7 +852,6 @@ fn to_typed_script(script_type: ScriptType, script: das_packed::ScriptReader) ->
             Some(TypeScript::ApplyRegisterCellType) => String::from("apply-register-cell-type"),
             Some(TypeScript::AccountCellType) => String::from("account-cell-type"),
             Some(TypeScript::AccountSaleCellType) => String::from("account-sale-cell-type"),
-            Some(TypeScript::AccountAuctionCellType) => String::from("account-auction-cell-type"),
             Some(TypeScript::BalanceCellType) => String::from("balance-cell-type"),
             Some(TypeScript::ConfigCellType) => String::from("config-cell-type"),
             Some(TypeScript::IncomeCellType) => String::from("income-cell-type"),
@@ -908,6 +861,8 @@ fn to_typed_script(script_type: ScriptType, script: das_packed::ScriptReader) ->
             Some(TypeScript::ReverseRecordCellType) => String::from("reverse-record-cell-type"),
             Some(TypeScript::SubAccountCellType) => String::from("sub-account-cell-type"),
             Some(TypeScript::DPointCellType) => String::from("dpoint-cell-type"),
+            Some(TypeScript::DidCellType) => String::from("did-cell-type"),
+            Some(TypeScript::DeviceKeyListCellType) => String::from("device-key-list-cell-type"),
             _ => format!(
                 "0x{}...",
                 util::hex_string(&script.code_hash().raw_data().as_ref()[0..DATA_OMIT_SIZE])
@@ -952,7 +907,7 @@ fn to_semantic_account_cell_data(data_in_bytes: &[u8]) -> Result<String, Box<dyn
 }
 
 fn to_semantic_account_witness(
-    _parser: &mut WitnessesParser,
+    _parser: &mut WitnessesParserV1,
     _expected_hash: &[u8],
     _data_type: DataType,
     index: usize,
