@@ -3,7 +3,7 @@ extern crate alloc;
 use crate::constants::{get_dyn_lib_desc_info, get_type_id};
 use crate::error::Error;
 use crate::structures::{AlgId, LockArgs};
-use crate::tx_parser::{get_webauthn_lock_args_from_cell};
+use crate::tx_parser::get_webauthn_lock_args_from_cell;
 use crate::utils::generate_sighash_all::MAX_WITNESS_SIZE;
 use alloc::{collections::BTreeMap, ffi::NulError, fmt, vec, vec::Vec};
 use ckb_std::dynamic_loading_c_impl::{CKBDLContext, Library};
@@ -202,7 +202,6 @@ pub fn ckb_auth_dl(
     message_copy[0..message.len()].copy_from_slice(message);
     signature_copy[0..signature.len()].copy_from_slice(signature);
     payload_copy[0..payload.len()].copy_from_slice(payload);
-
 
     debug!("ckb entry code_hash: {:02x?}", entry.code_hash);
     debug!("ckb entry hash_type: {:?}", entry.hash_type as u8);

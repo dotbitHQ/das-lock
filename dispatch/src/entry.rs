@@ -20,7 +20,8 @@ use core::result::Result;
 use das_core::util::hex_string;
 
 use crate::constants::{
-    get_type_id, BLAKE160_SIZE, FLAGS_SIZE, HASH_SIZE, MAX_WITNESS_SIZE, ONE_BATCH_SIZE, RIPEMD160_HASH_SIZE, SCRIPT_SIZE, SIGNATURE_SIZE, SIZE_UINT64, WEBAUTHN_SIZE, WITNESS_ARGS_HEADER_LEN, WITNESS_ARGS_LOCK_LEN
+    get_type_id, BLAKE160_SIZE, FLAGS_SIZE, HASH_SIZE, MAX_WITNESS_SIZE, ONE_BATCH_SIZE, RIPEMD160_HASH_SIZE,
+    SCRIPT_SIZE, SIGNATURE_SIZE, SIZE_UINT64, WEBAUTHN_SIZE, WITNESS_ARGS_HEADER_LEN, WITNESS_ARGS_LOCK_LEN,
 };
 use ckb_std::debug;
 
@@ -32,10 +33,10 @@ use crate::utils::generate_sighash_all::{calculate_inputs_len, load_and_hash_wit
 use crate::utils::{bytes_to_u32_le, check_num_boundary, new_blake2b};
 use das_types::constants::{Action as DasAction, LockRole as Role};
 
-use crate::tx_parser::{init_witness_parser};
+use crate::tx_parser::init_witness_parser;
 use crate::validators::{
-    validate_for_fulfill_approval, validate_for_revoke_approval,
-    validate_for_update_reverse_record_root, validate_for_update_sub_account,
+    validate_for_fulfill_approval, validate_for_revoke_approval, validate_for_update_reverse_record_root,
+    validate_for_update_sub_account,
 };
 
 fn check_witness_das_header(data: &[u8]) -> Result<(), Error> {
@@ -442,8 +443,7 @@ pub fn check_if_has_assets_cell_in_inputs() -> bool {
 }
 pub fn check_no_other_cell_except_specified(some_type: FieldKey) -> CmdMatchStatus {
     debug!("Enter check_no_other_cell_except_account_cell");
-    let some_type_id =
-        get_type_id(some_type).expect(format!("cannot get type id of {:?}", some_type).as_str());
+    let some_type_id = get_type_id(some_type).expect(format!("cannot get type id of {:?}", some_type).as_str());
     let mut buf = [0u8; 100];
 
     for i in 0.. {

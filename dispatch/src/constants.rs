@@ -159,22 +159,17 @@ pub(crate) fn decode_hex(title: &str, hex_str: &str) -> Vec<u8> {
 }
 
 pub fn get_type_id(field_key: FieldKey) -> Result<[u8; 32], Error> {
-    let config_main = Config::get_instance().main()
-        .map_err(|err| {
-            warn!("Error: load data of ConfigCellMain failed: {:?}", err);
+    let config_main = Config::get_instance().main().map_err(|err| {
+        warn!("Error: load data of ConfigCellMain failed: {:?}", err);
 
-            Error::LoadConfigCellError
-        })?;
+        Error::LoadConfigCellError
+    })?;
 
-    config_main.get_type_id_of(field_key)
-        .map_err(|err| {
-            warn!(
-                "Error: get type id of {:?} failed, {:?}",
-                &field_key, err
-            );
+    config_main.get_type_id_of(field_key).map_err(|err| {
+        warn!("Error: get type id of {:?} failed, {:?}", &field_key, err);
 
-            Error::LoadConfigCellError
-        })
+        Error::LoadConfigCellError
+    })
 }
 
 #[allow(dead_code)]

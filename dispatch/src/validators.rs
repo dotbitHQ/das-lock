@@ -6,6 +6,7 @@ use alloc::vec::Vec;
 
 use ckb_std::ckb_constants::Source;
 use ckb_std::{debug, high_level};
+use config::constants::FieldKey;
 use core::ops::Index;
 use das_core::constants::{OracleCellType, ScriptType, ACCOUNT_SUFFIX};
 use das_core::error::{ErrorCode, ReverseRecordRootCellErrorCode, ScriptError};
@@ -16,15 +17,12 @@ use das_core::witness_parser::webauthn_signature::WebAuthnSignature;
 use das_core::{code_to_error, data_parser, sign_util, util, verifiers};
 use das_dynamic_libs::error::Error as DasDynamicLibError;
 use das_dynamic_libs::sign_lib::SignLib;
-use das_dynamic_libs::{
-    load_2_methods, load_3_methods, load_and_configure_lib, load_lib, log_loading, new_context,
-};
-use das_types::constants::{das_lock};
+use das_dynamic_libs::{load_2_methods, load_3_methods, load_and_configure_lib, load_lib, log_loading, new_context};
+use das_types::constants::das_lock;
 use das_types::constants::{DasLockType, LockRole};
 use das_types::packed::{Reader, ScriptReader};
-use config::constants::FieldKey;
 
-use crate::constants::{get_type_id};
+use crate::constants::get_type_id;
 use crate::dlopen::{dispatch, exec_eip712_lib};
 use crate::entry::check_no_other_cell_except_specified;
 use crate::error::Error;
@@ -176,10 +174,7 @@ pub fn reverse_record_root_cell_verify_sign(
     }
 }
 pub fn validate_if_has_other_cell_in_inputs_except_specified(cell_type: FieldKey) -> Result<i8, Error> {
-    debug!(
-        "Verify if there are other cells in inputs except the {:?}",
-        cell_type
-    );
+    debug!("Verify if there are other cells in inputs except the {:?}", cell_type);
     return if check_no_other_cell_except_specified(cell_type) == DasNotPureLockCell {
         debug!("There are some cells with the same lock, besides the account cell. Then verify the signature.");
         let (das_action, role) = crate::entry::get_action_and_role()?;
@@ -206,11 +201,7 @@ pub fn validate_for_fulfill_approval() -> Result<i8, Error> {
             })
             .unwrap();
 
-        approval_verify_sign(
-            "owner_lock",
-            owner_lock.as_reader().into(),
-            account_cell_index,
-        )?;
+        approval_verify_sign("owner_lock", owner_lock.as_reader().into(), account_cell_index)?;
 
         //WARNING: There was no algorithm type checking before.
         exec_eip712_lib().expect("exec_eip712_lib failed");
@@ -225,22 +216,16 @@ pub fn validate_for_revoke_approval() -> Result<i8, Error> {
     let platform_lock = input_approval_reader.platform_lock().to_entity();
     let input_account_cell_index = get_first_account_cell_index()?;
 
-    approval_verify_sign(
-        "platform_lock",
-        platform_lock.as_reader(),
-        input_account_cell_index,
-    )
-    .map_err(|e| {
-        debug!("revoke_approval_verify_sign error: {:?}", e);
-        return Error::ValidationFailure;
-    })
-    .unwrap();
+    approval_verify_sign("platform_lock", platform_lock.as_reader(), input_account_cell_index)
+        .map_err(|e| {
+            debug!("revoke_approval_verify_sign error: {:?}", e);
+            return Error::ValidationFailure;
+        })
+        .unwrap();
 
     validate_if_has_other_cell_in_inputs_except_specified(FieldKey::AccountCellTypeArgs)
 }
-pub fn approval_verify_sign(
-    lock_name: &str, sign_lock: ScriptReader, input_account_index: usize,
-) -> Result<(), Error> {
+pub fn approval_verify_sign(lock_name: &str, sign_lock: ScriptReader, input_account_index: usize) -> Result<(), Error> {
     debug!("Verify the signatures of {} ...", lock_name);
 
     let sign_type_int = data_parser::das_lock_args::get_owner_type(sign_lock.args().raw_data());
@@ -295,7 +280,6 @@ pub fn approval_verify_sign(
 
     Ok(())
 }
-
 
 pub fn validate_for_update_sub_account() -> Result<i8, Error> {
     debug!("Verify the signatures of SubAccountCell ...");
@@ -459,8 +443,11 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
 
     //This verification is both in type and lock
     if sign_verified {
-        let input_sender_balance_cells =
-            util::find_balance_cells(get_type_id(FieldKey::BalanceCellTypeArgs)?, sender_lock.as_reader(), Source::Input)?;
+        let input_sender_balance_cells = util::find_balance_cells(
+            get_type_id(FieldKey::BalanceCellTypeArgs)?,
+            sender_lock.as_reader(),
+            Source::Input,
+        )?;
 
         //It is allowed to use dp to pay fees, and other assets of das-lock are not allowed to appear in the input.
         verifiers::misc::verify_no_more_cells_with_same_lock_except_type(

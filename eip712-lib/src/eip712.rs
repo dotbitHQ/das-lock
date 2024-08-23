@@ -11,6 +11,7 @@ use ckb_std::ckb_constants::Source;
 use ckb_std::ckb_types::prelude::Unpack;
 use ckb_std::error::SysError;
 use ckb_std::high_level;
+use config::Config;
 use das_core::constants::{LockScript, ScriptHashType, ScriptType};
 use das_core::data_parser::das_lock_args::get_manager_lock_args;
 use das_core::error::{Error, ErrorCode, ScriptError};
@@ -32,7 +33,6 @@ use eip712::util::{
 };
 use eip712::{hash_data, typed_data_v4};
 use witness_parser::WitnessesParserV1;
-use config::Config;
 
 const DATA_OMIT_SIZE: usize = 20;
 const PARAM_OMIT_SIZE: usize = 10;
@@ -190,7 +190,6 @@ pub fn verify_eip712_hashes(
             debug!("payload_map = {:?}", payload_map.clone());
             let payload_copy = get_payload_by_index(payload_map.clone(), index)?;
 
-
             let signature = util::hex_string(&item.signature);
             let typed_data_hash = util::hex_string(&item.typed_data_hash);
 
@@ -239,7 +238,6 @@ fn get_payload_by_index(
         .find(|(_, v)| v.contains(idx))
         .map(|(k, _)| k)
         .ok_or(Box::from(ErrorCode::EIP712SignatureError))
-
 }
 fn decode_hex(title: &str, hex_str: &str) -> Vec<u8> {
     match hex::decode(hex_str) {
@@ -608,19 +606,18 @@ fn to_typed_action(parser: &WitnessesParserV1) -> Result<Value, Box<dyn ScriptEr
 }
 
 pub fn get_type_id(field_key: FieldKey) -> [u8; 32] {
-    let config_main = Config::get_instance().main()
+    let config_main = Config::get_instance()
+        .main()
         .map_err(|err| {
             warn!("Error: load data of ConfigCellMain failed: {:?}", err);
 
             err
         })
         .unwrap();
-    config_main.get_type_id_of(field_key)
+    config_main
+        .get_type_id_of(field_key)
         .map_err(|err| {
-            warn!(
-                "Error: get type id of {:?} failed, {:?}",
-                &field_key, err
-            );
+            warn!("Error: get type id of {:?} failed, {:?}", &field_key, err);
 
             err
         })
@@ -797,31 +794,19 @@ fn get_type_script_type(script_reader: das_packed::ScriptReader) -> Option<TypeS
         x if x.raw_data() == &apply_register_cell_type_id => {
             Some(TypeScript::ApplyRegisterCellType)
         }
-        x if x.raw_data() == &account_cell_type_id => {
-            Some(TypeScript::AccountCellType)
-        }
-        x if x.raw_data() == &account_sale_cell_type_id => {
-            Some(TypeScript::AccountSaleCellType)
-        }
-        x if x.raw_data() == &balance_cell_type_id => {
-            Some(TypeScript::BalanceCellType)
-        }
+        x if x.raw_data() == &account_cell_type_id => Some(TypeScript::AccountCellType),
+        x if x.raw_data() == &account_sale_cell_type_id => Some(TypeScript::AccountSaleCellType),
+        x if x.raw_data() == &balance_cell_type_id => Some(TypeScript::BalanceCellType),
         x if x.raw_data() == &income_cell_type_id => Some(TypeScript::IncomeCellType),
         x if x.raw_data() == &offer_cell_type_id => Some(TypeScript::OfferCellType),
-        x if x.raw_data() == &pre_account_cell_type_id => {
-            Some(TypeScript::PreAccountCellType)
-        }
+        x if x.raw_data() == &pre_account_cell_type_id => Some(TypeScript::PreAccountCellType),
 
-        x if x.raw_data() == &proposal_cell_type_id => {
-            Some(TypeScript::ProposalCellType)
-        }
+        x if x.raw_data() == &proposal_cell_type_id => Some(TypeScript::ProposalCellType),
 
         x if x.raw_data() == &reverse_record_cell_type_id => {
             Some(TypeScript::ReverseRecordCellType)
         }
-        x if x.raw_data() == &sub_account_cell_type_id => {
-            Some(TypeScript::SubAccountCellType)
-        }
+        x if x.raw_data() == &sub_account_cell_type_id => Some(TypeScript::SubAccountCellType),
         x if x.raw_data() == &reverse_record_root_cell_type_id => {
             Some(TypeScript::ReverseRecordRootCellType)
         }
