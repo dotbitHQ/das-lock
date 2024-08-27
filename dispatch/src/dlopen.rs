@@ -203,7 +203,7 @@ pub fn ckb_auth_dl(
     signature_copy[0..signature.len()].copy_from_slice(signature);
     payload_copy[0..payload.len()].copy_from_slice(payload);
 
-    debug!("ckb entry code_hash: {:02x?}", entry.code_hash);
+    debug!("ckb entry code_hash: 0x{}", encode(&entry.code_hash));
     debug!("ckb entry hash_type: {:?}", entry.hash_type as u8);
     debug!("ckb entry entry_category: {:?}", entry.entry_category as u8);
 

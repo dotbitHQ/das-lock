@@ -32,7 +32,7 @@ pub fn main() -> Result<(), Box<dyn ScriptError>> {
     parser
         .init()
         .map_err(|err| {
-            debug!("Error: witness parser init failed, {:?}", err);
+            warn!("Error: witness parser init failed, {:?}", err);
             das_core::error::ErrorCode::WitnessDataDecodingError
         })
         .unwrap();

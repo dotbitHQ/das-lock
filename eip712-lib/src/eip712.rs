@@ -16,7 +16,6 @@ use das_core::constants::{LockScript, ScriptHashType, ScriptType};
 use das_core::data_parser::das_lock_args::get_manager_lock_args;
 use das_core::error::{Error, ErrorCode, ScriptError};
 use das_core::types::LockScriptTypeIdTable;
-use das_core::util::hex_string;
 use das_core::{data_parser, debug, sign_util, util, warn};
 use das_dynamic_libs::sign_lib::SignLib;
 use das_dynamic_libs::{load_2_methods, new_context};
@@ -139,7 +138,7 @@ pub fn verify_eip712_hashes(
             for (k, v) in input_groups_idxs.clone() {
                 debug!(
                     "input_groups_idxs key = {}, value = {:?}",
-                    hex_string(k.as_slice()),
+                    util::hex_string(k.as_slice()),
                     v
                 );
             }
@@ -150,19 +149,9 @@ pub fn verify_eip712_hashes(
         let mut typed_data = tx_to_eip712_typed_data(parser, eip712_chain_id, tx_to_das_message)?;
         let mut sign_lib = SignLib::new();
         let mut eth_context = new_context!();
-        //todo: replace with get_type_id
-        let code_hash = if cfg!(any(feature = "testnet2", feature = "testnet3")) {
-            decode_hex(
-                "eth testnet type id",
-                "6d0f4c38ae82383c619b9752ed8140019aa49128e39d48b271239a668c40a174",
-            )
-        } else {
-            decode_hex(
-                "eth mainnet type id",
-                "6bbd5ca9bbdbe9a03f51329b2c6d06017ee2ae20546f724f70f79b8922a7d5b1",
-            )
-        };
-        debug!("eth type id = {}", hex_string(code_hash.as_slice()));
+        let code_hash = get_type_id(FieldKey::EthSignSoTypeArgs);
+        debug!("eth.so type id = {}", util::hex_string(code_hash.as_slice()));
+
         let hash_type = ScriptHashType::Type;
         let size = size_of_val(&eth_context);
         let lib = eth_context
@@ -181,7 +170,7 @@ pub fn verify_eip712_hashes(
                 "Calculated hash of EIP712 typed data with digest.(idx: {}, digest: 0x{}, hash: 0x{})",
                 index,
                 digest,
-                hex_string(&expected_hash)
+                util::hex_string(&expected_hash)
             );
 
             //call sign lib to verify signature
@@ -190,11 +179,11 @@ pub fn verify_eip712_hashes(
             debug!("payload_map = {:?}", payload_map.clone());
             let payload_copy = get_payload_by_index(payload_map.clone(), index)?;
 
-            let signature = util::hex_string(&item.signature);
-            let typed_data_hash = util::hex_string(&item.typed_data_hash);
+            let _signature = util::hex_string(&item.signature);
+            let _typed_data_hash = util::hex_string(&item.typed_data_hash);
 
             debug!("Prepare to validate signature, signature: 0x{}, typed_data_hash: 0x{}, payload: 0x{}",
-                signature, typed_data_hash, util::hex_string(&payload_copy));
+                _signature, _typed_data_hash, util::hex_string(&payload_copy));
 
             let type_ = 1;
             match sign_lib.validate(
@@ -208,7 +197,7 @@ pub fn verify_eip712_hashes(
                     debug!("SignLib::validate success");
                 }
                 Err(err) => {
-                    debug!("SignLib::validate failed, err: {:?}", err);
+                    warn!("SignLib::validate failed, err: {:?}", err);
                     return Err(Box::from(ErrorCode::EIP712SignatureError));
                 }
             }
@@ -238,17 +227,6 @@ fn get_payload_by_index(
         .find(|(_, v)| v.contains(idx))
         .map(|(k, _)| k)
         .ok_or(Box::from(ErrorCode::EIP712SignatureError))
-}
-fn decode_hex(title: &str, hex_str: &str) -> Vec<u8> {
-    match hex::decode(hex_str) {
-        Ok(v) => v,
-        Err(e) => {
-            panic!(
-                "decode hex ({}) error: {:?}, hex string = {}",
-                title, e, hex_str
-            );
-        }
-    }
 }
 
 pub fn verify_eip712_hashes_if_has_das_lock(
