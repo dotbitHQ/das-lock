@@ -7,13 +7,13 @@ members = [
 exclude = ["tests", "tools"]
 
 [workspace.dependencies]
-das-types = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, rev = "171756f" }
-das-map = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false,rev = "171756f" }
-das-core = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, rev = "171756f" }
-eip712 = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, rev = "171756f" }
-witness-parser = { git = "https://github.com/dotbitHQ/das-contracts-private.git",  default-features = false,  rev = "171756f" }
-config = { package = "config", git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, rev = "171756f" }
-das-dynamic-libs = { git = "https://github.com/dotbitHQ/das-contracts-private.git", rev = "171756f" }
+das-types = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, rev = "6799946" }
+das-map = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false,rev = "6799946" }
+das-core = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, rev = "6799946" }
+eip712 = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, rev = "6799946" }
+witness-parser = { git = "https://github.com/dotbitHQ/das-contracts-private.git",  default-features = false,  rev = "6799946" }
+config = { package = "config", git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, rev = "6799946" }
+das-dynamic-libs = { git = "https://github.com/dotbitHQ/das-contracts-private.git", rev = "6799946" }
 ckb-std = "0.15.0"
 ckb-types = { version = "0.116" }
 molecule = { version = "0.7", default-features = false }
