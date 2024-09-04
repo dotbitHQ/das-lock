@@ -1,18 +1,18 @@
 extern crate alloc;
 
-use crate::constants::get_dyn_lib_desc_info;
+use crate::constants::{get_dyn_lib_desc_info, get_type_id};
 use crate::error::Error;
 use crate::structures::{AlgId, LockArgs};
-use crate::tx_parser::{get_type_id_by_type_script, get_webauthn_lock_args_from_cell};
+use crate::tx_parser::get_webauthn_lock_args_from_cell;
 use crate::utils::generate_sighash_all::MAX_WITNESS_SIZE;
 use alloc::{collections::BTreeMap, ffi::NulError, fmt, vec, vec::Vec};
 use ckb_std::dynamic_loading_c_impl::{CKBDLContext, Library};
 use ckb_std::{ckb_types::core::ScriptHashType, debug, dynamic_loading_c_impl::Symbol, high_level, syscalls::SysError};
+use config::constants::FieldKey;
 use core::mem::size_of_val;
 use das_core::util::hex_string;
 use das_types::constants::Action as DasAction;
 use das_types::constants::LockRole as Role;
-use das_types::constants::TypeScript;
 use hex::encode;
 
 #[allow(dead_code)]
@@ -203,8 +203,7 @@ pub fn ckb_auth_dl(
     signature_copy[0..signature.len()].copy_from_slice(signature);
     payload_copy[0..payload.len()].copy_from_slice(payload);
 
-
-    debug!("ckb entry code_hash: {:02x?}", entry.code_hash);
+    debug!("ckb entry code_hash: 0x{}", encode(&entry.code_hash));
     debug!("ckb entry hash_type: {:?}", entry.hash_type as u8);
     debug!("ckb entry entry_category: {:?}", entry.entry_category as u8);
 
@@ -297,12 +296,12 @@ pub fn ckb_auth_dl(
 
 pub fn exec_eip712_lib() -> Result<i8, Error> {
     debug!("enter exec_eip712_lib");
-    let type_id = get_type_id_by_type_script(TypeScript::EIP712Lib)?;
+    let type_id = get_type_id(FieldKey::Eip712LibTypeArgs)?;
 
-    debug!("EIP712Lib type_id = {:?}", hex_string(type_id.as_slice()));
+    debug!("EIP712Lib type_id = {:?}", hex_string(&type_id));
 
     let argv = vec![]; //not needed for now
-    let _ = high_level::exec_cell(type_id.as_slice(), ScriptHashType::Type, 0, 0, &*argv)
+    let _ = high_level::exec_cell(&type_id, ScriptHashType::Type, &*argv)
         .map_err(|err| {
             //note: exec_cell never returns
             let e: Error = err.into();

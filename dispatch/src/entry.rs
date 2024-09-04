@@ -14,13 +14,14 @@ use ckb_std::{
     high_level::{load_cell_lock_hash, load_script, load_script_hash, load_tx_hash},
     syscalls::{load_cell_by_field, load_witness, SysError},
 };
+use config::constants::FieldKey;
 use core::convert::TryFrom;
 use core::result::Result;
 use das_core::util::hex_string;
 
 use crate::constants::{
-    BLAKE160_SIZE, FLAGS_SIZE, HASH_SIZE, MAX_WITNESS_SIZE, ONE_BATCH_SIZE, RIPEMD160_HASH_SIZE, SCRIPT_SIZE,
-    SIGNATURE_SIZE, SIZE_UINT64, WEBAUTHN_SIZE, WITNESS_ARGS_HEADER_LEN, WITNESS_ARGS_LOCK_LEN,
+    get_type_id, BLAKE160_SIZE, FLAGS_SIZE, HASH_SIZE, MAX_WITNESS_SIZE, ONE_BATCH_SIZE, RIPEMD160_HASH_SIZE,
+    SCRIPT_SIZE, SIGNATURE_SIZE, SIZE_UINT64, WEBAUTHN_SIZE, WITNESS_ARGS_HEADER_LEN, WITNESS_ARGS_LOCK_LEN,
 };
 use ckb_std::debug;
 
@@ -30,13 +31,12 @@ use crate::structures::MatchStatus::{Match, MisMatch};
 use crate::structures::{AlgId, CmdMatchStatus, LockArgs, MatchStatus, SignInfo, SignatureCheck};
 use crate::utils::generate_sighash_all::{calculate_inputs_len, load_and_hash_witness};
 use crate::utils::{bytes_to_u32_le, check_num_boundary, new_blake2b};
-use das_types::constants::TypeScript::DPointCellType;
-use das_types::constants::{Action as DasAction, LockRole as Role, TypeScript};
+use das_types::constants::{Action as DasAction, LockRole as Role};
 
-use crate::tx_parser::{get_type_id_by_type_script, init_witness_parser};
+use crate::tx_parser::init_witness_parser;
 use crate::validators::{
-    validate_for_fulfill_approval, validate_for_revoke_approval,
-    validate_for_update_reverse_record_root, validate_for_update_sub_account,
+    validate_for_fulfill_approval, validate_for_revoke_approval, validate_for_update_reverse_record_root,
+    validate_for_update_sub_account,
 };
 
 fn check_witness_das_header(data: &[u8]) -> Result<(), Error> {
@@ -184,15 +184,14 @@ fn get_self_index_in_inputs() -> Result<usize, Error> {
 }
 
 fn get_first_dp_cell_lock_hash() -> Result<Vec<u8>, Error> {
-    let dp_cell_type_id = get_type_id_by_type_script(TypeScript::DPointCellType)?;
-    debug!("dp_cell_type_id = {:02x?}", dp_cell_type_id);
+    let dp_cell_type_id = get_type_id(FieldKey::DpointCellTypeArgs)?;
 
     let index = find_cell(|i| match load_cell_type(i, Source::Input) {
         Ok(type_script) => {
             if let Some(type_script) = type_script {
                 let type_args = type_script.code_hash().raw_data().to_vec();
                 debug!("{} type_args = {:02x?}", i, type_args);
-                Ok(type_args == dp_cell_type_id)
+                Ok(&type_args == &dp_cell_type_id)
             } else {
                 Ok(false)
             }
@@ -222,7 +221,7 @@ fn check_skip_dynamic_library_signature_verification_for_bid_expired_auction() -
     let current_lock_script_hash = load_cell_lock_hash(script_index, Source::Input)?.to_vec();
 
     //dp-cell-type ensures that the locks of all dp cells in inputs are the same.
-    let account_cell_type_id = get_type_id_by_type_script(TypeScript::AccountCellType)?;
+    let account_cell_type_id = get_type_id(FieldKey::AccountCellTypeArgs)?;
     let dp_cell_lock_hash = get_first_dp_cell_lock_hash()?;
 
     debug!(
@@ -234,10 +233,10 @@ fn check_skip_dynamic_library_signature_verification_for_bid_expired_auction() -
         "current_type_script_args = {}",
         hex_string(current_type_script_args.as_slice())
     );
-    debug!("account_cell_type_id = {}", hex_string(account_cell_type_id.as_slice()));
+    debug!("account_cell_type_id = {}", hex_string(&account_cell_type_id));
 
     let no_other_cell_in_same_group =
-        check_no_other_cell_except_specified(TypeScript::AccountCellType) == DasPureLockCell;
+        check_no_other_cell_except_specified(FieldKey::AccountCellTypeArgs) == DasPureLockCell;
     debug!("no_other_cell_in_same_group = {:?}", no_other_cell_in_same_group);
 
     //Signature verification can be skipped only if the following three conditions are met.
@@ -246,7 +245,7 @@ fn check_skip_dynamic_library_signature_verification_for_bid_expired_auction() -
     //3. There are no other cells in the same group
 
     if current_lock_script_hash != dp_cell_lock_hash
-        && current_type_script_args == account_cell_type_id
+        && &current_type_script_args == &account_cell_type_id
         && no_other_cell_in_same_group
     {
         debug!("jump over the signature verification of the Dutch auction");
@@ -255,12 +254,13 @@ fn check_skip_dynamic_library_signature_verification_for_bid_expired_auction() -
 
     Ok(SignatureCheck::Required)
 }
-fn check_cell_is_specified_type(cell_idx: usize, expect_type: TypeScript) -> Result<MatchStatus, Error> {
+
+fn check_cell_is_specified_type(cell_idx: usize, expect_type: FieldKey) -> Result<MatchStatus, Error> {
     debug!(
         "Check whether the type of cell with index {} is {:?}.",
         cell_idx, expect_type
     );
-    let some_type_id = get_type_id_by_type_script(expect_type)?;
+    let some_type_id = get_type_id(expect_type)?;
     let mut temp = [0u8; SCRIPT_SIZE];
     let read_len = load_cell_by_field(&mut temp, 0, cell_idx, Source::Input, CellField::Type)?;
 
@@ -271,9 +271,9 @@ fn check_cell_is_specified_type(cell_idx: usize, expect_type: TypeScript) -> Res
             return Err(Error::InvalidMolecule);
         }
     };
-    let code_hash = script.code_hash().unpack();
+    let code_hash = script.as_reader().code_hash().raw_data();
 
-    return if some_type_id == code_hash {
+    return if &some_type_id == code_hash {
         Ok(Match)
     } else {
         Ok(MisMatch)
@@ -282,12 +282,12 @@ fn check_cell_is_specified_type(cell_idx: usize, expect_type: TypeScript) -> Res
 
 fn check_the_first_input_cell_must_be_reverse_record_root_cell() -> Result<MatchStatus, Error> {
     debug!("Check whether the first inputs cell is ReverseRecordRootCell.");
-    check_cell_is_specified_type(0, TypeScript::ReverseRecordRootCellType)
+    check_cell_is_specified_type(0, FieldKey::ReverseRecordRootCellTypeArgs)
 }
 
 fn check_the_first_input_cell_must_be_sub_account_type_script() -> Result<MatchStatus, Error> {
     debug!("Check whether the first inputs cell is SubAccountCell.");
-    check_cell_is_specified_type(0, TypeScript::SubAccountCellType)
+    check_cell_is_specified_type(0, FieldKey::SubAccountCellTypeArgs)
 }
 
 pub(crate) fn get_plain_and_cipher(alg_id: AlgId) -> Result<SignInfo, Error> {
@@ -411,8 +411,8 @@ pub(crate) fn get_plain_and_cipher(alg_id: AlgId) -> Result<SignInfo, Error> {
 pub fn check_if_has_assets_cell_in_inputs() -> bool {
     debug!("Enter check_no_other_assets");
     //for now, we only have two types of cells that can be used as assets cells, did point cell and balance cell.
-    let did_point_type_id = get_type_id_by_type_script(DPointCellType).expect("cannot get did point type id");
-    let balance_type_id = get_type_id_by_type_script(TypeScript::BalanceCellType).expect("cannot get balance type id");
+    let did_point_type_id = get_type_id(FieldKey::DidCellTypeArgs).expect("cannot get did point type id");
+    let balance_type_id = get_type_id(FieldKey::BalanceCellTypeArgs).expect("cannot get balance type id");
 
     let mut buf = [0u8; 100];
     for i in 0.. {
@@ -433,7 +433,7 @@ pub fn check_if_has_assets_cell_in_inputs() -> bool {
         );
 
         let type_id = &buf[16..16 + HASH_SIZE];
-        if type_id == did_point_type_id || type_id == balance_type_id {
+        if type_id == &did_point_type_id || type_id == &balance_type_id {
             return true;
         } else {
             continue;
@@ -441,10 +441,9 @@ pub fn check_if_has_assets_cell_in_inputs() -> bool {
     }
     false
 }
-pub fn check_no_other_cell_except_specified(some_type: TypeScript) -> CmdMatchStatus {
+pub fn check_no_other_cell_except_specified(some_type: FieldKey) -> CmdMatchStatus {
     debug!("Enter check_no_other_cell_except_account_cell");
-    let some_type_id =
-        get_type_id_by_type_script(some_type).expect(format!("cannot get type id of {:?}", some_type).as_str());
+    let some_type_id = get_type_id(some_type).expect(format!("cannot get type id of {:?}", some_type).as_str());
     let mut buf = [0u8; 100];
 
     for i in 0.. {
@@ -464,7 +463,7 @@ pub fn check_no_other_cell_except_specified(some_type: TypeScript) -> CmdMatchSt
             hex_string(&buf[16..])
         );
         //debug_assert_eq!(len, buf.len());
-        if some_type_id == &buf[16..16 + HASH_SIZE] {
+        if &some_type_id == &buf[16..16 + HASH_SIZE] {
             continue;
         } else {
             return DasNotPureLockCell;
@@ -482,7 +481,7 @@ fn check_skip_sign(action: &DasAction) -> SignatureCheck {
     // }
     match action {
         DasAction::ConfirmProposal | DasAction::RenewAccount | DasAction::RecycleExpiredAccount => {
-            if DasNotPureLockCell == check_no_other_cell_except_specified(TypeScript::AccountCellType) {
+            if DasNotPureLockCell == check_no_other_cell_except_specified(FieldKey::AccountCellTypeArgs) {
                 debug!("Cannot skip signature verification because there are other cells besides the account cell in the same group of inputs cells.");
                 return SignatureCheck::Required;
             }

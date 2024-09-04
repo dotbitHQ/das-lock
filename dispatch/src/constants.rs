@@ -3,12 +3,10 @@ use crate::error::Error;
 use crate::structures::AlgId;
 use alloc::vec::Vec;
 use ckb_std::ckb_types::core::ScriptHashType;
-use ckb_std::debug;
 
-use das_types::constants::DataType;
-use das_types::packed::ConfigCellMain;
-use witness_parser::traits::WitnessQueryable;
-use witness_parser::WitnessesParserV1;
+use config::constants::FieldKey;
+use config::Config;
+use das_core::warn;
 
 #[cfg(test)]
 use crate::test_framework::Testable;
@@ -160,29 +158,20 @@ pub(crate) fn decode_hex(title: &str, hex_str: &str) -> Vec<u8> {
     }
 }
 
-pub fn get_config_cell_main() -> Result<ConfigCellMain, Error> {
-    let witness_parser = WitnessesParserV1::get_instance();
-    if !witness_parser.is_inited() {
-        debug!("WitnessesParserV1::init() start");
-        witness_parser
-            .init()
-            .map_err(|err| {
-                debug!("Error: witness parser init failed, {:?}", err);
-                Error::LoadWitnessError
-            })
-            .unwrap();
-        debug!("WitnessesParserV1::init() success");
-    } else {
-        debug!("WitnessesParserV1::init() already inited");
-    }
-    match witness_parser.get_entity_by_data_type::<ConfigCellMain>(DataType::ConfigCellMain) {
-        Ok(config) => Ok(config),
-        Err(e) => {
-            debug!("get_config_cell_main error: {:?}", e);
-            Err(Error::LoadWitnessError)
-        }
-    }
+pub fn get_type_id(field_key: FieldKey) -> Result<[u8; 32], Error> {
+    let config_main = Config::get_instance().main().map_err(|err| {
+        warn!("Error: load data of ConfigCellMain failed: {:?}", err);
+
+        Error::LoadConfigCellError
+    })?;
+
+    config_main.get_type_id_of(field_key).map_err(|err| {
+        warn!("Error: get type id of {:?} failed, {:?}", &field_key, err);
+
+        Error::LoadConfigCellError
+    })
 }
+
 #[allow(dead_code)]
 fn checksum(s: &str) -> u32 {
     s.as_bytes().iter().map(|&b| b as u32).sum()

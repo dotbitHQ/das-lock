@@ -81,10 +81,10 @@ function build() {
 
   if [[ $is_release == true ]]; then
     rust_flags="${rust_flags} ${COMPILING_RELEASE_FLAGS}"
-    command="RUSTFLAGS=\"${rust_flags}\" cargo build --release --features \"${feature}\" --target ${COMPILING_TARGET}"
+    command="RUSTFLAGS=\"${rust_flags}\" cargo build --release --no-default-features --features \"${feature}\" --target ${COMPILING_TARGET}"
     profile="release"
   else
-    command="RUSTFLAGS=\"${rust_flags}\" cargo build --features \"${feature}\" --target ${COMPILING_TARGET}"
+    command="RUSTFLAGS=\"${rust_flags}\" cargo build --no-default-features --features \"${feature}\" --target ${COMPILING_TARGET}"
     echo "Run build command: "$command
 
     # Build debug version
@@ -133,16 +133,20 @@ function switch_target_dir() {
   if [[ $expected == "docker" ]]; then
     if [[ -d target ]]; then
       mv target target_host
+      mv rust-toolchain.toml rust-toolchain_host.toml
     fi
     if [[ -d target_docker ]]; then
       mv target_docker target
+      mv rust-toolchain_docker.toml rust-toolchain.toml
     fi
   else
     if [[ -d target ]]; then
       mv target target_docker
+      mv rust-toolchain.toml rust-toolchain_docker.toml
     fi
     if [[ -d target_host ]]; then
       mv target_host target
+      mv rust-toolchain_host.toml rust-toolchain.toml
     fi
   fi
 }

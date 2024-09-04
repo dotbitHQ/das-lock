@@ -7,14 +7,17 @@ members = [
 exclude = ["tests", "tools"]
 
 [workspace.dependencies]
-das-types = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, branch = "master" }
-das-map = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false,branch = "master" }
-das-core = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, branch = "master" }
-ckb-std = "0.13.0"
-ckb-types = { version = "=0.108.0" }
+das-types = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, rev = "6799946" }
+das-map = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false,rev = "6799946" }
+das-core = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, rev = "6799946" }
+eip712 = { git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, rev = "6799946" }
+witness-parser = { git = "https://github.com/dotbitHQ/das-contracts-private.git",  default-features = false,  rev = "6799946" }
+config = { package = "config", git = "https://github.com/dotbitHQ/das-contracts-private.git", default-features = false, rev = "6799946" }
+das-dynamic-libs = { git = "https://github.com/dotbitHQ/das-contracts-private.git", rev = "6799946" }
+ckb-std = "0.15.0"
+ckb-types = { version = "0.116" }
 molecule = { version = "0.7", default-features = false }
 hex = { default-features = false, version = "0.4.2" }
-
 
 [profile.release]
 overflow-checks = true

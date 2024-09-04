@@ -1,10 +1,8 @@
 use alloc::fmt;
 use alloc::vec::Vec;
+
 use das_types::constants::LockRole as Role;
 use num_enum::TryFromPrimitive;
-
-use das_dynamic_libs::constants::DynLibName;
-
 use strum_macros::Display;
 
 #[derive(Debug, PartialEq)]
@@ -65,23 +63,6 @@ pub enum AlgId {
     WebAuthn = 8,
 }
 
-impl Into<DynLibName> for AlgId {
-    fn into(self) -> DynLibName {
-        match self {
-            AlgId::Ckb => DynLibName::CKBSignhash,
-            AlgId::CkbMultiSig => DynLibName::CKBMultisig,
-            AlgId::AlwaysSuccess => {
-                unreachable!()
-            }
-            AlgId::Eth => DynLibName::ETH,
-            AlgId::Tron => DynLibName::TRON,
-            AlgId::Eip712 => DynLibName::ETH,
-            AlgId::Ed25519 => DynLibName::ED25519,
-            AlgId::DogeCoin => DynLibName::DOGE,
-            AlgId::WebAuthn => DynLibName::WebAuthn,
-        }
-    }
-}
 impl Into<&'static str> for AlgId {
     fn into(self) -> &'static str {
         match self {

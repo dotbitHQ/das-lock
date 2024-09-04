@@ -1,18 +1,12 @@
-use crate::constants::get_config_cell_main;
-use crate::dlopen::{dispatch, exec_eip712_lib};
-use crate::entry::check_no_other_cell_except_specified;
-use crate::error::Error;
-use crate::structures::CmdMatchStatus::DasNotPureLockCell;
-use crate::sub_account::SubAction;
-use crate::tx_parser::{get_first_account_cell_index, get_input_approval, get_type_id_by_type_script};
 use alloc::borrow::ToOwned;
 use alloc::boxed::Box;
 use alloc::string::ToString;
 use alloc::vec;
 use alloc::vec::Vec;
+
 use ckb_std::ckb_constants::Source;
-use ckb_std::ckb_types::prelude::Entity;
 use ckb_std::{debug, high_level};
+use config::constants::FieldKey;
 use core::ops::Index;
 use das_core::constants::{OracleCellType, ScriptType, ACCOUNT_SUFFIX};
 use das_core::error::{ErrorCode, ReverseRecordRootCellErrorCode, ScriptError};
@@ -21,30 +15,37 @@ use das_core::witness_parser::reverse_record::{ReverseRecordWitness, ReverseReco
 use das_core::witness_parser::sub_account::{SubAccountMintSignWitness, SubAccountWitnessesParser};
 use das_core::witness_parser::webauthn_signature::WebAuthnSignature;
 use das_core::{code_to_error, data_parser, sign_util, util, verifiers};
-use das_dynamic_libs::constants::DynLibName;
 use das_dynamic_libs::error::Error as DasDynamicLibError;
 use das_dynamic_libs::sign_lib::SignLib;
-use das_dynamic_libs::{
-    load_1_method, load_2_methods, load_3_methods, load_and_configure_lib, load_lib, log_loading, new_context,
-};
-use das_types::constants::{das_lock, TypeScript};
+use das_dynamic_libs::{load_2_methods, load_3_methods, load_and_configure_lib, load_lib, log_loading, new_context};
+use das_types::constants::das_lock;
 use das_types::constants::{DasLockType, LockRole};
-use das_types::packed::{DasLockTypeIdTableReader, Hash, Reader, ScriptReader};
+use das_types::packed::{Reader, ScriptReader};
+
+use crate::constants::get_type_id;
+use crate::dlopen::{dispatch, exec_eip712_lib};
+use crate::entry::check_no_other_cell_except_specified;
+use crate::error::Error;
+use crate::structures::CmdMatchStatus::DasNotPureLockCell;
+use crate::sub_account::SubAction;
+use crate::tx_parser::{get_first_account_cell_index, get_input_approval};
 
 pub fn validate_for_update_reverse_record_root() -> Result<i8, Error> {
     debug!("Verify the signatures of ReverseRecordRootCell ...");
 
-    let config_main = get_config_cell_main()?;
-    let config_main_reader = config_main.as_reader();
-    let type_id_table = config_main_reader.das_lock_type_id_table();
     let mut sign_lib = SignLib::new();
-    load_and_configure_lib!(sign_lib, ETH, type_id_table, eth, load_2_methods);
-    load_and_configure_lib!(sign_lib, TRON, type_id_table, tron, load_2_methods);
-    load_and_configure_lib!(sign_lib, DOGE, type_id_table, doge, load_2_methods);
-    load_and_configure_lib!(sign_lib, WebAuthn, type_id_table, web_authn, load_3_methods);
-    load_and_configure_lib!(sign_lib, BTC, type_id_table, btc, load_2_methods);
+    let eth_so_type_id = get_type_id(FieldKey::EthSignSoTypeArgs)?;
+    let tron_so_type_id = get_type_id(FieldKey::TronSignSoTypeArgs)?;
+    let doge_so_type_id = get_type_id(FieldKey::DogeSignSoTypeArgs)?;
+    let webauthn_so_type_id = get_type_id(FieldKey::WebauthnSignSoTypeArgs)?;
+    let btc_so_type_id = get_type_id(FieldKey::BtcSignSoTypeArgs)?;
+    load_and_configure_lib!(sign_lib, "ETH", eth_so_type_id, eth, load_2_methods);
+    load_and_configure_lib!(sign_lib, "TRON", tron_so_type_id, tron, load_2_methods);
+    load_and_configure_lib!(sign_lib, "DOGE", doge_so_type_id, doge, load_2_methods);
+    load_and_configure_lib!(sign_lib, "WebAuthn", webauthn_so_type_id, web_authn, load_3_methods);
+    load_and_configure_lib!(sign_lib, "BTC", btc_so_type_id, btc, load_2_methods);
 
-    let reverse_witness_parser = ReverseRecordWitnessesParser::new(&config_main_reader)
+    let reverse_witness_parser = ReverseRecordWitnessesParser::new()
         .map_err(|e| {
             debug!("ReverseRecordWitnessesParser error: {:?}", e);
             return Error::WitnessError;
@@ -89,7 +90,7 @@ pub fn reverse_record_root_cell_verify_sign(
         | DasLockType::ETHTypedData
         | DasLockType::TRON
         | DasLockType::Doge
-        | DasLockType::WebAuthn 
+        | DasLockType::WebAuthn
         | DasLockType::BTC => witness.sign_type,
         _ => {
             debug!(
@@ -172,11 +173,8 @@ pub fn reverse_record_root_cell_verify_sign(
         }
     }
 }
-pub fn validate_if_has_other_cell_in_inputs_except_specified(cell_type: TypeScript) -> Result<i8, Error> {
-    debug!(
-        "Verify if there are other cells in inputs except the {}",
-        cell_type.to_string()
-    );
+pub fn validate_if_has_other_cell_in_inputs_except_specified(cell_type: FieldKey) -> Result<i8, Error> {
+    debug!("Verify if there are other cells in inputs except the {:?}", cell_type);
     return if check_no_other_cell_except_specified(cell_type) == DasNotPureLockCell {
         debug!("There are some cells with the same lock, besides the account cell. Then verify the signature.");
         let (das_action, role) = crate::entry::get_action_and_role()?;
@@ -202,20 +200,14 @@ pub fn validate_for_fulfill_approval() -> Result<i8, Error> {
                 return Error::InvalidWitnessArgsLock;
             })
             .unwrap();
-        let config_cell_main = get_config_cell_main()?;
-        let config_cell_main_reader = config_cell_main.as_reader();
 
-        approval_verify_sign(
-            "owner_lock",
-            owner_lock.as_reader().into(),
-            account_cell_index,
-            config_cell_main_reader.das_lock_type_id_table(),
-        )?;
+        approval_verify_sign("owner_lock", owner_lock.as_reader().into(), account_cell_index)?;
+
         //WARNING: There was no algorithm type checking before.
         exec_eip712_lib().expect("exec_eip712_lib failed");
     }
 
-    validate_if_has_other_cell_in_inputs_except_specified(TypeScript::AccountCellType)
+    validate_if_has_other_cell_in_inputs_except_specified(FieldKey::AccountCellTypeArgs)
 }
 pub fn validate_for_revoke_approval() -> Result<i8, Error> {
     let input_approval = get_input_approval()?;
@@ -224,33 +216,23 @@ pub fn validate_for_revoke_approval() -> Result<i8, Error> {
     let platform_lock = input_approval_reader.platform_lock().to_entity();
     let input_account_cell_index = get_first_account_cell_index()?;
 
-    let config_cell_main = get_config_cell_main()?;
-    let config_cell_main_reader = config_cell_main.as_reader();
+    approval_verify_sign("platform_lock", platform_lock.as_reader(), input_account_cell_index)
+        .map_err(|e| {
+            debug!("revoke_approval_verify_sign error: {:?}", e);
+            return Error::ValidationFailure;
+        })
+        .unwrap();
 
-    approval_verify_sign(
-        "platform_lock",
-        platform_lock.as_reader(),
-        input_account_cell_index,
-        config_cell_main_reader.das_lock_type_id_table(),
-    )
-    .map_err(|e| {
-        debug!("revoke_approval_verify_sign error: {:?}", e);
-        return Error::ValidationFailure;
-    })
-    .unwrap();
-
-    validate_if_has_other_cell_in_inputs_except_specified(TypeScript::AccountCellType)
+    validate_if_has_other_cell_in_inputs_except_specified(FieldKey::AccountCellTypeArgs)
 }
-pub fn approval_verify_sign(
-    lock_name: &str, sign_lock: ScriptReader, input_account_index: usize, type_id_table: DasLockTypeIdTableReader,
-) -> Result<(), Box<dyn ScriptError>> {
+pub fn approval_verify_sign(lock_name: &str, sign_lock: ScriptReader, input_account_index: usize) -> Result<(), Error> {
     debug!("Verify the signatures of {} ...", lock_name);
 
     let sign_type_int = data_parser::das_lock_args::get_owner_type(sign_lock.args().raw_data());
     let args = data_parser::das_lock_args::get_owner_lock_args(sign_lock.args().raw_data());
     let sign_type = DasLockType::try_from(sign_type_int).map_err(|_| {
         debug!("inputs[{}] Invalid sign type: {}", input_account_index, sign_type_int);
-        code_to_error!(ErrorCode::InvalidTransactionStructure)
+        Error::InvalidTransactionStructure
     })?;
 
     let type_no = if sign_type == DasLockType::ETHTypedData {
@@ -262,10 +244,14 @@ pub fn approval_verify_sign(
     let mut sign_lib = SignLib::new();
 
     if cfg!(not(feature = "dev")) {
-        load_and_configure_lib!(sign_lib, ETH, type_id_table, eth, load_2_methods);
-        load_and_configure_lib!(sign_lib, TRON, type_id_table, tron, load_2_methods);
-        load_and_configure_lib!(sign_lib, DOGE, type_id_table, doge, load_2_methods);
-        load_and_configure_lib!(sign_lib, WebAuthn, type_id_table, web_authn, load_3_methods);
+        let eth_so_type_id = get_type_id(FieldKey::EthSignSoTypeArgs)?;
+        let tron_so_type_id = get_type_id(FieldKey::TronSignSoTypeArgs)?;
+        let doge_so_type_id = get_type_id(FieldKey::DogeSignSoTypeArgs)?;
+        let webauthn_so_type_id = get_type_id(FieldKey::WebauthnSignSoTypeArgs)?;
+        load_and_configure_lib!(sign_lib, "ETH", eth_so_type_id, eth, load_2_methods);
+        load_and_configure_lib!(sign_lib, "TRON", tron_so_type_id, tron, load_2_methods);
+        load_and_configure_lib!(sign_lib, "DOGE", doge_so_type_id, doge, load_2_methods);
+        load_and_configure_lib!(sign_lib, "WebAuthn", webauthn_so_type_id, web_authn, load_3_methods);
 
         let (digest, witness_args_lock) = if sign_type == DasLockType::ETHTypedData {
             let (_, _, digest, _, witness_args_lock) = sign_util::get_eip712_digest(vec![input_account_index])?;
@@ -288,28 +274,27 @@ pub fn approval_verify_sign(
                     "inputs[{}] Verify signature failed, error code: {}",
                     input_account_index, err_code
                 );
-                return ErrorCode::EIP712SignatureError;
+                return Error::EIP712SignatureError;
             })?;
     }
 
     Ok(())
 }
 
-
 pub fn validate_for_update_sub_account() -> Result<i8, Error> {
     debug!("Verify the signatures of SubAccountCell ...");
 
-    let config_main_origin = get_config_cell_main()?;
-    let config_main = config_main_origin.as_reader();
-    let type_id_table = config_main.das_lock_type_id_table();
     let mut sign_lib = SignLib::new();
+    let eth_so_type_id = get_type_id(FieldKey::EthSignSoTypeArgs)?;
+    let tron_so_type_id = get_type_id(FieldKey::TronSignSoTypeArgs)?;
+    let doge_so_type_id = get_type_id(FieldKey::DogeSignSoTypeArgs)?;
+    let webauthn_so_type_id = get_type_id(FieldKey::WebauthnSignSoTypeArgs)?;
+    load_and_configure_lib!(sign_lib, "ETH", eth_so_type_id, eth, load_2_methods);
+    load_and_configure_lib!(sign_lib, "TRON", tron_so_type_id, tron, load_2_methods);
+    load_and_configure_lib!(sign_lib, "DOGE", doge_so_type_id, doge, load_2_methods);
+    load_and_configure_lib!(sign_lib, "WebAuthn", webauthn_so_type_id, web_authn, load_3_methods);
 
-    load_and_configure_lib!(sign_lib, ETH, type_id_table, eth, load_2_methods);
-    load_and_configure_lib!(sign_lib, TRON, type_id_table, tron, load_2_methods);
-    load_and_configure_lib!(sign_lib, DOGE, type_id_table, doge, load_2_methods);
-    load_and_configure_lib!(sign_lib, WebAuthn, type_id_table, web_authn, load_3_methods);
-
-    let sub_account_type_id = get_type_id_by_type_script(TypeScript::SubAccountCellType)?;
+    let sub_account_type_id = get_type_id(FieldKey::SubAccountCellTypeArgs)?;
     debug!(
         "The type_id of SubAccountCell is {}.",
         hex_string(sub_account_type_id.as_slice())
@@ -319,7 +304,7 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
     debug!("Check if there is only one SubAccountCell in inputs.");
     let sub_account_cell_index = find_only_cell_by_type_id(
         ScriptType::Type,
-        Hash::from_slice(sub_account_type_id.as_slice()).unwrap().as_reader(),
+        get_type_id(FieldKey::SubAccountCellTypeArgs)?,
         Source::Input,
     )?;
 
@@ -336,23 +321,21 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
     };
     debug!("The flag of SubAccountCell is {:?}.", flag);
 
-    let sub_account_parser = SubAccountWitnessesParser::new(flag, &config_main)?;
+    let sub_account_parser = SubAccountWitnessesParser::new(flag)?;
 
-    //let mut mint_sign_role: Option<LockRole> = None;
-    let dep_account_cells = util::find_cells_by_type_id(
-        ScriptType::Type,
-        config_main.type_id_table().account_cell(),
-        Source::CellDep,
-    )?;
-    debug!("dep_account_cells.len() = {}", dep_account_cells.len());
-
-    let account_cell_index = dep_account_cells[0];
     let account_cell_source = Source::CellDep;
     let dep_account_cells = util::find_cells_by_type_id(
         ScriptType::Type,
-        config_main.type_id_table().account_cell(),
-        Source::CellDep,
+        get_type_id(FieldKey::AccountCellTypeArgs)?,
+        account_cell_source,
     )?;
+
+    if dep_account_cells.len() == 0 {
+        debug!("There should be only one AccountCell in cell_deps.");
+        return Err(Error::InvalidTransactionStructure);
+    }
+
+    let account_cell_index = dep_account_cells[0];
     let account_cell_witness = util::parse_account_cell_witness(dep_account_cells[0], Source::CellDep)?;
     let account_cell_reader = account_cell_witness.as_reader();
     let parent_account_name = account_cell_reader.account().as_readable();
@@ -460,19 +443,18 @@ pub fn validate_for_update_sub_account() -> Result<i8, Error> {
 
     //This verification is both in type and lock
     if sign_verified {
-        let config_main = get_config_cell_main()?;
-        let config_main_reader = config_main.as_reader();
-        let dpoint_type_id = config_main_reader.type_id_table().dpoint_cell();
-        //let dpoint_type_id = parser.configs.main()?.type_id_table().dpoint_cell();
-        let input_sender_balance_cells =
-            util::find_balance_cells(config_main_reader, sender_lock.as_reader(), Source::Input)?;
+        let input_sender_balance_cells = util::find_balance_cells(
+            get_type_id(FieldKey::BalanceCellTypeArgs)?,
+            sender_lock.as_reader(),
+            Source::Input,
+        )?;
 
         //It is allowed to use dp to pay fees, and other assets of das-lock are not allowed to appear in the input.
         verifiers::misc::verify_no_more_cells_with_same_lock_except_type(
             sender_lock.as_reader(),
             &input_sender_balance_cells,
             Source::Input,
-            dpoint_type_id,
+            get_type_id(FieldKey::DpointCellTypeArgs)?,
         )?;
 
         let input_sender_cells = util::find_cells_by_script(ScriptType::Lock, sender_lock.as_reader(), Source::Input)?;

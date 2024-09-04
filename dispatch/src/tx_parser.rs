@@ -1,3 +1,4 @@
+use crate::constants::get_type_id;
 use crate::error::Error;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
@@ -5,6 +6,7 @@ use ckb_std::ckb_constants::Source;
 use ckb_std::ckb_constants::Source::{CellDep, Input};
 use ckb_std::ckb_types::prelude::Reader;
 use ckb_std::debug;
+use config::constants::FieldKey;
 use witness_parser::WitnessesParserV1;
 
 use crate::structures::{AlgId, LockArgs, SignInfo};
@@ -13,54 +15,18 @@ use das_core::traits::Blake2BHash;
 use das_core::util;
 use das_core::util::{find_only_cell_by_type_id, hex_string};
 use das_core::witness_parser::device_key_list::get_device_key_list_cells;
-use das_types::constants::{DataType, TypeScript};
+use das_types::constants::DataType;
 use das_types::mixer::AccountCellDataMixer;
+use das_types::packed::AccountApprovalTransfer;
 use das_types::packed::{self as das_packed};
-use das_types::packed::{AccountApprovalTransfer, Hash};
 use das_types::prelude::Entity;
 use witness_parser::traits::WitnessQueryable;
 use witness_parser::types::CellMeta;
 
-pub fn get_type_id_by_type_script(type_script: TypeScript) -> Result<Vec<u8>, Error> {
-    debug!("Try to get WitnessParser instance.");
-    let parser = WitnessesParserV1::get_instance();
-    if !parser.is_inited() {
-        parser
-            .init()
-            .map_err(|err| {
-                debug!("Error: WitnessParser init failed, {:?}", err);
-                das_core::error::ErrorCode::WitnessDataDecodingError
-            })
-            .unwrap();
-        debug!("WitnessParser initialization successful.");
-    } else {
-        debug!("WitnessParser already initialized.");
-    }
-    debug!("Get WitnessParser instance.");
-
-    debug!("Prepare to get the type id of {:?}", &type_script);
-    let type_id = parser
-        .get_type_id(type_script.clone())
-        .map_err(|err| {
-            debug!(
-                "Error: witness parser get type id of {:?} failed, {:?}",
-                &type_script, err
-            );
-            das_core::error::ErrorCode::WitnessDataDecodingError
-        })
-        .unwrap();
-
-    debug!("{:?} type id is {:?}", &type_script, hex_string(&type_id));
-
-    let type_id_vec = type_id.to_vec();
-    Ok(type_id_vec)
-}
-
 pub fn get_first_account_cell_index() -> Result<usize, Error> {
-    let account_cell_type_id = get_type_id_by_type_script(TypeScript::AccountCellType)?;
     let index = find_only_cell_by_type_id(
         ScriptType::Type,
-        Hash::from_slice(account_cell_type_id.as_slice()).unwrap().as_reader(),
+        get_type_id(FieldKey::AccountCellTypeArgs)?,
         Source::Input,
     )?;
     Ok(index)
@@ -119,7 +85,7 @@ pub fn init_witness_parser() -> Result<(), Error> {
 }
 
 fn find_device_key_list_cells() -> (Option<Vec<usize>>, bool) {
-    let device_key_list_type_id = get_type_id_by_type_script(TypeScript::DeviceKeyListCellType)
+    let device_key_list_type_id = get_type_id(FieldKey::DeviceKeyListCellTypeArgs)
         .map_err(|e| {
             debug!("Error: get_type_id_by_type_script failed, {:?}", e);
             return (Option::<Vec<usize>>::None, false);
