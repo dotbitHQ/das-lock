@@ -45,12 +45,6 @@ pub fn verify_eip712_hashes(
     let das_lock = das_lock();
     let das_lock_reader = das_lock.as_reader();
     let mut i = match das_action {
-        // In buy_account transaction, the inputs[0] and inputs[1] is belong to sellers, because buyers have paid enough, so we do not need
-        // their signature here.
-        Action::BuyAccount => 2,
-        // In accept_offer transaction, the inputs[0] is belong to buyer, because it is seller to send this transaction for accepting offer,
-        // so we do not need the buyer's signature here.
-        Action::AcceptOffer => 1,
         Action::BidExpiredAccountDutchAuction => {
             //todo: Maybe replace it with an all-0 check
             let input_dp_cells = util::find_cells_by_type_id(
