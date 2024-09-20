@@ -134,7 +134,7 @@ dependencies = [
 [[package]]
 name = "config"
 version = "1.0.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=84e069d#84e069d2e0b43cc4750eeeedefda998e207264a2"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=6799946#67999466802d3f07a0caf648ff1eab1f468680fb"
 dependencies = [
  "blake2b-ref",
  "ckb-std",
@@ -182,7 +182,7 @@ checksum = "b365fabc795046672053e29c954733ec3b05e4be654ab130fe8f1f94d7051f35"
 [[package]]
 name = "das-core"
 version = "1.4.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=84e069d#84e069d2e0b43cc4750eeeedefda998e207264a2"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=6799946#67999466802d3f07a0caf648ff1eab1f468680fb"
 dependencies = [
  "blake2b-ref",
  "chrono",
@@ -205,7 +205,7 @@ dependencies = [
 [[package]]
 name = "das-dynamic-libs"
 version = "1.0.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=84e069d#84e069d2e0b43cc4750eeeedefda998e207264a2"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=6799946#67999466802d3f07a0caf648ff1eab1f468680fb"
 dependencies = [
  "blake2b-ref",
  "ckb-std",
@@ -224,7 +224,7 @@ dependencies = [
 [[package]]
 name = "das-map"
 version = "1.0.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=84e069d#84e069d2e0b43cc4750eeeedefda998e207264a2"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=6799946#67999466802d3f07a0caf648ff1eab1f468680fb"
 dependencies = [
  "hex",
  "no-std-compat",
@@ -233,7 +233,7 @@ dependencies = [
 [[package]]
 name = "das-types"
 version = "1.11.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=84e069d#84e069d2e0b43cc4750eeeedefda998e207264a2"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=6799946#67999466802d3f07a0caf648ff1eab1f468680fb"
 dependencies = [
  "blake2b-ref",
  "ckb-std",
@@ -280,7 +280,7 @@ checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
 [[package]]
 name = "eip712"
 version = "1.1.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=84e069d#84e069d2e0b43cc4750eeeedefda998e207264a2"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=6799946#67999466802d3f07a0caf648ff1eab1f468680fb"
 dependencies = [
  "bech32",
  "bs58",
@@ -459,7 +459,7 @@ dependencies = [
 [[package]]
 name = "simple-ast"
 version = "1.0.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=84e069d#84e069d2e0b43cc4750eeeedefda998e207264a2"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=6799946#67999466802d3f07a0caf648ff1eab1f468680fb"
 dependencies = [
  "blake2b-ref",
  "das-types",
@@ -594,7 +594,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 [[package]]
 name = "witness-parser"
 version = "1.0.0"
-source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=84e069d#84e069d2e0b43cc4750eeeedefda998e207264a2"
+source = "git+https://github.com/dotbitHQ/das-contracts-private.git?rev=6799946#67999466802d3f07a0caf648ff1eab1f468680fb"
 dependencies = [
  "blake2b-ref",
  "ckb-std",
