@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Docker image name
-DOCKER_IMAGE="dotbitteam/ckb-dev-all-in-one:0.0.1"
+DOCKER_IMAGE="dylanweb3/ckb-dev-all-in-one:0.0.5"
 COMPILING_TARGET="riscv64imac-unknown-none-elf"
 COMPILING_FLAGS="-Z pre-link-arg=-zseparate-code -Z pre-link-arg=-zseparate-loadable-segments"
 COMPILING_RELEASE_FLAGS="-C link-arg=-s"
@@ -137,12 +137,12 @@ function switch_target_dir() {
     fi
     if [[ -d target_docker ]]; then
       mv target_docker target
-      mv rust-toolchain_docker.toml rust-toolchain.toml
+      # mv rust-toolchain_docker.toml rust-toolchain.toml
     fi
   else
     if [[ -d target ]]; then
       mv target target_docker
-      mv rust-toolchain.toml rust-toolchain_docker.toml
+      # mv rust-toolchain.toml rust-toolchain_docker.toml
     fi
     if [[ -d target_host ]]; then
       mv target_host target

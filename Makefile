@@ -1,5 +1,5 @@
 # Compiler & tools settings
-TARGET := riscv64-unknown-linux-gnu
+TARGET := riscv64-unknown-elf
 CC := $(TARGET)-gcc
 LD := $(TARGET)-gcc
 OBJCOPY := $(TARGET)-objcopy
@@ -17,7 +17,7 @@ CFLAGS_LIBECC := -fPIC -O3 -fno-builtin -DUSER_NN_BIT_LEN=256 -DWORDSIZE=64 -DWI
 CFLAGS_LINK_TO_LIBECC := -fno-builtin -DWORDSIZE=64 -DWITH_STDLIB -DWITH_BLANK_EXTERNAL_DEPENDENCIES -fno-builtin-printf -I ${LIBECC_PATH}/src -I ${LIBECC_PATH}/src/external_deps
 
 # Docker settings
-BUILDER_DOCKER := dotbitteam/ckb-dev-all-in-one:0.0.1
+BUILDER_DOCKER := dylanweb3/ckb-dev-all-in-one:0.0.5
 CODE_DIR_DOCKER := /code
 
 # Define a function for Docker run
@@ -38,17 +38,9 @@ PROTOCOL_URL := https://raw.githubusercontent.com/nervosnetwork/ckb/${PROTOCOL_V
 CKB_BINARY_PATCHER_PATH = ./tools/ckb-binary-patcher/target/release/ckb-binary-patcher
 
 # Target aliases
-contract_entry := dispatch
-rust_libs := eip712-lib
 dyn_libs := ckb_sign tron_sign eth_sign ed25519_sign ckb_multi_sign doge_sign btc_sign
 webauthn_lib := webauthn_sign
 NET_TYPE ?= testnet2 #note: use testnet2 by default
-
-contract_entry_targets = $(foreach file, $(contract_entry), release_$(file) debug_$(file))
-contract_entry_files = $(foreach file, $(contract_entry), build/release/$(file) build/debug/$(file))
-
-rust_libs_targets = $(foreach file, $(rust_libs), release_$(file) debug_$(file))
-rust_libs_files = $(foreach file, $(rust_libs), build/release/$(file) build/debug/$(file))
 
 all_libs := $(dyn_libs) $(webauthn_lib)
 dyn_lib_targets = $(foreach file, $(dyn_libs), release_$(file) debug_$(file))
@@ -69,53 +61,16 @@ all-via-docker: ${PROTOCOL_HEADER} install-ckb-binary-patcher
 	@${DOCKER_RUN_CMD} "cd ${CODE_DIR_DOCKER} && make all CFLAGS='$(CFLAGS)'"
 
 debug-all: DEBUG_FLAGS = -DCKB_C_STDLIB_PRINTF
-debug-all: $(filter debug_%, $(contract_entry_targets)) $(filter debug_%, $(rust_libs_targets)) $(filter debug_%, $(dyn_lib_targets)) $(filter debug_%, $(webauthn_lib_targets))
+debug-all: $(filter debug_%, $(dyn_lib_targets)) $(filter debug_%, $(webauthn_lib_targets))
 
 all: release-all
-release-all: $(filter release_%, $(contract_entry_targets)) $(filter release_%, $(rust_libs_targets)) $(filter release_%, $(dyn_lib_targets)) $(filter release_%, $(webauthn_lib_targets))
+release-all: $(filter release_%, $(dyn_lib_targets)) $(filter release_%, $(webauthn_lib_targets))
 
 # Add DEBUG flags, if target is release, the DEBUG_FLAGS is empty
 debug_%: DEBUG_FLAGS = -DCKB_C_STDLIB_PRINTF
 
 # Target aliases
-$(contract_entry) $(dyn_libs): %: release_%
-
-# Target to actual output file
-$(filter debug_%, $(contract_entry_targets)): debug_%: build/debug/%
-$(filter release_%, $(contract_entry_targets)): release_%: build/release/%
-
-
-# Compile the dispatch binary
-# Specify output file dependencies
-$(filter build/debug/%, $(contract_entry_files)): build/debug/%:
-	@#note: If cflags is not commented out, an error will be reported when compiling smt.
-	@echo "make $@"
-	cd dispatch && CFLAGS="" RUSTFLAGS="$(RUST_FLAGS)" cargo build --features "$(NET_TYPE)" --target $(RUST_TARGET)
-	cp target/$(RUST_TARGET)/debug/dispatch $@
-
-$(filter build/release/%, $(contract_entry_files)): build/release/%:
-	@echo "make $@"
-	cd dispatch && CFLAGS="" RUSTFLAGS="$(RUST_FLAGS)" COMPILING_RELEASE_FLAGS="-C link-arg=-s" cargo build --features "$(NET_TYPE)" --target $(RUST_TARGET) --release
-	cp target/$(RUST_TARGET)/release/dispatch $@
-
-
-# Target to actual output file
-$(filter debug_%, $(rust_libs_targets)): debug_%: build/debug/%
-$(filter release_%, $(rust_libs_targets)): release_%: build/release/%
-
-# Compile the eip712-lib
-# Specify output file dependencies
-$(filter build/debug/%, $(rust_libs_files)): build/debug/%:
-	@#note: If cflags is not commented out, an error will be reported when compiling smt.
-	@echo "make $@"
-	cd eip712-lib && CFLAGS="" RUSTFLAGS="$(RUST_FLAGS)" cargo build --features "testnet" --target $(RUST_TARGET)
-	cp target/$(RUST_TARGET)/debug/eip712-lib $@
-
-$(filter build/release/%, $(rust_libs_files)): build/release/%:
-	@echo "make $@"
-	cd eip712-lib && CFLAGS="" RUSTFLAGS="$(RUST_FLAGS)" cargo build --features "mainnet" --target $(RUST_TARGET) --release
-	cp target/$(RUST_TARGET)/release/eip712-lib $@
-
+$(dyn_libs): %: release_%
 
 # Compile the dynamic libraries
 # Target to actual output file
@@ -209,7 +164,6 @@ pull-docker-image:
 	docker pull ${BUILDER_DOCKER}
 
 clean:
-	cd dispatch && cargo clean
 	cd das-lock-lib && cargo clean
 	#cd deps/libecc-riscv-optimized && make clean
 	rm -rf build/release/*
