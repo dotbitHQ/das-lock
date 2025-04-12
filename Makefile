@@ -17,17 +17,17 @@ CFLAGS_LIBECC := -fPIC -O3 -fno-builtin -DUSER_NN_BIT_LEN=256 -DWORDSIZE=64 -DWI
 CFLAGS_LINK_TO_LIBECC := -fno-builtin -DWORDSIZE=64 -DWITH_STDLIB -DWITH_BLANK_EXTERNAL_DEPENDENCIES -fno-builtin-printf -I ${LIBECC_PATH}/src -I ${LIBECC_PATH}/src/external_deps
 
 # Docker settings
-BUILDER_DOCKER := dotbitteam/ckb-dev-all-in-one:0.0.1
+# BUILDER_DOCKER := dotbitteam/ckb-dev-all-in-one:0.0.1
 CODE_DIR_DOCKER := /code
+
+DOCKER_CONTAINER := capsule-dev$(shell pwd | sed 's/\//_/g')
 
 # Define a function for Docker run
 define DOCKER_RUN_CMD
-	docker run --rm \
-	-v `pwd`:/code \
-	-v ~/.gitconfig:/root/.gitconfig:ro \
-	-v ~/.cargo:/root/.cargo \
+	docker exec \
 	-e NET_TYPE=${NET_TYPE} \
-	${BUILDER_DOCKER} bash -c
+	${DOCKER_CONTAINER} \
+	bash -c
 endef
 
 PROTOCOL_HEADER := c/protocol.h
@@ -108,12 +108,12 @@ $(filter release_%, $(rust_libs_targets)): release_%: build/release/%
 $(filter build/debug/%, $(rust_libs_files)): build/debug/%:
 	@#note: If cflags is not commented out, an error will be reported when compiling smt.
 	@echo "make $@"
-	cd eip712-lib && CFLAGS="" RUSTFLAGS="$(RUST_FLAGS)" cargo build --features "testnet" --target $(RUST_TARGET)
+	cd eip712-lib && CFLAGS="" RUSTFLAGS="$(RUST_FLAGS)" cargo build --features "$(NET_TYPE)" --target $(RUST_TARGET)
 	cp target/$(RUST_TARGET)/debug/eip712-lib $@
 
 $(filter build/release/%, $(rust_libs_files)): build/release/%:
 	@echo "make $@"
-	cd eip712-lib && CFLAGS="" RUSTFLAGS="$(RUST_FLAGS)" cargo build --features "mainnet" --target $(RUST_TARGET) --release
+	cd eip712-lib && CFLAGS="" RUSTFLAGS="$(RUST_FLAGS)" cargo build --features "$(NET_TYPE)" --target $(RUST_TARGET) --release
 	cp target/$(RUST_TARGET)/release/eip712-lib $@
 
 
